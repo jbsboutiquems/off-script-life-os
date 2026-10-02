@@ -1,5 +1,12 @@
 // AI Studio client helper. Calls ONLY our own /api/studio/* endpoints —
 // the client NEVER talks to Google directly and never sees GEMINI_API_KEY.
+//
+// Generative endpoints (music/image/video/transcribe) additionally send the
+// X-AI-Consent header when the user has granted Google Gemini consent. The
+// server refuses those calls without it; declining consent never breaks the
+// rest of the app.
+import { aiConsentHeaders } from '../../services/aiConsent';
+
 const TOKEN_KEY = 'lifeos:auth:token';
 
 export class StudioNotConfiguredError extends Error {
@@ -7,6 +14,14 @@ export class StudioNotConfiguredError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'StudioNotConfiguredError';
+  }
+}
+
+export class AiConsentRequiredError extends Error {
+  code = 'AI_CONSENT_REQUIRED';
+  constructor(message: string) {
+    super(message);
+    this.name = 'AiConsentRequiredError';
   }
 }
 
@@ -21,6 +36,7 @@ function getToken(): string | null {
 async function studioReq(path: string, options: RequestInit = {}): Promise<any> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...aiConsentHeaders(),
     ...((options.headers as Record<string, string>) || {})
   };
   const token = getToken();
@@ -31,6 +47,14 @@ async function studioReq(path: string, options: RequestInit = {}): Promise<any> 
     throw new StudioNotConfiguredError(
       body.error || 'AI Studio is not configured on this server yet.'
     );
+  }
+  if (res.status === 403) {
+    const body = await res.json().catch(() => ({}));
+    if (body.code === 'AI_CONSENT_REQUIRED') {
+      throw new AiConsentRequiredError(
+        body.error || 'Google Gemini needs your OK first.'
+      );
+    }
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -99,7 +123,10 @@ export const studioApi = {
 
   /** Downloads via the server proxy; returns an object URL. */
   async downloadVideo(operationName: string): Promise<string> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...aiConsentHeaders()
+    };
     const token = getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch('/api/studio/video/download', {

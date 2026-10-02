@@ -35,7 +35,15 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
-
+    <!-- Permissions: only what the app genuinely uses. INTERNET for the API;
+         CAMERA for QR pack scanning (UnlockScreen); RECORD_AUDIO for voice-note
+         transcription (AI Studio). The in-app permission gate explains these on
+         first launch; denial never blocks the app. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Camera is optional hardware: don't filter out camera-less devices. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 </manifest>

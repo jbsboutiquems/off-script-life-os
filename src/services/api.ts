@@ -1,5 +1,6 @@
 import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, ChaosPointEntry, ChaosPointAction, CHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
 import { DueReminder } from '../lib/reminders';
+import { aiConsentHeaders } from './aiConsent';
 
 // ================= Auth + session =================
 
@@ -680,8 +681,11 @@ export const api = {
     user_profile?: UserProfile;
   }): Promise<PersonalitySnapshot> {
     try {
+      // The server only runs its Gemini fallback when this header says the
+      // user consented; without it, diagnose falls back to the local engine.
       const res = await req('/api/diagnose', {
         method: 'POST',
+        headers: aiConsentHeaders(),
         body: JSON.stringify(params)
       });
       if (res.ok) {

@@ -33,6 +33,8 @@ import { FrontMatterView } from './components/frontmatter';
 import { AiStudioView } from './components/studio/AiStudioView';
 import { InstallBanner } from './components/InstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { AiConsentGate } from './components/AiConsentGate';
+import { AndroidPermissionGate } from './components/AndroidPermissionGate';
 import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
 import { ChevronLeft, Activity, Mail } from 'lucide-react';
@@ -820,7 +822,7 @@ export default function App() {
           )}
 
           {activeTab === 'studio' && (
-            <AiStudioView />
+            <AiStudioView userId={user.id} />
           )}
 
           {activeTab === 'wall' && (
@@ -889,6 +891,11 @@ export default function App() {
       />
 
       <OfflineIndicator />
+
+      {/* Google Gemini consent gate + Android first-launch permission explainer.
+          Both are passive overlays: declining/dismissing never blocks the app. */}
+      <AiConsentGate userId={user.id} />
+      <AndroidPermissionGate userId={user.id} />
 
       {/* First-run onboarding tour */}
       {showTour && (

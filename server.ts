@@ -1545,9 +1545,11 @@ Word of Year: ${user_profile?.word_of_the_year || ar.ud.user.word_of_the_year}
 What I'm done pretending about: ${user_profile?.what_done_pretending || ar.ud.user.what_done_pretending}
 `;
 
-  // Try calling Gemini API via @google/genai SDK
+  // Try calling Gemini API via @google/genai SDK — ONLY with the user's
+  // explicit Google Gemini consent (X-AI-Consent: granted). Otherwise fall
+  // through to the local heuristic engine below; declining never blocks this.
   const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey) {
+  if (apiKey && aiConsentGranted(req)) {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `
@@ -1694,6 +1696,26 @@ ${textToAnalyze}
 // REST shape mirrors the third-party AI Studio Hub (music / image create+edit /
 // video + status/download / transcription), persisted to the JSON data file
 // per user instead of Firestore.
+//
+// GOOGLE GEMINI CONSENT: every Gemini-backed endpoint below (and the
+// /api/mei/media-intent handoff, and the /api/diagnose Gemini fallback)
+// requires the client to send `X-AI-Consent: granted`. That header is only
+// sent after the user explicitly accepts the in-app Google Gemini consent
+// screen. Without it the call is refused and the client falls back to its
+// non-Gemini behavior. Declining never blocks the app.
+
+const AI_CONSENT_HEADER = 'x-ai-consent';
+
+function aiConsentGranted(req: express.Request): boolean {
+  return String(req.headers[AI_CONSENT_HEADER] || '').toLowerCase() === 'granted';
+}
+
+function requireAiConsent(res: express.Response) {
+  return res.status(403).json({
+    error: "Google Gemini needs your OK first — enable it in the app's AI Studio to use generation features.",
+    code: 'AI_CONSENT_REQUIRED'
+  });
+}
 
 const GEMINI_REST = "https://generativelanguage.googleapis.com/v1beta";
 const STUDIO_JSON_LIMIT = "50mb"; // base64 audio/images exceed express's default 100kb
@@ -1869,6 +1891,7 @@ async function pollStudioVideoDone(key: string, operationName: string, timeoutMs
 
 // ---- Music (Lyria 3) ----
 app.post("/api/studio/music", requireAuth, studioJson, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   if (!key) return studioNotConfigured(res);
   const ar = req as AuthedRequest;
@@ -1883,6 +1906,7 @@ app.post("/api/studio/music", requireAuth, studioJson, async (req, res) => {
 
 // ---- Image create ----
 app.post("/api/studio/image", requireAuth, studioJson, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   if (!key) return studioNotConfigured(res);
   const ar = req as AuthedRequest;
@@ -1897,6 +1921,7 @@ app.post("/api/studio/image", requireAuth, studioJson, async (req, res) => {
 
 // ---- Image edit ----
 app.post("/api/studio/image/edit", requireAuth, studioJson, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   if (!key) return studioNotConfigured(res);
   const ar = req as AuthedRequest;
@@ -1925,6 +1950,7 @@ app.post("/api/studio/image/edit", requireAuth, studioJson, async (req, res) => 
 
 // ---- Video generate (Veo 3.1 fast, long-running operation) ----
 app.post("/api/studio/video", requireAuth, studioJson, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   if (!key) return studioNotConfigured(res);
   const ar = req as AuthedRequest;
@@ -1939,6 +1965,7 @@ app.post("/api/studio/video", requireAuth, studioJson, async (req, res) => {
 
 // ---- Video status ----
 app.post("/api/studio/video/status", requireAuth, studioJson, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   if (!key) return studioNotConfigured(res);
   const { operationName } = req.body || {};
@@ -1958,6 +1985,7 @@ app.post("/api/studio/video/status", requireAuth, studioJson, async (req, res) =
 
 // ---- Video download (proxies the signed Google file URI; key never reaches the client) ----
 app.post("/api/studio/video/download", requireAuth, studioJson, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   if (!key) return studioNotConfigured(res);
   const { operationName } = req.body || {};
@@ -1983,6 +2011,7 @@ app.post("/api/studio/video/download", requireAuth, studioJson, async (req, res)
 
 // ---- Transcription ----
 app.post("/api/studio/transcribe", requireAuth, studioJson, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   if (!key) return studioNotConfigured(res);
   const ar = req as AuthedRequest;
@@ -2085,6 +2114,7 @@ function detectMediaIntent(text: string): MediaIntent {
 }
 
 app.post("/api/mei/media-intent", requireAuth, express.json(), async (req, res) => {
+  if (!aiConsentGranted(req)) return requireAiConsent(res);
   const key = getStudioKey();
   const ar = req as AuthedRequest;
   const text = String(req.body?.text || "");
