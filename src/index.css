@@ -1,0 +1,389 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Brand accent system: pink + teal only (site palette).
+   rose/pink -> hot pink ramp; sky/teal/cyan/indigo -> teal ramp;
+   purple/violet/fuchsia -> pink ramp. Amber/emerald/stone scales untouched. */
+@theme {
+  --color-rose-50: #fdf0f6; --color-rose-100: #fbdcef; --color-rose-200: #f6b9d6;
+  --color-rose-300: #f191bd; --color-rose-400: #ec6aa2; --color-rose-500: #ea4798;
+  --color-rose-600: #d13a83; --color-rose-700: #ad2f6c; --color-rose-800: #882656;
+  --color-rose-900: #662043; --color-rose-950: #471430;
+  --color-pink-50: #fdf0f6; --color-pink-100: #fbdcef; --color-pink-200: #f6b9d6;
+  --color-pink-300: #f191bd; --color-pink-400: #ec6aa2; --color-pink-500: #ea4798;
+  --color-pink-600: #d13a83; --color-pink-700: #ad2f6c; --color-pink-800: #882656;
+  --color-pink-900: #662043; --color-pink-950: #471430;
+  --color-purple-50: #fdf0f6; --color-purple-100: #fbdcef; --color-purple-200: #f6b9d6;
+  --color-purple-300: #f191bd; --color-purple-400: #ec6aa2; --color-purple-500: #ea4798;
+  --color-purple-600: #d13a83; --color-purple-700: #ad2f6c; --color-purple-800: #882656;
+  --color-purple-900: #662043; --color-purple-950: #471430;
+  --color-violet-50: #fdf0f6; --color-violet-100: #fbdcef; --color-violet-200: #f6b9d6;
+  --color-violet-300: #f191bd; --color-violet-400: #ec6aa2; --color-violet-500: #ea4798;
+  --color-violet-600: #d13a83; --color-violet-700: #ad2f6c; --color-violet-800: #882656;
+  --color-violet-900: #662043; --color-violet-950: #471430;
+  --color-fuchsia-50: #fdf0f6; --color-fuchsia-100: #fbdcef; --color-fuchsia-200: #f6b9d6;
+  --color-fuchsia-300: #f191bd; --color-fuchsia-400: #ec6aa2; --color-fuchsia-500: #ea4798;
+  --color-fuchsia-600: #d13a83; --color-fuchsia-700: #ad2f6c; --color-fuchsia-800: #882656;
+  --color-fuchsia-900: #662043; --color-fuchsia-950: #471430;
+  --color-sky-50: #eef8fe; --color-sky-100: #d9effc; --color-sky-200: #b3e0fa;
+  --color-sky-300: #7ccbf7; --color-sky-400: #4db4f2; --color-sky-500: #2da2ee;
+  --color-sky-600: #1e8fd4; --color-sky-700: #1a74ac; --color-sky-800: #195d88;
+  --color-sky-900: #174a6c; --color-sky-950: #102f47;
+  --color-teal-50: #eef8fe; --color-teal-100: #d9effc; --color-teal-200: #b3e0fa;
+  --color-teal-300: #7ccbf7; --color-teal-400: #4db4f2; --color-teal-500: #2da2ee;
+  --color-teal-600: #1e8fd4; --color-teal-700: #1a74ac; --color-teal-800: #195d88;
+  --color-teal-900: #174a6c; --color-teal-950: #102f47;
+  --color-cyan-50: #eef8fe; --color-cyan-100: #d9effc; --color-cyan-200: #b3e0fa;
+  --color-cyan-300: #7ccbf7; --color-cyan-400: #4db4f2; --color-cyan-500: #2da2ee;
+  --color-cyan-600: #1e8fd4; --color-cyan-700: #1a74ac; --color-cyan-800: #195d88;
+  --color-cyan-900: #174a6c; --color-cyan-950: #102f47;
+  --color-indigo-50: #eef8fe; --color-indigo-100: #d9effc; --color-indigo-200: #b3e0fa;
+  --color-indigo-300: #7ccbf7; --color-indigo-400: #4db4f2; --color-indigo-500: #2da2ee;
+  --color-indigo-600: #1e8fd4; --color-indigo-700: #1a74ac; --color-indigo-800: #195d88;
+  --color-indigo-900: #174a6c; --color-indigo-950: #102f47;
+}
+
+:root {
+  --paper: #f7f0de;
+  --paper-light: #fffaf0;
+  --ink: #02142e;
+  --ink-soft: #17345f;
+  --pink: #ea4798;
+  --orange: #d63a84;
+  --yellow: #f5c51b;
+  --teal: #2da2ee;
+  --purple: #2da2ee;
+}
+
+/* ============ MIDNIGHT CHAOS (dark mode) ============
+   Toggled via the `dark` class on <html>. A first-class brand
+   surface: deep navy grounds, cream/off-white text, teal +
+   hot-pink accents, gold highlights. Hard-coded light surfaces
+   used across components are flipped here so cards, inputs,
+   buttons, toasts, modals, tabs, ledgers, and badges all look
+   intentional in the dark. */
+.dark {
+  --paper: #000a15;
+  --paper-light: #02142e;
+  --ink: #f2ecdc;
+  --ink-soft: #c6cfe2;
+  color-scheme: dark;
+}
+
+.dark body {
+  background-image:
+    radial-gradient(circle at 8% 12%, rgba(234, 71, 152, 0.16) 0 2px, transparent 3px),
+    radial-gradient(circle at 88% 76%, rgba(45, 162, 238, 0.16) 0 3px, transparent 4px),
+    radial-gradient(circle at 50% 40%, rgba(245, 197, 27, 0.05) 0 2px, transparent 3px),
+    linear-gradient(115deg, rgba(242, 236, 220, 0.045) 25%, transparent 25%, transparent 50%, rgba(242, 236, 220, 0.045) 50%, rgba(242, 236, 220, 0.045) 75%, transparent 75%);
+}
+
+.dark .bg-cream-canvas {
+  background-image: radial-gradient(rgba(242, 236, 220, 0.07) 0.6px, transparent 0.6px);
+}
+
+.dark .ink-panel {
+  background: #000a15;
+  color: #f2ecdc;
+  border: 1px solid #274264;
+}
+
+/* ---------- Surfaces: light cards / panels -> deep navy ---------- */
+.dark .bg-white { background-color: #02142e; }
+.dark .bg-stone-50, .dark .bg-stone-50\/50, .dark .bg-stone-50\/60, .dark .bg-stone-50\/80 { background-color: #000a15; }
+.dark .bg-stone-100 { background-color: #0c2140; }
+.dark .bg-stone-200, .dark .bg-stone-200\/60 { background-color: #0c2140; }
+.dark .bg-stone-300 { background-color: #16304f; }
+.dark .bg-slate-50 { background-color: #000a15; }
+.dark .bg-slate-200 { background-color: #0c2140; }
+/* Paper-tint arbitrary surfaces */
+.dark .bg-\[\#faf7f0\] { background-color: rgba(2, 20, 46, 0.96); }
+.dark .bg-\[\#faf5eb\], .dark .bg-\[\#fdfbf7\], .dark .bg-\[\#fffdf9\], .dark .bg-\[\#fffdfa\], .dark .bg-\[\#f0ece1\] { background-color: #02142e; }
+/* Status tints -> deep translucent tints */
+.dark .bg-amber-50 { background-color: #241c0e; }
+.dark .bg-amber-100 { background-color: #2e2410; }
+.dark .bg-amber-300 { background-color: #b45309; }
+.dark .bg-amber-400\/20 { background-color: rgba(245, 197, 27, 0.14); }
+.dark .bg-emerald-50, .dark .bg-emerald-50\/50 { background-color: #0b211a; }
+.dark .bg-emerald-100 { background-color: #0f2f24; }
+.dark .bg-rose-50, .dark .bg-rose-50\/70 { background-color: #2a141d; }
+.dark .bg-rose-100 { background-color: #351824; }
+.dark .bg-sky-50, .dark .bg-sky-50\/60 { background-color: #0a1e2e; }
+.dark .bg-sky-100 { background-color: #0e2a3f; }
+.dark .bg-orange-100 { background-color: #2a1c10; }
+.dark .bg-purple-50\/40 { background-color: rgba(42, 33, 69, 0.55); }
+
+/* ---------- Text: ink scale -> cream; accent text -> luminous ---------- */
+.dark .text-slate-950 { color: #f2ecdc; }
+/* text-stone-950 intentionally NOT flipped: it only appears on gold (bg-amber-400) badges. */
+.dark .text-stone-900, .dark .text-slate-900 { color: #f2ecdc; }
+.dark .text-stone-800, .dark .text-slate-800 { color: #ddd6c4; }
+.dark .text-stone-700, .dark .text-slate-700 { color: #c2c9db; }
+.dark .text-stone-600 { color: #a3abc0; }
+.dark .text-stone-500 { color: #8b93a8; }
+.dark .text-stone-400 { color: #6d7488; }
+/* text-stone-300 intentionally NOT flipped: it is already used as light text on dark surfaces. */
+.dark .text-rose-600 { color: #ea4798; }
+.dark .text-rose-700 { color: #f49ac2; }
+.dark .text-rose-800, .dark .text-rose-900 { color: #f9c2da; }
+.dark .text-amber-600 { color: #fbbf24; }
+.dark .text-amber-800 { color: #fcd34d; }
+.dark .text-amber-900, .dark .text-amber-950 { color: #fde68a; }
+.dark .text-emerald-600 { color: #34d399; }
+.dark .text-emerald-700, .dark .text-emerald-800 { color: #6ee7b7; }
+.dark .text-sky-700, .dark .text-sky-800 { color: #62b9f2; }
+.dark .text-teal-700 { color: #62b9f2; }
+
+/* ---------- Borders ---------- */
+.dark .border-stone-100 { border-color: #16304f; }
+.dark .border-stone-200, .dark .border-stone-200\/80, .dark .border-stone-300 { border-color: #274264; }
+.dark .border-stone-400 { border-color: #3b5878; }
+.dark .border-stone-600, .dark .border-stone-700 { border-color: #3b5878; }
+.dark .border-stone-800, .dark .border-stone-900 { border-color: #3b5878; }
+.dark .border-slate-200, .dark .border-slate-300 { border-color: #274264; }
+.dark .border-amber-200 { border-color: #57431a; }
+.dark .border-amber-300, .dark .border-amber-300\/80 { border-color: #6b4d1a; }
+.dark .border-amber-700 { border-color: #a16207; }
+.dark .border-emerald-300 { border-color: #1d5c46; }
+.dark .border-rose-200, .dark .border-rose-200\/80 { border-color: #5c2347; }
+.dark .border-rose-300 { border-color: #7e2f5c; }
+.dark .border-rose-400 { border-color: #a03a72; }
+.dark .border-sky-200 { border-color: #1c4a66; }
+.dark .border-sky-400 { border-color: #2da2ee; }
+.dark .border-purple-200 { border-color: #5c2347; }
+.dark .border-purple-950 { border-color: #1c1125; }
+.dark .border-orange-300 { border-color: #6e3f1c; }
+.dark .divide-stone-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-stone-200 > :not([hidden]) ~ :not([hidden]) { border-color: #274264; }
+.dark .decoration-stone-300 { text-decoration-color: #274264; }
+
+/* ---------- Hover states (light hovers -> dark-aware hovers) ---------- */
+.dark .hover\:bg-stone-100:hover { background-color: #16304f; }
+.dark .hover\:bg-stone-200:hover { background-color: #274264; }
+.dark .hover\:bg-stone-50:hover { background-color: #0c2140; }
+.dark .hover\:bg-rose-50:hover { background-color: #351824; }
+.dark .hover\:bg-rose-100:hover { background-color: #3d1c2a; }
+.dark .hover\:bg-amber-100:hover { background-color: #33270f; }
+.dark .hover\:bg-purple-50:hover { background-color: #1c1125; }
+.dark .hover\:bg-white:hover { background-color: #0c2140; }
+.dark .hover\:bg-slate-200:hover { background-color: #274264; }
+.dark .hover\:text-slate-900:hover, .dark .hover\:text-stone-900:hover,
+.dark .hover\:text-stone-800:hover, .dark .hover\:text-stone-700:hover { color: #f2ecdc; }
+.dark .hover\:text-stone-500:hover { color: #a3abc0; }
+.dark .hover\:text-rose-600:hover { color: #ea4798; }
+.dark .hover\:text-rose-700:hover { color: #f49ac2; }
+.dark .hover\:text-emerald-600:hover, .dark .hover\:text-emerald-800:hover { color: #34d399; }
+.dark .hover\:text-sky-900:hover { color: #62b9f2; }
+.dark .hover\:border-stone-400:hover { border-color: #3b5878; }
+.dark .hover\:border-stone-300:hover { border-color: #274264; }
+.dark .hover\:border-rose-400:hover, .dark .hover\:border-rose-500:hover { border-color: #a03a72; }
+.dark .hover\:border-amber-500:hover { border-color: #d97706; }
+.dark .hover\:border-emerald-500:hover { border-color: #2da2ee; }
+.dark .hover\:border-sky-400:hover { border-color: #2da2ee; }
+.dark .hover\:border-purple-300:hover { border-color: #7e2f5c; }
+
+/* ---------- Focus rings ---------- */
+.dark .focus\:outline-stone-800:focus { outline-color: #f2ecdc; }
+/* ---------- Forms ---------- */
+.dark input, .dark textarea, .dark select {
+  background-color: #02142e;
+  color: #f2ecdc;
+  border-color: #274264;
+}
+.dark select option { background-color: #02142e; color: #f2ecdc; }
+.dark input::placeholder, .dark textarea::placeholder { color: #6d7488; }
+.dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
+.dark input[type="checkbox"], .dark input[type="radio"] { accent-color: #ea4798; }
+
+/* ---------- Shadows, scrollbars, paper lines ---------- */
+.dark .shadow-xs, .dark .shadow-sm, .dark .shadow-md { --tw-shadow-color: rgba(0, 0, 0, 0.55); }
+.dark ::-webkit-scrollbar-track { background: #000a15; }
+.dark ::-webkit-scrollbar-thumb { background: #3b5878; }
+.dark .lined-paper {
+  background-image: linear-gradient(to bottom, transparent 27px, rgba(242, 236, 220, 0.16) 28px);
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(circle at 8% 12%, rgba(234, 71, 152, 0.08) 0 2px, transparent 3px),
+      radial-gradient(circle at 88% 76%, rgba(45, 162, 238, 0.09) 0 3px, transparent 4px),
+      linear-gradient(115deg, rgba(2, 20, 46, 0.025) 25%, transparent 25%, transparent 50%, rgba(2, 20, 46, 0.025) 50%, rgba(2, 20, 46, 0.025) 75%, transparent 75%);
+    background-size: 120px 120px, 180px 180px, 9px 9px;
+  }
+
+  h1, h2, h3, .font-serif-display {
+    font-family: 'Fraunces', Georgia, serif;
+  }
+
+  .font-mono-code {
+    font-family: 'DM Mono', monospace;
+  }
+
+  .font-display-punch {
+    font-family: 'Syne', sans-serif;
+  }
+}
+
+/* Cover-inspired paper, ink, and collage utilities. */
+.bg-cream-canvas {
+  background-color: var(--paper);
+  background-image: radial-gradient(rgba(2, 20, 46, 0.05) 0.6px, transparent 0.6px);
+  background-size: 7px 7px;
+}
+
+.bg-warm-card {
+  background-color: var(--paper-light);
+}
+
+/* Cream text utility (pairs with dark gradient headers). */
+.text-cream-canvas { color: #f7f0de; }
+.dark .text-cream-canvas { color: #f2ecdc; }
+
+/* Toast entrance */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.25s ease-out; }
+
+.stamp-border {
+  border: 2px dashed var(--pink);
+}
+
+.ink-panel {
+  background: var(--ink);
+  color: #fffaf0;
+}
+
+.cover-art-frame {
+  position: relative;
+  overflow: hidden;
+  border: 4px solid var(--ink);
+  border-radius: 1.75rem;
+  background: var(--paper-light);
+  box-shadow: 10px 12px 0 rgba(2, 20, 46, 0.16);
+}
+
+.cover-art-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 45%, rgba(234, 71, 152, 0.08));
+  mix-blend-mode: multiply;
+}
+
+.cover-art-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.lined-paper {
+  background-size: 100% 28px;
+  background-image: linear-gradient(to bottom, transparent 27px, rgba(2, 20, 46, 0.18) 28px);
+  line-height: 28px;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eadfc9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--pink);
+}
+
+/* PRINT MEDIA QUERIES & STRUCTURED PDF EXPORT */
+@media print {
+  @page {
+    margin: 1.2cm 1cm 1.2cm 1cm;
+    size: auto;
+  }
+
+  /* Print is always Cream Canvas, even if Midnight Chaos is active on screen. */
+  html.dark, .dark {
+    --paper: #f7f0de;
+    --paper-light: #fffaf0;
+    --ink: #02142e;
+    --ink-soft: #17345f;
+  }
+
+  html, body {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: var(--ink) !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  header,
+  footer,
+  nav,
+  .print\:hidden,
+  .print-hidden,
+  [data-print-hidden="true"],
+  .fixed,
+  #voice-to-text-rant-btn,
+  #refresh-mantra-standard-btn,
+  #refresh-mantra-harder-btn,
+  #adopt-morning-intention-btn,
+  #copy-mantra-btn {
+    display: none !important;
+  }
+
+  .print\:block { display: block !important; }
+  .print\:inline-block { display: inline-block !important; }
+  .print\:flex { display: flex !important; }
+
+  .print-break-avoid,
+  .break-inside-avoid,
+  .rounded-2xl,
+  .rounded-3xl,
+  form,
+  .bg-white {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .bg-white,
+  .bg-\[\#faf7f0\],
+  .bg-cream-canvas {
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .border-stone-800,
+  .border-stone-300,
+  .border-stone-200 {
+    border-color: #cbd5e1 !important;
+  }
+
+  input[type="text"],
+  textarea,
+  select {
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+    color: var(--ink) !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+}

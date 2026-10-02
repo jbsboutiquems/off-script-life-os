@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Off*Script</string>
+    <string name="title_activity_main">Off*Script</string>
+    <string name="package_name">app.offscript.lifeos</string>
+    <string name="custom_url_scheme">app.offscript.lifeos</string>
+</resources>

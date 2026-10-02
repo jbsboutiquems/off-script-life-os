@@ -1,0 +1,6 @@
+{
+  "name": "Life OS: Off*Script 2027.",
+  "description": "Companion app and Mei-style personality diagnostic engine for the Life OS: Off*Script 2027. (Chaos Year Edition) planner. Slogan: Boredom=Death.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
