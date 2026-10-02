@@ -29,6 +29,11 @@ import { RemindersView } from './components/RemindersView';
 import { SearchView } from './components/SearchView';
 import { ChaosWallView } from './components/ChaosWallView';
 import { InboxView } from './components/InboxView';
+import { FrontMatterView } from './components/frontmatter';
+import { AiStudioView } from './components/studio/AiStudioView';
+import { InstallBanner } from './components/InstallBanner';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
 import { ChevronLeft, Activity, Mail } from 'lucide-react';
 
@@ -64,6 +69,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [stickersModalOpen, setStickersModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [packageModalOpen, setPackageModalOpen] = useState(false);
   const [shareContext, setShareContext] = useState<ShareContextType>('daily');
   const [allEntries, setAllEntries] = useState<DailyEntry[]>([]);
 
@@ -523,6 +529,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-cream-canvas text-stone-900 dark:bg-[#000a15] dark:text-cream-canvas flex flex-col font-sans selection:bg-rose-200 selection:text-rose-900">
 
+      <InstallBanner />
+
       <Header
         username={user.chaos_name}
         pointsTotal={pointsTotal}
@@ -801,6 +809,20 @@ export default function App() {
             <TourGuideView />
           )}
 
+          {activeTab === 'frontmatter' && (
+            <FrontMatterView
+              user={user}
+              onSaveProfile={handleSaveProfile}
+              onNavigateToGoals={() => setActiveTab('goals')}
+              onNavigateToDaily={() => setActiveTab('daily')}
+              onToast={showToast}
+            />
+          )}
+
+          {activeTab === 'studio' && (
+            <AiStudioView />
+          )}
+
           {activeTab === 'wall' && (
             <ChaosWallView user={user} myUserId={user.id} />
           )}
@@ -860,6 +882,14 @@ export default function App() {
         onShareFired={() => awardPoints('share_fired', `share_fired:${currentDate}`, `Shared the Chaos · ${currentDate}`)}
       />
 
+      <PackageAppModal
+        isOpen={packageModalOpen}
+        onClose={() => setPackageModalOpen(false)}
+        onToast={showToast}
+      />
+
+      <OfflineIndicator />
+
       {/* First-run onboarding tour */}
       {showTour && (
         <OnboardingTour onDone={handleFinishOnboarding} />
@@ -884,6 +914,12 @@ export default function App() {
           <div className="text-stone-400 dark:text-stone-500">
             Mei-Style Natural Language Personality Engine · No Toxic Positivity
           </div>
+          <button
+            onClick={() => setPackageModalOpen(true)}
+            className="text-[11px] font-mono-code font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors underline underline-offset-2"
+          >
+            Package the Android app
+          </button>
         </div>
       </footer>
     </div>

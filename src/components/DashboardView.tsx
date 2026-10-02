@@ -3,14 +3,16 @@ import { UserProfile } from '../types';
 import {
   Compass, Star, Sparkles, Flame, Ban, Activity, BookOpen, DollarSign,
   Award, PartyPopper, Trophy, Users, HardDrive, KeyRound, Image as ImageIcon,
-  ShieldAlert, DoorOpen, HeartHandshake, Megaphone, Inbox, Bell, Search
+  ShieldAlert, DoorOpen, HeartHandshake, Megaphone, Inbox, Bell, Search,
+  BookMarked, Clapperboard
 } from 'lucide-react';
 
 export type DashboardTab =
   | 'daily' | 'cosmic' | 'diagnostic' | 'goals' | 'antigoals' | 'trendline'
   | 'weekly' | 'money' | 'themes' | 'holidays' | 'points' | 'crew'
   | 'backup' | 'unlock' | 'cover' | 'identity' | 'tourguide'
-  | 'wall' | 'inbox' | 'reminders' | 'search';
+  | 'wall' | 'inbox' | 'reminders' | 'search'
+  | 'frontmatter' | 'studio';
 
 interface DoorDef {
   id: DashboardTab;
@@ -57,6 +59,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
     { id: 'cover', name: 'Cover Art', description: 'The jacket. Stop and admire it.', icon: ImageIcon, accent: 'from-pink-500 to-pink-700' },
     { id: 'identity', name: 'Identity Base', description: 'Who is flying this thing — plus your birthday, for the stars.', icon: ShieldAlert, accent: 'from-pink-500 to-pink-700' },
     { id: 'tourguide', name: 'Meet Your Tour Guide', description: 'The human behind the chaos. Come say hi to Amber.', icon: HeartHandshake, accent: 'from-rose-500 to-amber-600' },
+    { id: 'frontmatter', name: 'Front Matter Codex', description: 'The planner\u2019s first 14 pages \u2014 manifesto, one word, audit, permission slip, and your people.', icon: BookMarked, accent: 'from-pink-500 to-teal-600' },
+    { id: 'studio', name: 'AI Studio', description: 'Backstage media lab: hype tracks, cover art, video renders.', icon: Clapperboard, accent: 'from-fuchsia-500 to-teal-600' },
   ];
 
   return (

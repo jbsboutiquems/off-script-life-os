@@ -51,6 +51,21 @@ interface SessionRecord {
   expires_at: string;
 }
 
+interface StudioMediaItem {
+  id: string;
+  type: "music" | "image" | "video" | "transcript";
+  prompt: string;
+  /** Data URL for audio/image; transcript text stored separately for transcripts. */
+  resultUrl: string;
+  transcript?: string;
+  mimeType?: string;
+  aspectRatio?: string;
+  model?: string;
+  /** Veo long-running operation name — used to resume polling / download. */
+  operationName?: string;
+  createdAt: string;
+}
+
 interface UserData {
   user: any;
   dailyEntries: Record<string, any>;
@@ -62,6 +77,8 @@ interface UserData {
   chaosPoints: any[];
   flightCrew: any[];
   userEntitlements: string[];
+  /** AI Studio (media studio, Gemini-backed) saved generations. */
+  studioMedia: StudioMediaItem[];
 }
 
 interface WallPost {
@@ -154,7 +171,8 @@ function freshUserData(userId: string, username: string): UserData {
     moneyMaps: {},
     chaosPoints: [],
     flightCrew: [],
-    userEntitlements: []
+    userEntitlements: [],
+    studioMedia: []
   };
 }
 
@@ -178,7 +196,8 @@ function normalizeUserData(input: any): UserData {
     moneyMaps: d.moneyMaps && typeof d.moneyMaps === "object" ? d.moneyMaps : {},
     chaosPoints: Array.isArray(d.chaosPoints) ? d.chaosPoints : [],
     flightCrew: Array.isArray(d.flightCrew) ? d.flightCrew : [],
-    userEntitlements: entitlements
+    userEntitlements: entitlements,
+    studioMedia: Array.isArray(d.studioMedia) ? d.studioMedia : []
   };
 }
 
@@ -1666,6 +1685,434 @@ ${textToAnalyze}
   saveData(db);
 
   res.json(fallbackSnapshot);
+});
+
+// ================= AI STUDIO HUB (media generation — Gemini ONLY here) =================
+// Strict scope: GEMINI_API_KEY is used exclusively by these /api/studio/*
+// endpoints. Every other AI route in this server stays on Mei by bot ID.
+// The client NEVER calls Google directly and never sees the key.
+// REST shape mirrors the third-party AI Studio Hub (music / image create+edit /
+// video + status/download / transcription), persisted to the JSON data file
+// per user instead of Firestore.
+
+const GEMINI_REST = "https://generativelanguage.googleapis.com/v1beta";
+const STUDIO_JSON_LIMIT = "50mb"; // base64 audio/images exceed express's default 100kb
+const studioJson = express.json({ limit: STUDIO_JSON_LIMIT });
+const STUDIO_MEDIA_CAP = 30; // mirrors the source's Firestore fetch limit
+const STUDIO_ITEM_MAX_BYTES = 8 * 1024 * 1024; // don't bloat the data file with giant blobs
+
+function getStudioKey(): string | null {
+  const key = process.env.GEMINI_API_KEY;
+  return key && key.trim() ? key.trim() : null;
+}
+
+function studioNotConfigured(res: express.Response) {
+  return res.status(503).json({
+    error: "AI Studio isn't configured on this server yet — no GEMINI_API_KEY. The media studio stays tucked away until it's set up.",
+    code: "STUDIO_NOT_CONFIGURED"
+  });
+}
+
+/** Extract the first inlineData part from a generateContent REST response. */
+function firstInlineData(resp: any): { mimeType: string; data: string } | null {
+  const candidates = resp?.candidates || [];
+  for (const c of candidates) {
+    for (const part of c?.content?.parts || []) {
+      if (part?.inlineData?.data) {
+        return { mimeType: part.inlineData.mimeType || "", data: part.inlineData.data };
+      }
+    }
+  }
+  return null;
+}
+
+function stripDataUrlPrefix(dataUrl: string): string {
+  return String(dataUrl || "").replace(/^data:[^;]+;base64,/, "");
+}
+
+async function geminiGenerateContent(key: string, model: string, body: any): Promise<any> {
+  const r = await fetch(`${GEMINI_REST}/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify(body)
+  });
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = json?.error?.message || `Google API error ${r.status}`;
+    const err: any = new Error(msg);
+    err.status = r.status;
+    throw err;
+  }
+  return json;
+}
+
+function studioMediaOf(ud: UserData): StudioMediaItem[] {
+  if (!Array.isArray((ud as any).studioMedia)) (ud as any).studioMedia = [];
+  return (ud as any).studioMedia as StudioMediaItem[];
+}
+
+function saveStudioItem(userId: string, ud: UserData, item: Omit<StudioMediaItem, "id" | "createdAt">): StudioMediaItem | null {
+  // Keep the data file lean: skip persisting giant blobs, but still return the record.
+  if ((item.resultUrl || "").length > STUDIO_ITEM_MAX_BYTES) return null;
+  const list = studioMediaOf(ud);
+  const record: StudioMediaItem = {
+    ...item,
+    id: `studio_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    createdAt: new Date().toISOString()
+  };
+  list.unshift(record);
+  while (list.length > STUDIO_MEDIA_CAP) list.pop();
+  saveData(db);
+  return record;
+}
+
+app.get("/api/studio/status", requireAuth, (_req, res) => {
+  res.json({ configured: Boolean(getStudioKey()) });
+});
+
+// ================= STUDIO JOB RUNNERS (internal) =================
+// Shared by the /api/studio/* route handlers below and the Mei media-intent
+// endpoint. Gemini stays media-only and server-side; the client never sees
+// the key. Behavior matches the original inline implementations exactly.
+
+async function runStudioMusicJob(
+  key: string, userId: string, ud: UserData,
+  opts: { prompt?: string; model?: string; imageBase64?: string }
+): Promise<{ audioUrl: string | null; modelUsed: string; prompt?: string; text?: string }> {
+  const { prompt, model = "lyria-3-clip-preview", imageBase64 } = opts;
+  const selectedModel = model === "lyria-3-pro-preview" ? "lyria-3-pro-preview" : "lyria-3-clip-preview";
+  const parts: any[] = [
+    { text: prompt || "A resonant ambient lo-fi soundscape for unhurried morning journaling, subtle analog synth textures and warm vinyl warmth." }
+  ];
+  if (imageBase64) {
+    parts.push({ inlineData: { mimeType: "image/jpeg", data: stripDataUrlPrefix(imageBase64) } });
+  }
+  const resp = await geminiGenerateContent(key, selectedModel, { contents: { parts } });
+  const inline = firstInlineData(resp);
+  if (inline) {
+    const audioUrl = `data:${inline.mimeType || "audio/mp3"};base64,${inline.data}`;
+    saveStudioItem(userId, ud, { type: "music", prompt: String(prompt || ""), resultUrl: audioUrl, mimeType: inline.mimeType, model: selectedModel });
+    return { audioUrl, modelUsed: selectedModel, prompt };
+  }
+  return { text: (resp as any).text || "Music composition generated.", modelUsed: selectedModel, prompt, audioUrl: null };
+}
+
+async function runStudioImageJob(
+  key: string, userId: string, ud: UserData,
+  opts: { prompt?: string; aspectRatio?: string }
+): Promise<{ imageUrl: string; prompt?: string; model: string }> {
+  const { prompt, aspectRatio = "1:1" } = opts;
+  const resp = await geminiGenerateContent(key, "gemini-3.1-flash-image-preview", {
+    contents: { parts: [{ text: String(prompt || "") }] },
+    generationConfig: {
+      responseModalities: ["TEXT", "IMAGE"],
+      imageConfig: { aspectRatio }
+    }
+  });
+  const inline = firstInlineData(resp);
+  if (!inline) {
+    const err: any = new Error("No image generated");
+    err.status = 400;
+    throw err;
+  }
+  const imageUrl = `data:${inline.mimeType || "image/png"};base64,${inline.data}`;
+  saveStudioItem(userId, ud, { type: "image", prompt: String(prompt || ""), resultUrl: imageUrl, mimeType: inline.mimeType, aspectRatio: String(aspectRatio), model: "gemini-3.1-flash-image-preview" });
+  return { imageUrl, prompt, model: "gemini-3.1-flash-image-preview" };
+}
+
+async function runStudioVideoJob(
+  key: string, userId: string, ud: UserData,
+  opts: { prompt?: string; imageBase64?: string; mimeType?: string; aspectRatio?: string }
+): Promise<{ operationName: string; prompt?: string; aspectRatio: string }> {
+  const { prompt, imageBase64, mimeType = "image/png", aspectRatio = "16:9" } = opts;
+  const validAspectRatio = aspectRatio === "9:16" ? "9:16" : "16:9";
+  const instance: any = {
+    prompt: prompt || "A cinematic atmospheric motion sequence of morning sunlight breaking through city fog"
+  };
+  if (imageBase64) {
+    instance.image = { bytesBase64Encoded: stripDataUrlPrefix(imageBase64), mimeType };
+  }
+  const r = await fetch(`${GEMINI_REST}/models/veo-3.1-fast-generate-preview:predictLongRunning`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify({
+      instances: [instance],
+      parameters: { sampleCount: 1, aspectRatio: validAspectRatio, resolution: "720p" }
+    })
+  });
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(json?.error?.message || `Video request failed (${r.status})`);
+  if (!json?.name) throw new Error("Video request returned no operation name.");
+  saveStudioItem(userId, ud, {
+    type: "video",
+    prompt: String(prompt || ""),
+    resultUrl: "",
+    aspectRatio: validAspectRatio,
+    model: "veo-3.1-fast-generate-preview",
+    operationName: json.name
+  });
+  return { operationName: json.name, prompt, aspectRatio: validAspectRatio };
+}
+
+/** Poll a Veo long-running operation until done or the timeout elapses. */
+async function pollStudioVideoDone(key: string, operationName: string, timeoutMs = 90000, intervalMs = 8000): Promise<{ done: boolean; error?: any }> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const r = await fetch(`${GEMINI_REST}/${operationName}`, { headers: { "x-goog-api-key": key } });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(json?.error?.message || `Status check failed (${r.status})`);
+    if (json.done) return { done: true, error: json.error || null };
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return { done: false };
+}
+
+// ---- Music (Lyria 3) ----
+app.post("/api/studio/music", requireAuth, studioJson, async (req, res) => {
+  const key = getStudioKey();
+  if (!key) return studioNotConfigured(res);
+  const ar = req as AuthedRequest;
+  const { prompt, model, imageBase64 } = req.body || {};
+  try {
+    return res.json(await runStudioMusicJob(key, ar.userId, ar.ud, { prompt, model, imageBase64 }));
+  } catch (err: any) {
+    console.error("Studio music error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to generate music" });
+  }
+});
+
+// ---- Image create ----
+app.post("/api/studio/image", requireAuth, studioJson, async (req, res) => {
+  const key = getStudioKey();
+  if (!key) return studioNotConfigured(res);
+  const ar = req as AuthedRequest;
+  const { prompt, aspectRatio } = req.body || {};
+  try {
+    return res.json(await runStudioImageJob(key, ar.userId, ar.ud, { prompt, aspectRatio }));
+  } catch (err: any) {
+    console.error("Studio image error:", err.message);
+    res.status(err.status || 500).json({ error: err.message || "Failed to create image" });
+  }
+});
+
+// ---- Image edit ----
+app.post("/api/studio/image/edit", requireAuth, studioJson, async (req, res) => {
+  const key = getStudioKey();
+  if (!key) return studioNotConfigured(res);
+  const ar = req as AuthedRequest;
+  const { imageBase64, prompt, mimeType = "image/png" } = req.body || {};
+  if (!imageBase64) return res.status(400).json({ error: "imageBase64 is required." });
+  try {
+    const resp = await geminiGenerateContent(key, "gemini-3.1-flash-image-preview", {
+      contents: {
+        parts: [
+          { inlineData: { data: stripDataUrlPrefix(imageBase64), mimeType } },
+          { text: String(prompt || "") }
+        ]
+      },
+      generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+    });
+    const inline = firstInlineData(resp);
+    if (!inline) return res.status(400).json({ error: "No edited image generated", text: (resp as any).text });
+    const imageUrl = `data:${inline.mimeType || "image/png"};base64,${inline.data}`;
+    saveStudioItem(ar.userId, ar.ud, { type: "image", prompt: String(prompt || ""), resultUrl: imageUrl, mimeType: inline.mimeType, model: "gemini-3.1-flash-image-preview" });
+    return res.json({ imageUrl, prompt, model: "gemini-3.1-flash-image-preview" });
+  } catch (err: any) {
+    console.error("Studio image-edit error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to edit image" });
+  }
+});
+
+// ---- Video generate (Veo 3.1 fast, long-running operation) ----
+app.post("/api/studio/video", requireAuth, studioJson, async (req, res) => {
+  const key = getStudioKey();
+  if (!key) return studioNotConfigured(res);
+  const ar = req as AuthedRequest;
+  const { prompt, imageBase64, mimeType, aspectRatio } = req.body || {};
+  try {
+    return res.json(await runStudioVideoJob(key, ar.userId, ar.ud, { prompt, imageBase64, mimeType, aspectRatio }));
+  } catch (err: any) {
+    console.error("Studio video error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to generate video" });
+  }
+});
+
+// ---- Video status ----
+app.post("/api/studio/video/status", requireAuth, studioJson, async (req, res) => {
+  const key = getStudioKey();
+  if (!key) return studioNotConfigured(res);
+  const { operationName } = req.body || {};
+  if (!operationName) return res.status(400).json({ error: "operationName is required." });
+  try {
+    const r = await fetch(`${GEMINI_REST}/${operationName}`, {
+      headers: { "x-goog-api-key": key }
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(json?.error?.message || `Status check failed (${r.status})`);
+    return res.json({ done: Boolean(json.done), error: json.error || null });
+  } catch (err: any) {
+    console.error("Studio video-status error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to check video status" });
+  }
+});
+
+// ---- Video download (proxies the signed Google file URI; key never reaches the client) ----
+app.post("/api/studio/video/download", requireAuth, studioJson, async (req, res) => {
+  const key = getStudioKey();
+  if (!key) return studioNotConfigured(res);
+  const { operationName } = req.body || {};
+  if (!operationName) return res.status(400).json({ error: "operationName is required." });
+  try {
+    const r = await fetch(`${GEMINI_REST}/${operationName}`, {
+      headers: { "x-goog-api-key": key }
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(json?.error?.message || `Status check failed (${r.status})`);
+    const uri = json?.response?.generatedVideos?.[0]?.video?.uri;
+    if (!uri) return res.status(404).json({ error: "Video not ready yet — still rendering.", code: "VIDEO_NOT_READY" });
+    const videoRes = await fetch(uri, { headers: { "x-goog-api-key": key } });
+    if (!videoRes.ok) throw new Error(`Video fetch failed (${videoRes.status})`);
+    res.setHeader("Content-Type", "video/mp4");
+    const buffer = Buffer.from(await videoRes.arrayBuffer());
+    return res.send(buffer);
+  } catch (err: any) {
+    console.error("Studio video-download error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to download video" });
+  }
+});
+
+// ---- Transcription ----
+app.post("/api/studio/transcribe", requireAuth, studioJson, async (req, res) => {
+  const key = getStudioKey();
+  if (!key) return studioNotConfigured(res);
+  const ar = req as AuthedRequest;
+  const { audioBase64, mimeType = "audio/webm" } = req.body || {};
+  if (!audioBase64) return res.status(400).json({ error: "audioBase64 is required." });
+  try {
+    const resp = await geminiGenerateContent(key, "gemini-3.5-transcribe", {
+      contents: {
+        parts: [
+          { inlineData: { mimeType, data: stripDataUrlPrefix(audioBase64) } },
+          { text: "Transcribe this audio verbatim. Capture the exact spoken words without commentary or summarization." }
+        ]
+      }
+    });
+    const text = resp?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
+    saveStudioItem(ar.userId, ar.ud, { type: "transcript", prompt: "", resultUrl: "", transcript: text, mimeType });
+    return res.json({ transcription: text, transcript: text });
+  } catch (err: any) {
+    console.error("Studio transcribe error:", err.message);
+    res.status(500).json({ error: err.message || "Transcription failed" });
+  }
+});
+
+// ---- Saved studio library ----
+app.get("/api/studio/media", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  res.json(studioMediaOf(ar.ud));
+});
+
+app.delete("/api/studio/media/:id", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const list = studioMediaOf(ar.ud);
+  const idx = list.findIndex((m) => m.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Not found." });
+  list.splice(idx, 1);
+  saveData(db);
+  res.json({ ok: true });
+});
+
+// ================= MEI ↔ STUDIO ORCHESTRATION =================
+// Lets Mei hand off generative-media jobs to Gemini mid-conversation,
+// server-side. Mei remains the conversational front-end (bot ID, no keys);
+// Gemini stays media-only with GEMINI_API_KEY server-side.
+//
+// Intent detection is a simple keyword/pattern router — deliberately NOT a
+// second AI call. Supported trigger phrases (matched case-insensitively):
+//   MUSIC: "make me a hype track", "create a hype track", "compose a theme
+//          song", "write me an anthem", "generate a beat", "hype me up",
+//          "make music for ..."
+//   IMAGE: "design a cover image for my vision board", "create cover art",
+//          "generate an image of ...", "make me a poster", "draw/paint ..."
+//   VIDEO: "generate a video for ...", "create a video of ...", "make a video"
+// There is currently no Mei chat UI in this codebase (Mei surfaces are the
+// diagnostic card, mantra generator, and /api/diagnose), so this endpoint is
+// the wiring point: a future chat UI POSTs the user's utterance here and,
+// when intent is found, delivers the returned media inside the conversation.
+//   Request:  POST /api/mei/media-intent  { text: string }
+//   Response: { intent: null }                                            → not a media ask; Mei answers normally
+//             { intent: "music"|"image", status: "complete", ...media }     → finished media, deliver it
+//             { intent: "video", status: "complete", ... }                  → video finished within the poll window
+//             { intent: "video", status: "rendering", operationName }      → still rendering; poll /api/studio/video/status
+//             503 { code: "STUDIO_NOT_CONFIGURED" }                        → key absent; Mei says the studio is backstage
+
+type MediaIntent = "music" | "image" | "video" | null;
+
+const MEDIA_INTENT_RULES: { intent: Exclude<MediaIntent, null>; patterns: RegExp[] }[] = [
+  {
+    intent: "music",
+    patterns: [
+      /\b(make|create|generate|compose|write|produce)\b[\s\S]{0,50}?\b(hype track|theme song|anthem|jingle)\b/i,
+      /\b(make|create|generate|compose|produce)\b[\s\S]{0,50}?\b(song|track|beat)\b/i,
+      /\bhype me up\b/i,
+      /\bmusic for\b/i,
+    ],
+  },
+  {
+    intent: "image",
+    patterns: [
+      /\b(design|create|generate|make)\b[\s\S]{0,50}?\bcover (image|art)\b/i,
+      /\b(design|create|generate|make|draw|paint)\b[\s\S]{0,50}?\b(image|picture|artwork|poster)\b/i,
+      /\bvision board\b/i,
+    ],
+  },
+  {
+    intent: "video",
+    patterns: [
+      /\b(generate|create|make)\b[\s\S]{0,50}?\bvideo\b/i,
+      /\bvideo for\b/i,
+    ],
+  },
+];
+
+function detectMediaIntent(text: string): MediaIntent {
+  const t = String(text || "");
+  if (!t.trim()) return null;
+  for (const rule of MEDIA_INTENT_RULES) {
+    if (rule.patterns.some((p) => p.test(t))) return rule.intent;
+  }
+  return null;
+}
+
+app.post("/api/mei/media-intent", requireAuth, express.json(), async (req, res) => {
+  const key = getStudioKey();
+  const ar = req as AuthedRequest;
+  const text = String(req.body?.text || "");
+  const intent = detectMediaIntent(text);
+  if (!intent) return res.json({ intent: null });
+  if (!key) return studioNotConfigured(res);
+  try {
+    if (intent === "music") {
+      const result = await runStudioMusicJob(key, ar.userId, ar.ud, { prompt: text });
+      return res.json({ intent, status: "complete", ...result });
+    }
+    if (intent === "image") {
+      const result = await runStudioImageJob(key, ar.userId, ar.ud, { prompt: text });
+      return res.json({ intent, status: "complete", ...result });
+    }
+    // Video is long-running: start it, poll briefly, hand back either the
+    // finished job or a rendering handle the chat UI can keep polling.
+    const started = await runStudioVideoJob(key, ar.userId, ar.ud, { prompt: text });
+    const polled = await pollStudioVideoDone(key, started.operationName);
+    if (polled.done && !polled.error) {
+      return res.json({ intent, status: "complete", ...started });
+    }
+    if (polled.error) throw new Error(polled.error?.message || "Video render failed");
+    return res.json({ intent, status: "rendering", ...started });
+  } catch (err: any) {
+    console.error("Mei media-intent error:", err.message);
+    res.status(err.status || 500).json({ error: err.message || "Media job failed" });
+  }
 });
 
 // Vite middleware in development & static serve in production

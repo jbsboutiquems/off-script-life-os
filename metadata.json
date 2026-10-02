@@ -1,6 +1,1 @@
-{
-  "name": "Life OS: Off*Script 2027.",
-  "description": "Companion app and Mei-style personality diagnostic engine for the Life OS: Off*Script 2027. (Chaos Year Edition) planner. Slogan: Boredom=Death.",
-  "requestFramePermissions": ["microphone"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
+{"appId":"app.offscript.lifeos","description":"Off*Script Life OS — the companion app for the Life OS: Off*Script 2027 (Chaos Year Edition) planner. Daily chaos prompts, morning/midday/evening check-ins, all 365 days of 2027 stamped with their real holiday, and Ask Mei — an AI co-pilot that reads your recent entries and gives it to you straight. Plus the Chaos Wall, private DMs, Big 6 goals, weekly debriefs, money maps, anti-goals, Cosmic Corner horoscopes (Nice/Rude), chaos points and streaks. Slogan: Boredom=Death.","majorCapabilities":[],"name":"Off*Script Life OS","requestFramePermissions":["microphone"],"version":"1.0","versionCode":1}

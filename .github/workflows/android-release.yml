@@ -1,0 +1,125 @@
+# Android Release Build — Off*Script Life OS
+#
+# Builds the web app, syncs it into the Capacitor Android shell, and produces
+# signed-for-testing release artifacts (APK + AAB).
+#
+# WHAT THIS DOES NOT DO (by design):
+#   - It does NOT sign with a production keystore. Gradle release builds run
+#     without a signingConfig, so the APK/AAB are unsigned and suitable for
+#     sideloading/testing only.
+#   - It does NOT publish to Google Play. See the TODO below.
+#
+# TODO (Amber's call, when she is ready for Play):
+#   1. Generate her upload keystore ONCE, locally (never commit it):
+#        keytool -genkeypair -v -keystore offscript-upload.keystore \
+#          -alias offscript -keyalg RSA -keysize 2048 -validity 10000
+#   2. Add these GitHub repo secrets (Settings → Secrets and variables → Actions):
+#        ANDROID_KEYSTORE_BASE64  – base64 of the .keystore file
+#        ANDROID_KEYSTORE_PASSWORD
+#        ANDROID_KEY_ALIAS
+#        ANDROID_KEY_PASSWORD
+#        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (for Play publishing)
+#   3. Wire a signingConfigs.release block in android/app/build.gradle that
+#      reads those values from environment variables (never hardcode them),
+#      then re-add a Play publish step (e.g. deep-rent/publish-android-release).
+#   Keystores and passwords must NEVER be committed to the repo.
+
+name: Android Release Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_ID: app.offscript.lifeos
+
+jobs:
+  android-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync web assets into Android shell
+        run: npx cap sync android
+
+      # Ported from the third-party android repo (commits caad42c / eb44c61 / a27c8d9):
+      # the Capacitor scaffold ships with placeholder package IDs (com.getcapacitor.*).
+      # If namespace/applicationId drift from the real app ID, installs and tests
+      # mismatch at runtime. Fail fast here instead of shipping a broken artifact.
+      - name: Verify Android package ID alignment
+        run: |
+          set -e
+          BG=android/app/build.gradle
+          grep -q "namespace = \"$APP_ID\"" "$BG" \
+            || { echo "::error::android/app/build.gradle namespace is not $APP_ID"; exit 1; }
+          grep -q "applicationId \"$APP_ID\"" "$BG" \
+            || { echo "::error::android/app/build.gradle applicationId is not $APP_ID"; exit 1; }
+          # Example scaffold tests must use the real package too (see source commits
+          # eb44c61 / a27c8d9). Fix the two files below, then re-run.
+          for f in android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java \
+                   android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java; do
+            if [ -f "$f" ]; then
+              grep -q "package $APP_ID;" "$f" \
+                || { echo "::error::$f still declares the scaffold package; align it with $APP_ID"; exit 1; }
+            fi
+          done
+          grep -q "assertEquals(\"$APP_ID\"" android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java \
+            || { echo "::error::ExampleInstrumentedTest asserts the wrong package name; align it with $APP_ID"; exit 1; }
+          echo "Package ID alignment OK: $APP_ID"
+
+      # Capacitor 8 requires JDK 21 (Java source/target release 21).
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Grant execute permission to Gradle wrapper
+        working-directory: android
+        run: chmod +x gradlew
+
+      - name: Assemble release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Build release AAB
+        working-directory: android
+        run: ./gradlew bundleRelease
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: offscript-android-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: offscript-android-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
