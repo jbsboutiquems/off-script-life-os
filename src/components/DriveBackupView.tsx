@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { HardDrive, Upload, Download, KeyRound, CheckCircle, AlertTriangle, Loader2, LogOut, FileJson, FileSpreadsheet } from 'lucide-react';
-import { api } from '../services/api';
+import { api, apiUrl, getApiBase, setApiBase } from '../services/api';
 import { downloadFile, entriesToCsv } from '../lib/exporter';
 import { DailyEntry } from '../types';
 
@@ -53,6 +53,8 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
   const [lastBackup, setLastBackup] = useState<string | null>(() => localStorage.getItem('lifeos_last_drive_backup'));
+  const [serverUrl, setServerUrl] = useState<string>(() => getApiBase());
+  const [serverSaved, setServerSaved] = useState<boolean>(false);
 
   const saveSettings = (s: DriveSettings) => {
     setSettings(s);
@@ -112,7 +114,7 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
     setMessage(null);
     try {
       const sessionToken = api.getToken();
-      const res = await fetch('/api/backup/export', {
+      const res = await fetch(apiUrl('/api/backup/export'), {
         headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}
       });
       if (!res.ok) throw new Error('Export failed on the server.');
@@ -186,7 +188,7 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
               if (!dl.ok) throw new Error(`Download failed (${dl.status}).`);
               const backup = await dl.json();
               const sessionToken = api.getToken();
-              const imp = await fetch('/api/backup/import', {
+              const imp = await fetch(apiUrl('/api/backup/import'), {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -221,6 +223,37 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
 
   return (
     <div className="space-y-6">
+      {/* Server connection — where /api/* lives. Empty = same origin (local dev). */}
+      <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-3xl p-6 shadow-xs">
+        <div className="flex items-center space-x-3 mb-1">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-500 to-indigo-600 text-white flex items-center justify-center border border-stone-800">
+            <HardDrive className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-bold font-serif-display text-lg text-slate-900 dark:text-cream-canvas">Server connection</h3>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Where the app's brain lives. The installed app needs this.</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          <input
+            value={serverUrl}
+            onChange={(e) => { setServerUrl(e.target.value); setServerSaved(false); }}
+            placeholder="https://your-server.example"
+            inputMode="url"
+            className="flex-1 px-4 py-3 rounded-2xl border-2 border-stone-300 dark:border-white/20 bg-white dark:bg-white/5 text-sm text-slate-900 dark:text-cream-canvas placeholder:text-stone-400"
+          />
+          <button
+            onClick={() => { setApiBase(serverUrl); setServerSaved(true); setMessage({ kind: 'ok', text: serverUrl.trim() ? 'Server saved. Sign in again to connect.' : 'Cleared — using same-origin server.' }); }}
+            className="px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-500 hover:to-indigo-500 text-white text-sm font-bold rounded-2xl transition-all"
+          >
+            Save
+          </button>
+        </div>
+        <p className="mt-3 text-[11px] text-stone-500 dark:text-stone-400 italic font-serif-display">
+          {serverSaved ? 'Saved. ' : ''}Leave empty when running with the built-in dev server. The installed Android app needs your deployed server's URL here (or baked in at build time).
+        </p>
+      </div>
+
       {/* One-tap exports — your data, your files, no Drive round trip needed */}
       <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-3xl p-6 shadow-xs">
         <div className="flex items-center space-x-3 mb-1">
@@ -236,7 +269,7 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
           <button
             onClick={async () => {
               const sessionToken = api.getToken();
-              const res = await fetch('/api/backup/export', {
+              const res = await fetch(apiUrl('/api/backup/export'), {
                 headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}
               });
               if (!res.ok) throw new Error('Export failed.');

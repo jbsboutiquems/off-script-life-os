@@ -6,6 +6,7 @@
 // server refuses those calls without it; declining consent never breaks the
 // rest of the app.
 import { aiConsentHeaders } from '../../services/aiConsent';
+import { apiUrl } from '../../services/api';
 
 const TOKEN_KEY = 'lifeos:auth:token';
 
@@ -41,7 +42,7 @@ async function studioReq(path: string, options: RequestInit = {}): Promise<any> 
   };
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(path, { ...options, headers });
+  const res = await fetch(apiUrl(path), { ...options, headers });
   if (res.status === 503) {
     const body = await res.json().catch(() => ({}));
     throw new StudioNotConfiguredError(
@@ -81,7 +82,7 @@ export const studioApi = {
     const headers: Record<string, string> = {};
     const token = getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch('/api/studio/status', { headers });
+    const res = await fetch(apiUrl('/api/studio/status'), { headers });
     if (!res.ok) return { configured: false };
     return res.json();
   },
@@ -129,7 +130,7 @@ export const studioApi = {
     };
     const token = getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch('/api/studio/video/download', {
+    const res = await fetch(apiUrl('/api/studio/video/download'), {
       method: 'POST',
       headers,
       body: JSON.stringify({ operationName })
@@ -155,7 +156,7 @@ export const studioApi = {
     const headers: Record<string, string> = {};
     const token = getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch('/api/studio/media', { headers });
+    const res = await fetch(apiUrl('/api/studio/media'), { headers });
     if (!res.ok) throw new Error('Could not load your studio library.');
     return res.json();
   },
@@ -164,7 +165,7 @@ export const studioApi = {
     const headers: Record<string, string> = {};
     const token = getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`/api/studio/media/${encodeURIComponent(id)}`, {
+    const res = await fetch(apiUrl(`/api/studio/media/${encodeURIComponent(id)}`), {
       method: 'DELETE',
       headers
     });

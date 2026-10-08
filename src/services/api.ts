@@ -70,6 +70,39 @@ function lsSet(key: string, val: unknown) {
   }
 }
 
+// ================= API base URL =================
+// Every /api/* call goes through apiUrl(). In local dev the server is the
+// same origin; in the Capacitor APK or on static hosting (GitHub Pages) the
+// server lives elsewhere. Priority: manual override (Backup > Server URL)
+// -> VITE_API_URL baked in at build time -> '' (same-origin fallback).
+const API_BASE_OVERRIDE_KEY = 'lifeos:api:base_override';
+
+export function getApiBase(): string {
+  try {
+    const override = localStorage.getItem(API_BASE_OVERRIDE_KEY);
+    if (override && override.trim()) return override.trim().replace(/\/+$/, '');
+  } catch {
+    // ignore
+  }
+  const envBase = (import.meta as any).env?.VITE_API_URL as string | undefined;
+  if (envBase && envBase.trim()) return envBase.trim().replace(/\/+$/, '');
+  return '';
+}
+
+export function setApiBase(url: string): void {
+  try {
+    if (url && url.trim()) localStorage.setItem(API_BASE_OVERRIDE_KEY, url.trim().replace(/\/+$/, ''));
+    else localStorage.removeItem(API_BASE_OVERRIDE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function apiUrl(path: string): string {
+  const base = getApiBase();
+  return base ? `${base}${path}` : path;
+}
+
 // Authenticated request helper. Throws AuthError on 401 (session gone) and a
 // TypeError on network failure, matching the offline-fallback convention below.
 async function req(path: string, options: RequestInit = {}): Promise<Response> {
@@ -81,7 +114,7 @@ async function req(path: string, options: RequestInit = {}): Promise<Response> {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   let res: Response;
   try {
-    res = await fetch(path, { ...options, headers });
+    res = await fetch(apiUrl(path), { ...options, headers });
   } catch {
     throw new TypeError('network unreachable');
   }
@@ -161,6 +194,11 @@ let interpersonalCacheAt = 0;
 let interpersonalInflight: Promise<InterpersonalInsight[]> | null = null;
 
 export const api = {
+  // ---- Server connection ----
+  getApiBase,
+  setApiBase,
+  apiUrl,
+
   // ---- Auth ----
   getToken,
   setToken,
@@ -171,7 +209,7 @@ export const api = {
   },
 
   async register(username: string, password: string): Promise<AuthResult> {
-    const res = await fetch('/api/auth/register', {
+    const res = await fetch(apiUrl('/api/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
@@ -189,7 +227,7 @@ export const api = {
   },
 
   async login(username: string, password: string): Promise<AuthResult> {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
@@ -207,7 +245,7 @@ export const api = {
     // handler on 401, which would call logout() again — infinite recursion.
     try {
       const token = getToken();
-      await fetch('/api/auth/logout', {
+      await fetch(apiUrl('/api/auth/logout'), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
@@ -218,7 +256,7 @@ export const api = {
   },
 
   async recoverAccount(username: string, recoveryCode: string, newPassword: string): Promise<{ success: boolean; recoveryCode: string }> {
-    const res = await fetch('/api/auth/recover', {
+    const res = await fetch(apiUrl('/api/auth/recover'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, recoveryCode, newPassword })
@@ -239,14 +277,14 @@ export const api = {
 
   async getAuthConfig(): Promise<{ google: boolean; facebook: boolean; email: boolean; smtp: boolean }> {
     try {
-      const res = await fetch('/api/auth/config');
+      const res = await fetch(apiUrl('/api/auth/config'));
       if (res.ok) return await res.json();
     } catch { /* ignore */ }
     return { google: false, facebook: false, email: true, smtp: false };
   },
 
   async emailRegister(email: string, username: string, password: string): Promise<AuthResult & { emailVerified: boolean; verificationEmailed: boolean }> {
-    const res = await fetch('/api/auth/email/register', {
+    const res = await fetch(apiUrl('/api/auth/email/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, username, password })
@@ -264,7 +302,7 @@ export const api = {
   },
 
   async emailLogin(email: string, password: string): Promise<AuthResult> {
-    const res = await fetch('/api/auth/email/login', {
+    const res = await fetch(apiUrl('/api/auth/email/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -284,7 +322,7 @@ export const api = {
   },
 
   async forgotByEmail(email: string): Promise<{ fallback?: string; message?: string; sent?: boolean }> {
-    const res = await fetch('/api/auth/email/forgot', {
+    const res = await fetch(apiUrl('/api/auth/email/forgot'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
@@ -293,7 +331,7 @@ export const api = {
   },
 
   async completeOAuthSignup(pendingKey: string, username: string): Promise<AuthResult> {
-    const res = await fetch('/api/auth/oauth/complete', {
+    const res = await fetch(apiUrl('/api/auth/oauth/complete'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pendingKey, username })
