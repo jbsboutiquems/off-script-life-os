@@ -3,6 +3,10 @@ import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFli
 import { api, AuthError } from './services/api';
 import { initTheme, getTheme, cycleTheme, type ChaosTheme } from './theme';
 import { Header } from './components/Header';
+import { FolderTabs, type FolderSection } from './components/FolderTabs';
+import { FieldView } from './components/FieldView';
+import { CommunityView } from './components/CommunityView';
+import { NotificationBell } from './components/NotificationBell';
 import { AuthScreen } from './components/AuthScreen';
 import { OAuthUsernameStep } from './components/OAuthUsernameStep';
 import { DashboardView, type DashboardTab } from './components/DashboardView';
@@ -27,7 +31,6 @@ import { DriveBackupView } from './components/DriveBackupView';
 import { OnboardingTour } from './components/OnboardingTour';
 import { RemindersView } from './components/RemindersView';
 import { SearchView } from './components/SearchView';
-import { ChaosWallView } from './components/ChaosWallView';
 import { InboxView } from './components/InboxView';
 import { FrontMatterView } from './components/frontmatter';
 import { AiStudioView } from './components/studio/AiStudioView';
@@ -560,6 +563,36 @@ export default function App() {
 
   const onOpenDashboardDoor = (tab: DashboardTab) => setActiveTab(tab);
 
+  // Folder-tab navigation: core sections as planner dividers.
+  const activeSection: FolderSection =
+    activeTab === 'wall' ? 'wall'
+    : activeTab === 'inbox' ? 'dms'
+    : activeTab === 'diagnostic' ? 'mei'
+    : activeTab === 'field' ? 'field'
+    : 'daily';
+
+  const handleSelectSection = (s: FolderSection) => {
+    setActiveTab(
+      s === 'wall' ? 'wall'
+      : s === 'dms' ? 'inbox'
+      : s === 'mei' ? 'diagnostic'
+      : s === 'field' ? 'field'
+      : 'dashboard',
+    );
+  };
+
+  const menuItems = [
+    { id: 'crew', label: 'Flight Crew' },
+    { id: 'reminders', label: 'Reminders' },
+    { id: 'search', label: 'Search' },
+    { id: 'backup', label: 'Backup' },
+    { id: 'frontmatter', label: 'FrontMatter' },
+    { id: 'studio', label: 'AI Studio' },
+    { id: 'unlock', label: 'Unlock' },
+  ];
+  const menuIds = menuItems.map(m => m.id);
+  const activeMenuId = menuIds.includes(activeTab) ? activeTab : null;
+
   return (
     <div className="min-h-screen bg-cream-canvas text-stone-900 dark:bg-[#000a15] dark:text-cream-canvas flex flex-col font-sans selection:bg-rose-200 selection:text-rose-900">
 
@@ -582,6 +615,17 @@ export default function App() {
         onLogout={() => handleLogout()}
         buddy={buddy}
         onOpenBuddy={() => setBuddyCreatorOpen(true)}
+      />
+
+      {/* Folder-divider navigation */}
+      <FolderTabs
+        activeSection={activeSection}
+        onSelect={handleSelectSection}
+        unreadCount={unreadCount}
+        menuItems={menuItems}
+        activeMenuId={activeMenuId}
+        onSelectMenu={(id) => setActiveTab(id as ActiveTab)}
+        rightSlot={<NotificationBell />}
       />
 
       {/* Email verification nudge */}
@@ -863,8 +907,12 @@ export default function App() {
             <AiStudioView userId={user.id} />
           )}
 
+          {activeTab === 'field' && (
+            <FieldView />
+          )}
+
           {activeTab === 'wall' && (
-            <ChaosWallView user={user} myUserId={user.id} />
+            <CommunityView user={user} myUserId={user.id} />
           )}
 
           {activeTab === 'inbox' && (

@@ -81,12 +81,35 @@ interface UserData {
   studioMedia: StudioMediaItem[];
 }
 
+interface WallReply {
+  id: string;
+  userId: string;
+  username: string;
+  text: string;
+  created_at: string;
+}
+
 interface WallPost {
   id: string;
   userId: string;
   username: string;
   text: string;
   created_at: string;
+  replies: WallReply[];
+  reactions: Record<string, string[]>;
+  pinned: boolean;
+  pinned_at: string | null;
+}
+
+interface AppNotification {
+  id: string;
+  userId: string;
+  actorId: string;
+  kind: "reply" | "reaction" | "dm" | "room";
+  text: string;
+  refId: string | null;
+  created_at: string;
+  read: boolean;
 }
 
 interface DmMessage {
@@ -95,6 +118,24 @@ interface DmMessage {
   fromUsername: string;
   toId: string;
   toUsername: string;
+  text: string;
+  created_at: string;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  description: string;
+  ownerId: string;
+  memberIds: string[];
+  created_at: string;
+}
+
+interface RoomMessage {
+  id: string;
+  roomId: string;
+  userId: string;
+  username: string;
   text: string;
   created_at: string;
 }
@@ -114,6 +155,12 @@ interface DataStore {
   dmRead: Record<string, Record<string, string>>;
   /** Email verification / password-reset tokens, keyed by sha256(token). */
   emailTokens: Record<string, EmailTokenRecord>;
+  /** In-app notifications, newest last. */
+  notifications: AppNotification[];
+  /** Group rooms (channels). */
+  rooms: Room[];
+  /** Room messages across all rooms. */
+  roomMessages: RoomMessage[];
 }
 
 const defaultContentPacks: Record<string, any> = {
@@ -212,7 +259,10 @@ function freshStore(): DataStore {
     wallPosts: [],
     dmMessages: [],
     dmRead: {},
-    emailTokens: {}
+    emailTokens: {},
+    notifications: [],
+    rooms: [],
+    roomMessages: []
   };
 }
 
@@ -257,6 +307,9 @@ function loadData(): DataStore {
         if (!Array.isArray(store.dmMessages)) store.dmMessages = [];
         if (!store.dmRead || typeof store.dmRead !== "object") store.dmRead = {};
         if (!store.emailTokens || typeof store.emailTokens !== "object") store.emailTokens = {};
+        if (!Array.isArray(store.notifications)) store.notifications = [];
+        if (!Array.isArray(store.rooms)) store.rooms = [];
+        if (!Array.isArray(store.roomMessages)) store.roomMessages = [];
         for (const a of store.accounts) if (typeof a.recoveryHash !== "string") a.recoveryHash = "";
         return store;
       }
@@ -1294,7 +1347,18 @@ const WALL_MAX = 500;
 
 app.get("/api/wall", requireAuth, (_req, res) => {
   const posts = [...(db.wallPosts || [])]
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .map((p) => ({
+      ...p,
+      replies: Array.isArray(p.replies) ? p.replies : [],
+      reactions: p.reactions && typeof p.reactions === "object" ? p.reactions : {},
+      pinned: !!p.pinned,
+      pinned_at: p.pinned_at || null,
+    }))
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      if (a.pinned && b.pinned) return (b.pinned_at || "").localeCompare(a.pinned_at || "");
+      return b.created_at.localeCompare(a.created_at);
+    })
     .slice(0, 200);
   res.json(posts);
 });
@@ -1313,6 +1377,10 @@ app.post("/api/wall", requireAuth, (req, res) => {
     username: acct?.username || "anonymous",
     text,
     created_at: new Date().toISOString(),
+    replies: [],
+    reactions: {},
+    pinned: false,
+    pinned_at: null,
   };
   db.wallPosts = db.wallPosts || [];
   db.wallPosts.push(post);
@@ -1330,6 +1398,133 @@ app.delete("/api/wall/:id", requireAuth, (req, res) => {
   db.wallPosts.splice(idx, 1);
   saveData(db);
   res.json({ success: true });
+});
+
+// ---------- Wall: replies ----------
+
+app.post("/api/wall/:id/replies", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "Empty replies echo nowhere." });
+  if (text.length > WALL_MAX) {
+    return res.status(400).json({ error: `Keep it under ${WALL_MAX} characters.` });
+  }
+  const post = (db.wallPosts || []).find((p) => p.id === req.params.id);
+  if (!post) return res.status(404).json({ error: "That post is gone. The void ate it." });
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  const reply: WallReply = {
+    id: `wreply_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    userId: ar.userId,
+    username: acct?.username || "anonymous",
+    text,
+    created_at: new Date().toISOString(),
+  };
+  post.replies = Array.isArray(post.replies) ? post.replies : [];
+  post.replies.push(reply);
+  notifyUser(post.userId, ar.userId, "reply", `${reply.username} replied to your wall post.`, post.id);
+  saveData(db);
+  res.json(reply);
+});
+
+app.delete("/api/wall/:id/replies/:replyId", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const post = (db.wallPosts || []).find((p) => p.id === req.params.id);
+  if (!post) return res.status(404).json({ error: "That post is gone." });
+  const idx = (post.replies || []).findIndex((r) => r.id === req.params.replyId);
+  if (idx === -1) return res.status(404).json({ error: "That reply is gone." });
+  if (post.replies[idx].userId !== ar.userId) {
+    return res.status(403).json({ error: "That's not your reply to unsay." });
+  }
+  post.replies.splice(idx, 1);
+  saveData(db);
+  res.json({ success: true });
+});
+
+// ---------- Wall: reactions ----------
+
+const ALLOWED_REACTIONS = ["❤️", "🔥", "😂", "😮", "👏", "💀"];
+
+app.post("/api/wall/:id/reactions", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const emoji = String(req.body?.emoji || "");
+  if (!ALLOWED_REACTIONS.includes(emoji)) return res.status(400).json({ error: "That reaction isn't on the menu." });
+  const post = (db.wallPosts || []).find((p) => p.id === req.params.id);
+  if (!post) return res.status(404).json({ error: "That post is gone." });
+  post.reactions = post.reactions && typeof post.reactions === "object" ? post.reactions : {};
+  const reactors = post.reactions[emoji] || [];
+  const at = reactors.indexOf(ar.userId);
+  if (at === -1) {
+    reactors.push(ar.userId);
+    const acct = db.accounts.find((a) => a.id === ar.userId);
+    notifyUser(post.userId, ar.userId, "reaction", `${acct?.username || "Someone"} reacted ${emoji} to your wall post.`, post.id);
+  } else {
+    reactors.splice(at, 1);
+  }
+  if (reactors.length === 0) delete post.reactions[emoji];
+  else post.reactions[emoji] = reactors;
+  saveData(db);
+  res.json({ reactions: post.reactions });
+});
+
+// ---------- Notifications ----------
+
+/** Record an in-app notification. No-op when the actor is the recipient. */
+function notifyUser(
+  recipientId: string,
+  actorId: string,
+  kind: AppNotification["kind"],
+  text: string,
+  refId: string | null,
+): void {
+  if (!recipientId || recipientId === actorId) return;
+  db.notifications = Array.isArray(db.notifications) ? db.notifications : [];
+  db.notifications.push({
+    id: `notif_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    userId: recipientId,
+    actorId,
+    kind,
+    text,
+    refId,
+    created_at: new Date().toISOString(),
+    read: false,
+  });
+  // Keep the log bounded.
+  if (db.notifications.length > 2000) {
+    db.notifications = db.notifications.slice(-2000);
+  }
+}
+
+app.get("/api/notifications", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const items = (Array.isArray(db.notifications) ? db.notifications : [])
+    .filter((n) => n.userId === ar.userId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 50);
+  res.json({ items, unread: items.filter((n) => !n.read).length });
+});
+
+app.post("/api/notifications/read", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  for (const n of db.notifications || []) {
+    if (n.userId === ar.userId) n.read = true;
+  }
+  saveData(db);
+  res.json({ success: true });
+});
+
+// ---------- Wall: pin (post owner only) ----------
+
+app.post("/api/wall/:id/pin", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const post = (db.wallPosts || []).find((p) => p.id === req.params.id);
+  if (!post) return res.status(404).json({ error: "That post is gone." });
+  if (post.userId !== ar.userId) {
+    return res.status(403).json({ error: "Only the screamer can pin their scream." });
+  }
+  post.pinned = !post.pinned;
+  post.pinned_at = post.pinned ? new Date().toISOString() : null;
+  saveData(db);
+  res.json({ pinned: post.pinned });
 });
 
 // ---------- Inbox: one-to-one DMs ----------
@@ -1428,6 +1623,7 @@ app.post("/api/inbox/messages", requireAuth, (req, res) => {
   };
   db.dmMessages = db.dmMessages || [];
   db.dmMessages.push(msg);
+  notifyUser(toId, ar.userId, "dm", `${msg.fromUsername} sent you a DM.`, msg.id);
   saveData(db);
   res.json(msg);
 });
@@ -1442,6 +1638,124 @@ app.delete("/api/inbox/messages/:id", requireAuth, (req, res) => {
   db.dmMessages.splice(idx, 1);
   saveData(db);
   res.json({ success: true });
+});
+
+// ---------- Group rooms ----------
+
+function getRoom(id: string): Room | undefined {
+  return (db.rooms || []).find((r) => r.id === id);
+}
+
+function isRoomMember(room: Room, userId: string): boolean {
+  return room.memberIds.includes(userId);
+}
+
+app.get("/api/rooms", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const rooms = (db.rooms || [])
+    .filter((r) => isRoomMember(r, ar.userId))
+    .map((r) => ({
+      ...r,
+      memberCount: r.memberIds.length,
+      lastAt: [...(db.roomMessages || [])]
+        .filter((m) => m.roomId === r.id)
+        .map((m) => m.created_at)
+        .sort()
+        .pop() || r.created_at,
+    }))
+    .sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+  res.json(rooms);
+});
+
+app.post("/api/rooms", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const name = String(req.body?.name || "").trim().slice(0, 60);
+  if (!name) return res.status(400).json({ error: "A room needs a name." });
+  const description = String(req.body?.description || "").trim().slice(0, 280);
+  const room: Room = {
+    id: `room_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    name,
+    description,
+    ownerId: ar.userId,
+    memberIds: [ar.userId],
+    created_at: new Date().toISOString(),
+  };
+  db.rooms = db.rooms || [];
+  db.rooms.push(room);
+  saveData(db);
+  res.json(room);
+});
+
+app.post("/api/rooms/:id/join", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const room = getRoom(req.params.id);
+  if (!room) return res.status(404).json({ error: "That room doesn't exist." });
+  if (!isRoomMember(room, ar.userId)) {
+    room.memberIds.push(ar.userId);
+    saveData(db);
+  }
+  res.json({ success: true });
+});
+
+app.post("/api/rooms/:id/leave", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const room = getRoom(req.params.id);
+  if (!room) return res.status(404).json({ error: "That room doesn't exist." });
+  room.memberIds = room.memberIds.filter((id) => id !== ar.userId);
+  saveData(db);
+  res.json({ success: true });
+});
+
+app.delete("/api/rooms/:id", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const idx = (db.rooms || []).findIndex((r) => r.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "That room doesn't exist." });
+  if (db.rooms[idx].ownerId !== ar.userId) {
+    return res.status(403).json({ error: "Only the room's founder can demolish it." });
+  }
+  const roomId = db.rooms[idx].id;
+  db.rooms.splice(idx, 1);
+  db.roomMessages = (db.roomMessages || []).filter((m) => m.roomId !== roomId);
+  saveData(db);
+  res.json({ success: true });
+});
+
+app.get("/api/rooms/:id/messages", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const room = getRoom(req.params.id);
+  if (!room) return res.status(404).json({ error: "That room doesn't exist." });
+  if (!isRoomMember(room, ar.userId)) return res.status(403).json({ error: "You're not in this room." });
+  const messages = (db.roomMessages || [])
+    .filter((m) => m.roomId === room.id)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .slice(-200);
+  res.json({ room, messages });
+});
+
+app.post("/api/rooms/:id/messages", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const room = getRoom(req.params.id);
+  if (!room) return res.status(404).json({ error: "That room doesn't exist." });
+  if (!isRoomMember(room, ar.userId)) return res.status(403).json({ error: "You're not in this room." });
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "Empty messages echo nowhere." });
+  if (text.length > DM_MAX) return res.status(400).json({ error: `Keep it under ${DM_MAX} characters.` });
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  const msg: RoomMessage = {
+    id: `rmsg_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    roomId: room.id,
+    userId: ar.userId,
+    username: acct?.username || "anonymous",
+    text,
+    created_at: new Date().toISOString(),
+  };
+  db.roomMessages = db.roomMessages || [];
+  db.roomMessages.push(msg);
+  for (const memberId of room.memberIds) {
+    notifyUser(memberId, ar.userId, "room", `${msg.username} in ${room.name}: ${text.slice(0, 80)}`, room.id);
+  }
+  saveData(db);
+  res.json(msg);
 });
 
 // Daily entries

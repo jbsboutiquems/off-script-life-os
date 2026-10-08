@@ -353,6 +353,90 @@ export const api = {
     if (!res.ok) throw new Error(body.error || 'Could not delete that post.');
   },
 
+  async replyToWallPost(id: string, text: string): Promise<{ id: string; userId: string; username: string; text: string; created_at: string }> {
+    const res = await req(`/api/wall/${id}/replies`, { method: 'POST', body: JSON.stringify({ text }) });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not reply.');
+    return body;
+  },
+
+  async deleteWallReply(postId: string, replyId: string): Promise<void> {
+    const res = await req(`/api/wall/${postId}/replies/${replyId}`, { method: 'DELETE' });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not delete that reply.');
+  },
+
+  async toggleWallReaction(id: string, emoji: string): Promise<{ reactions: Record<string, string[]> }> {
+    const res = await req(`/api/wall/${id}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not react.');
+    return body;
+  },
+
+  async toggleWallPin(id: string): Promise<{ pinned: boolean }> {
+    const res = await req(`/api/wall/${id}/pin`, { method: 'POST' });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not pin that post.');
+    return body;
+  },
+
+  // ---- Notifications ----
+
+  async getNotifications(): Promise<{ items: { id: string; kind: string; text: string; refId: string | null; created_at: string; read: boolean }[]; unread: number }> {
+    const res = await req('/api/notifications');
+    if (!res.ok) throw new Error('Could not load notifications.');
+    return res.json();
+  },
+
+  async markNotificationsRead(): Promise<void> {
+    await req('/api/notifications/read', { method: 'POST' });
+  },
+
+  // ---- Group rooms ----
+
+  async getRooms(): Promise<{ id: string; name: string; description: string; ownerId: string; memberCount: number; lastAt: string }[]> {
+    const res = await req('/api/rooms');
+    if (!res.ok) throw new Error('Could not load rooms.');
+    return res.json();
+  },
+
+  async createRoom(name: string, description: string): Promise<{ id: string; name: string }> {
+    const res = await req('/api/rooms', { method: 'POST', body: JSON.stringify({ name, description }) });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not create that room.');
+    return body;
+  },
+
+  async joinRoom(id: string): Promise<void> {
+    const res = await req(`/api/rooms/${id}/join`, { method: 'POST' });
+    if (!res.ok) throw new Error('Could not join that room.');
+  },
+
+  async leaveRoom(id: string): Promise<void> {
+    const res = await req(`/api/rooms/${id}/leave`, { method: 'POST' });
+    if (!res.ok) throw new Error('Could not leave that room.');
+  },
+
+  async deleteRoom(id: string): Promise<void> {
+    const res = await req(`/api/rooms/${id}`, { method: 'DELETE' });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not delete that room.');
+  },
+
+  async getRoomMessages(id: string): Promise<{ room: { id: string; name: string; description: string; ownerId: string; memberIds: string[] }; messages: { id: string; userId: string; username: string; text: string; created_at: string }[] }> {
+    const res = await req(`/api/rooms/${id}/messages`);
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not load that room.');
+    return body;
+  },
+
+  async sendRoomMessage(id: string, text: string): Promise<{ id: string; userId: string; username: string; text: string; created_at: string }> {
+    const res = await req(`/api/rooms/${id}/messages`, { method: 'POST', body: JSON.stringify({ text }) });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not send that message.');
+    return body;
+  },
+
   // ---- Inbox (DMs) ----
 
   async getUserDirectory(): Promise<{ id: string; username: string }[]> {

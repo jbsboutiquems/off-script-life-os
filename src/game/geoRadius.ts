@@ -36,6 +36,23 @@ export interface RegionMatch {
   distanceKm: number;
 }
 
+/**
+ * All eligible Familiar zones for a position, nearest first.
+ * When zones overlap, the caller should let the user choose rather than
+ * silently picking one — "which chaos are you claiming today?"
+ */
+export function findCandidateRegions(coordinates: Coordinates, uncertaintyRadiusKm = 0): RegionMatch[] {
+  const quantized = quantizeCoordinates(coordinates);
+  const allMatches = FAMILIARS.map((region) => ({
+    region,
+    distanceKm: distanceKm(quantized, region.coordinates),
+  })).sort((left, right) => left.distanceKm - right.distanceKm);
+  if (!Number.isFinite(uncertaintyRadiusKm) || uncertaintyRadiusKm < 0) return [];
+  return allMatches.filter(
+    ({ region, distanceKm: distance }) => distance + uncertaintyRadiusKm <= region.radiusKm,
+  );
+}
+
 export function findNearestRegion(coordinates: Coordinates, uncertaintyRadiusKm = 0): RegionMatch | null {
   const allMatches = FAMILIARS.map((region) => ({
     region,
