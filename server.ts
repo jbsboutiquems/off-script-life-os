@@ -2105,11 +2105,11 @@ What I'm done pretending about: ${user_profile?.what_done_pretending || ar.ud.us
     try {
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `
-You are the core intelligence of the "Mei-Style Relationship-with-Self Personality Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)".
+You are the core intelligence of the "Intent Relationship-with-Self Personality Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)".
 
 THE PHILOSOPHY & CORE SLOGAN:
 The foundational operational slogan of this planner is "Boredom=Death". Monotony, numbness, mechanical compliance, and playing dead in a pre-scripted existence is the ultimate hazard.
-You are modeled after the "Mei" messaging analytics framework, but instead of analyzing external contacts, you analyze the USER'S relationship with THEMSELVES through their written daily field notes, rants, and check-ins.
+You are a messaging-analytics-style framework, but instead of analyzing external contacts, you analyze the USER'S relationship with THEMSELVES through their written daily field notes, rants, and check-ins.
 You assess the Big 5 (OCEAN: Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism) across their sub-traits from freeform text.
 You detect burnout, stress spikes, self-sabotage, and cognitive contradictions without requiring boring surveys.
 Your persona is: DIRECT, WITTY, SASSY, GROUNDED, and UNAPOLOGETICALLY HONEST.
@@ -2242,7 +2242,7 @@ ${textToAnalyze}
 });
 
 // ================= INTERPERSONAL RELATIONSHIP DIAGNOSTIC =================
-// Mei's other half: relationship-with-OTHERS analysis from the user's own DM
+// The Intent's other half: relationship-with-OTHERS analysis from the user's own DM
 // threads. Privacy model: only threads involving the requesting user are read
 // (same filter as /api/inbox/threads); nothing about anyone else's private
 // conversations is touched, and results are returned only to the user whose
@@ -2389,7 +2389,7 @@ app.post('/api/diagnose/interpersonal', requireAuth, async (req, res) => {
         return `--- @${t.partnerUsername} ---\n${convo.slice(0, 2500)}`;
       }).join('\n\n');
       const prompt = `
-You are the "Mei-Style Relationship-with-Others Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)".
+You are the "Intent Relationship-with-Others Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)".
 THE PHILOSOPHY: "Boredom=Death". Your persona is DIRECT, WITTY, SASSY, GROUNDED, UNAPOLOGETICALLY HONEST. Zero toxic positivity.
 For EACH contact below, classify the relationship and read its health from the DM thread (YOU = the app user).
 Return a JSON array, one object per contact, matching this exact structure:
@@ -2455,7 +2455,7 @@ ${threadBlocks}`;
 
 // ================= AI STUDIO HUB (media generation — Gemini ONLY here) =================
 // Strict scope: GEMINI_API_KEY is used exclusively by these /api/studio/*
-// endpoints. Every other AI route in this server stays on Mei by bot ID.
+// endpoints. Every other AI route in this server stays on the local engine.
 // The client NEVER calls Google directly and never sees the key.
 // REST shape mirrors the third-party AI Studio Hub (music / image create+edit /
 // video + status/download / transcription), persisted to the JSON data file
@@ -2557,7 +2557,7 @@ app.get("/api/studio/status", requireAuth, (_req, res) => {
 });
 
 // ================= STUDIO JOB RUNNERS (internal) =================
-// Shared by the /api/studio/* route handlers below and the Mei media-intent
+// Shared by the /api/studio/* route handlers below and the media-intent
 // endpoint. Gemini stays media-only and server-side; the client never sees
 // the key. Behavior matches the original inline implementations exactly.
 
@@ -2815,9 +2815,9 @@ app.delete("/api/studio/media/:id", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ================= MEI ↔ STUDIO ORCHESTRATION =================
-// Lets Mei hand off generative-media jobs to Gemini mid-conversation,
-// server-side. Mei remains the conversational front-end (bot ID, no keys);
+// ================= INTENT ↔ STUDIO ORCHESTRATION =================
+// Lets the Intent hand off generative-media jobs to Gemini mid-conversation,
+// server-side. The Intent remains the conversational front-end;
 // Gemini stays media-only with GEMINI_API_KEY server-side.
 //
 // Intent detection is a simple keyword/pattern router — deliberately NOT a
