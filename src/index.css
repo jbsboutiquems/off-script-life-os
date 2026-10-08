@@ -564,7 +564,7 @@
   }
 }
 
-/* ============ Feral transformation stages ============ */
+/* ============ Beast transformation stages ============ */
 /* Stage 0 = sweet buddy. Stages 1-3 progressively push the buddy portrait
    toward full gremlin: tint shifts, edges sharpen, toxic glow grows. */
 
@@ -572,27 +572,27 @@
   transition: filter 0.9s ease;
 }
 
-.feral-stage-0 .buddy-portrait {
+.beast-stage-0 .buddy-portrait {
   filter: saturate(1.05) brightness(1.03);
 }
 
-.feral-stage-1 .buddy-portrait {
+.beast-stage-1 .buddy-portrait {
   filter: saturate(1.3) hue-rotate(-14deg) brightness(0.98);
 }
 
-.feral-stage-2 .buddy-portrait {
+.beast-stage-2 .buddy-portrait {
   filter: saturate(1.55) hue-rotate(-28deg) contrast(1.1) brightness(0.94);
 }
 
-.feral-stage-3 .buddy-portrait {
+.beast-stage-3 .buddy-portrait {
   filter: saturate(1.9) hue-rotate(-45deg) contrast(1.22) brightness(0.88)
     drop-shadow(0 0 16px rgba(182, 255, 46, 0.5));
 }
 
 /* App-wide aura that deepens with transformation. Subtle by design. */
-.feral-aura-1 body { box-shadow: inset 0 0 120px rgba(182, 255, 46, 0.05); }
-.feral-aura-2 body { box-shadow: inset 0 0 160px rgba(182, 255, 46, 0.09); }
-.feral-aura-3 body { box-shadow: inset 0 0 220px rgba(182, 255, 46, 0.14); }
+.beast-aura-1 body { box-shadow: inset 0 0 120px rgba(182, 255, 46, 0.05); }
+.beast-aura-2 body { box-shadow: inset 0 0 160px rgba(182, 255, 46, 0.09); }
+.beast-aura-3 body { box-shadow: inset 0 0 220px rgba(182, 255, 46, 0.14); }
 
 /* Heat warning: warm shimmer overlay while rushing. */
 .heat-shimmer {
@@ -607,10 +607,10 @@
     rgba(255, 150, 50, 0.14) 55%,
     transparent 70%);
   background-size: 250% 250%;
-  animation: feral-shimmer 1.1s linear infinite;
+  animation: beast-shimmer 1.1s linear infinite;
 }
 
-@keyframes feral-shimmer {
+@keyframes beast-shimmer {
   0% { background-position: 120% 0; }
   100% { background-position: -120% 0; }
 }

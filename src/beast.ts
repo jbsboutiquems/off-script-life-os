@@ -2,10 +2,10 @@ import { userGet, userSet } from './storage';
 import { getBuddy } from './buddy';
 
 /**
- * Feral transformation engine.
+ * Beast Mode transformation engine.
  *
  * The buddy starts sweet/innocent (stage 0) and transforms
- * stage-by-stage toward full gremlin (stage 3) as the three rules break:
+ * stage-by-stage toward full beast (stage 3) as the three rules break:
  *   - sunlight/heat: racing through features (interaction velocity)
  *   - fed after midnight: saving content between 00:00–05:00 local
  *   - wet: hard device shake
@@ -13,20 +13,20 @@ import { getBuddy } from './buddy';
  * Everything degrades gracefully when sensors/APIs are unavailable.
  */
 
-export const FERAL_MAX_STAGE = 3;
+export const BEAST_MAX_STAGE = 3;
 
-export type FeralWarningKind = 'heat' | 'sleepy' | 'wet' | 'stage-up' | 'soothed';
+export type BeastWarningKind = 'heat' | 'sleepy' | 'wet' | 'stage-up' | 'soothed';
 
-export interface FeralWarning {
-  kind: FeralWarningKind;
+export interface BeastWarning {
+  kind: BeastWarningKind;
   stage: number;
   message: string;
 }
 
-const STAGE_KEY = 'feral_stage';
-const STAGE_META_KEY = 'feral_meta';
+const STAGE_KEY = 'beast_stage';
+const STAGE_META_KEY = 'beast_meta';
 
-interface FeralMeta {
+interface BeastMeta {
   lastActivityAt: number;
   lastDecayCheck: number;
   lastResetDay: string; // YYYY-MM-DD
@@ -34,17 +34,17 @@ interface FeralMeta {
 }
 
 type StageListener = (stage: number) => void;
-type WarningListener = (w: FeralWarning) => void;
+type WarningListener = (w: BeastWarning) => void;
 
 const stageListeners = new Set<StageListener>();
 const warningListeners = new Set<WarningListener>();
 
-export function onFeralStage(cb: StageListener): () => void {
+export function onBeastStage(cb: StageListener): () => void {
   stageListeners.add(cb);
   return () => { stageListeners.delete(cb); };
 }
 
-export function onFeralWarning(cb: WarningListener): () => void {
+export function onBeastWarning(cb: WarningListener): () => void {
   warningListeners.add(cb);
   return () => { warningListeners.delete(cb); };
 }
@@ -53,13 +53,13 @@ function emitStage(stage: number) {
   stageListeners.forEach(cb => { try { cb(stage); } catch { /* ignore */ } });
 }
 
-function emitWarning(w: FeralWarning) {
+function emitWarning(w: BeastWarning) {
   warningListeners.forEach(cb => { try { cb(w); } catch { /* ignore */ } });
 }
 
-function getMeta(): FeralMeta {
+function getMeta(): BeastMeta {
   const now = Date.now();
-  return userGet<FeralMeta>(STAGE_META_KEY) || {
+  return userGet<BeastMeta>(STAGE_META_KEY) || {
     lastActivityAt: now,
     lastDecayCheck: now,
     lastResetDay: '',
@@ -67,17 +67,17 @@ function getMeta(): FeralMeta {
   };
 }
 
-function setMeta(patch: Partial<FeralMeta>) {
+function setMeta(patch: Partial<BeastMeta>) {
   userSet(STAGE_META_KEY, { ...getMeta(), ...patch });
 }
 
-export function getFeralStage(): number {
+export function getBeastStage(): number {
   const s = userGet<number>(STAGE_KEY);
-  return typeof s === 'number' ? Math.max(0, Math.min(FERAL_MAX_STAGE, s)) : 0;
+  return typeof s === 'number' ? Math.max(0, Math.min(BEAST_MAX_STAGE, s)) : 0;
 }
 
 function setStage(stage: number) {
-  const clamped = Math.max(0, Math.min(FERAL_MAX_STAGE, stage));
+  const clamped = Math.max(0, Math.min(BEAST_MAX_STAGE, stage));
   userSet(STAGE_KEY, clamped);
   setMeta({ lastActivityAt: Date.now() });
   emitStage(clamped);
@@ -96,13 +96,13 @@ const STAGE_UP_COPY = [
   () => `${buddyName()} is still sweet. For now.`,
   () => `${buddyName()}'s ears just got pointier…`,
   () => 'Scales are forming. Careful.',
-  () => `FULL GREMLIN. It was nice knowing sweet ${buddyName()}.`,
+  () => `BEAST MODE. It was nice knowing sweet ${buddyName()}.`,
 ];
 
 /** Advance one stage (max 3). Returns the new stage. */
-export function advanceFeralStage(reason: 'sunlight' | 'midnight-snack' | 'wet'): number {
-  const next = Math.min(FERAL_MAX_STAGE, getFeralStage() + 1);
-  const before = getFeralStage();
+export function advanceBeastStage(reason: 'sunlight' | 'midnight-snack' | 'wet'): number {
+  const next = Math.min(BEAST_MAX_STAGE, getBeastStage() + 1);
+  const before = getBeastStage();
   setStage(next);
   if (next !== before) {
     emitWarning({ kind: 'stage-up', stage: next, message: STAGE_UP_COPY[next]() });
@@ -138,10 +138,10 @@ export function trackInteraction() {
       // First crossing: warm shimmer warning. Sustained rushing: stage up.
       if (now - heatWarnedAt > 30_000) {
         heatWarnedAt = now;
-        emitWarning({ kind: 'heat', stage: getFeralStage(), message: `Too fast — you're overheating ${buddyName()}!` });
+        emitWarning({ kind: 'heat', stage: getBeastStage(), message: `Too fast — you're overheating ${buddyName()}!` });
       } else if (now - heatStageAt > 30_000 && tapTimes.length >= HEAT_THRESHOLD * 1.5) {
         heatStageAt = now;
-        advanceFeralStage('sunlight');
+        advanceBeastStage('sunlight');
       }
     }
   } catch { /* never break the app */ }
@@ -158,7 +158,7 @@ export function noteSaveAction(when: Date = new Date()) {
     noteCalmActivity();
     const h = when.getHours();
     if (h >= 0 && h < 5) {
-      advanceFeralStage('midnight-snack');
+      advanceBeastStage('midnight-snack');
     }
   } catch { /* ignore */ }
 }
@@ -170,7 +170,7 @@ export function checkSleepyWarning(when: Date = new Date()) {
     const meta = getMeta();
     if (when.getHours() === 23 && when.getMinutes() >= 55 && meta.sleepyWarnedDay !== day) {
       setMeta({ sleepyWarnedDay: day });
-      emitWarning({ kind: 'sleepy', stage: getFeralStage(), message: `${buddyName()}'s getting sleepy… no snacks after midnight.` });
+      emitWarning({ kind: 'sleepy', stage: getBeastStage(), message: `${buddyName()}'s getting sleepy… no snacks after midnight.` });
     }
   } catch { /* ignore */ }
 }
@@ -194,8 +194,8 @@ function handleMotion(e: DeviceMotionEvent) {
       lastShakeAt = now;
       if (shakeHits >= 2) {
         shakeHits = 0;
-        emitWarning({ kind: 'wet', stage: getFeralStage(), message: `You shook ${buddyName()}. It got wet!` });
-        advanceFeralStage('wet');
+        emitWarning({ kind: 'wet', stage: getBeastStage(), message: `You shook ${buddyName()}. It got wet!` });
+        advanceBeastStage('wet');
       }
     }
   } catch { /* ignore */ }
@@ -246,7 +246,7 @@ export function tickForgiveness(when: Date = new Date()) {
     const now = when.getTime();
     // Dawn reset: full return to sweet at 05:00 local, once per day.
     if (when.getHours() >= 5 && meta.lastResetDay !== dayStr(when)) {
-      const before = getFeralStage();
+      const before = getBeastStage();
       setMeta({ lastResetDay: dayStr(when) });
       if (before > 0) {
         setStage(0);
@@ -257,7 +257,7 @@ export function tickForgiveness(when: Date = new Date()) {
     // Calm decay.
     if (now - meta.lastActivityAt > DECAY_MS && now - meta.lastDecayCheck > DECAY_MS) {
       setMeta({ lastDecayCheck: now });
-      const stage = getFeralStage();
+      const stage = getBeastStage();
       if (stage > 0) {
         setStage(stage - 1);
         emitWarning({ kind: 'soothed', stage: stage - 1, message: `${buddyName()} calms down a little…` });

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { creatureFor, buddyPortraitSrc, type BuddyProfile } from '../buddy';
-import { getFeralStage, onFeralStage } from '../feral';
+import { getBeastStage, onBeastStage } from '../beast';
 
 interface BuddyAvatarProps {
   buddy: BuddyProfile | null;
-  /** Feral stage 0–3. When omitted, subscribes live to stage changes. */
+  /** Beast stage 0–3. When omitted, subscribes live to stage changes. */
   stage?: number;
   size?: number;
   showName?: boolean;
@@ -12,16 +12,16 @@ interface BuddyAvatarProps {
 }
 
 /**
- * The buddy's portrait — the visual face of Mei. `feral-stage-N` classes
+ * The buddy's portrait — the visual face of Mei. `beast-stage-N` classes
  * (defined in index.css) progressively push the portrait toward gremlin.
  */
 export const BuddyAvatar: React.FC<BuddyAvatarProps> = ({
   buddy, stage: stageProp, size = 56, showName = false, ringClassName = '',
 }) => {
-  const [liveStage, setLiveStage] = useState(() => getFeralStage());
+  const [liveStage, setLiveStage] = useState(() => getBeastStage());
   useEffect(() => {
     if (stageProp !== undefined) return;
-    return onFeralStage(setLiveStage);
+    return onBeastStage(setLiveStage);
   }, [stageProp]);
   const stage = stageProp !== undefined ? stageProp : liveStage;
   const creature = creatureFor(buddy);
@@ -42,7 +42,7 @@ export const BuddyAvatar: React.FC<BuddyAvatarProps> = ({
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className={`relative rounded-full overflow-hidden feral-stage-${stage} ${ringClassName}`}
+        className={`relative rounded-full overflow-hidden beast-stage-${stage} ${ringClassName}`}
         style={{ width: size, height: size, boxShadow: `0 0 0 3px ${tint}, 0 0 18px ${tint}66` }}
       >
         <img
