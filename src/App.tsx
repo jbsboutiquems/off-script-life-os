@@ -39,6 +39,7 @@ import { InstallBanner } from './components/InstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { AiConsentGate } from './components/AiConsentGate';
 import { AndroidPermissionGate } from './components/AndroidPermissionGate';
+import { TestModeNotice } from './components/TestModeNotice';
 import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
 import { getBuddy, saveBuddy, type BuddyProfile } from './buddy';
@@ -998,6 +999,7 @@ export default function App() {
           Both are passive overlays: declining/dismissing never blocks the app. */}
       <AiConsentGate userId={user.id} />
       <AndroidPermissionGate userId={user.id} />
+      <TestModeNotice />
 
       {/* First-run onboarding tour */}
       {showTour && (
