@@ -2828,16 +2828,16 @@ app.delete("/api/studio/media/:id", requireAuth, (req, res) => {
 //   IMAGE: "design a cover image for my vision board", "create cover art",
 //          "generate an image of ...", "make me a poster", "draw/paint ..."
 //   VIDEO: "generate a video for ...", "create a video of ...", "make a video"
-// There is currently no Mei chat UI in this codebase (Mei surfaces are the
+// There is currently no Intent chat UI in this codebase (Intent surfaces are the
 // diagnostic card, mantra generator, and /api/diagnose), so this endpoint is
 // the wiring point: a future chat UI POSTs the user's utterance here and,
 // when intent is found, delivers the returned media inside the conversation.
 //   Request:  POST /api/mei/media-intent  { text: string }
-//   Response: { intent: null }                                            → not a media ask; Mei answers normally
+//   Response: { intent: null }                                            → not a media ask; the Intent answers normally
 //             { intent: "music"|"image", status: "complete", ...media }     → finished media, deliver it
 //             { intent: "video", status: "complete", ... }                  → video finished within the poll window
 //             { intent: "video", status: "rendering", operationName }      → still rendering; poll /api/studio/video/status
-//             503 { code: "STUDIO_NOT_CONFIGURED" }                        → key absent; Mei says the studio is backstage
+//             503 { code: "STUDIO_NOT_CONFIGURED" }                        → key absent; the Intent says the studio is backstage
 
 type MediaIntent = "music" | "image" | "video" | null;
 
@@ -2904,7 +2904,7 @@ app.post("/api/mei/media-intent", requireAuth, express.json(), async (req, res) 
     if (polled.error) throw new Error(polled.error?.message || "Video render failed");
     return res.json({ intent, status: "rendering", ...started });
   } catch (err: any) {
-    console.error("Mei media-intent error:", err.message);
+    console.error("Intent media-intent error:", err.message);
     res.status(err.status || 500).json({ error: err.message || "Media job failed" });
   }
 });
