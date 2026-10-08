@@ -917,7 +917,7 @@ export default function App() {
           )}
 
           {activeTab === 'faq' && (
-            <FaqView />
+            <FaqView user={user} />
           )}
 
           {activeTab === 'field' && (

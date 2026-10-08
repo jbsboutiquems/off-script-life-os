@@ -226,6 +226,19 @@ interface DataStore {
   rooms: Room[];
   /** Room messages across all rooms. */
   roomMessages: RoomMessage[];
+  /** Community FAQ board — users ask, admins answer. */
+  faqQuestions: FaqQuestion[];
+}
+
+interface FaqQuestion {
+  id: string;
+  question: string;
+  asker_id: string;
+  asker_name: string;
+  answer: string | null;
+  answered_by: string | null;
+  created_at: string;
+  answered_at: string | null;
 }
 
 const defaultContentPacks: Record<string, any> = {
@@ -340,7 +353,8 @@ function freshStore(): DataStore {
     emailTokens: {},
     notifications: [],
     rooms: [],
-    roomMessages: []
+    roomMessages: [],
+    faqQuestions: []
   };
 }
 
@@ -390,6 +404,7 @@ function loadData(): DataStore {
         if (!Array.isArray(store.notifications)) store.notifications = [];
         if (!Array.isArray(store.rooms)) store.rooms = [];
         if (!Array.isArray(store.roomMessages)) store.roomMessages = [];
+        if (!Array.isArray(store.faqQuestions)) store.faqQuestions = [];
         for (const a of store.accounts) if (typeof a.recoveryHash !== "string") a.recoveryHash = "";
         return store;
       }
@@ -541,6 +556,23 @@ function getSessionUserId(token: string): string | null {
 }
 
 type AuthedRequest = express.Request & { userId: string; ud: UserData };
+
+// Admins can answer/delete FAQ board questions. Comma-separated usernames
+// via ADMIN_USERNAMES env (matched case-insensitively).
+function isAdminUsername(username: string | undefined): boolean {
+  if (!username) return false;
+  const raw = process.env.ADMIN_USERNAMES || "";
+  return raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean).includes(username.toLowerCase());
+}
+
+function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const ar = req as AuthedRequest;
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  if (!isAdminUsername(acct?.username)) {
+    return res.status(403).json({ error: "Admins only." });
+  }
+  next();
+}
 
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
   const header = String(req.headers.authorization || "");
@@ -1120,7 +1152,57 @@ function sanitizePatch(body: any): Record<string, any> {
 app.get("/api/auth/me", requireAuth, (req, res) => {
   const ar = req as AuthedRequest;
   const acct = db.accounts.find((a) => a.id === ar.userId);
-  res.json({ ...ar.ud.user, email: acct?.email || null, emailVerified: !!acct?.emailVerified });
+  res.json({ ...ar.ud.user, email: acct?.email || null, emailVerified: !!acct?.emailVerified, is_admin: isAdminUsername(acct?.username) });
+});
+
+// ---- Community FAQ board: users ask, admins answer ----
+app.get("/api/faq", requireAuth, (_req, res) => {
+  const list = [...(db.faqQuestions || [])].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  res.json(list);
+});
+
+app.post("/api/faq/ask", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const question = String(req.body?.question || "").trim();
+  if (!question) return res.status(400).json({ error: "Question can't be empty." });
+  if (question.length > 500) return res.status(400).json({ error: "Keep it under 500 characters." });
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  const q: FaqQuestion = {
+    id: "faq_" + crypto.randomBytes(8).toString("hex"),
+    question,
+    asker_id: ar.userId,
+    asker_name: acct?.username || "someone",
+    answer: null,
+    answered_by: null,
+    created_at: new Date().toISOString(),
+    answered_at: null
+  };
+  db.faqQuestions.push(q);
+  saveData(db);
+  res.json(q);
+});
+
+app.post("/api/faq/answer", requireAuth, requireAdmin, (req, res) => {
+  const ar = req as AuthedRequest;
+  const id = String(req.body?.id || "");
+  const answer = String(req.body?.answer || "").trim();
+  const q = db.faqQuestions.find((x) => x.id === id);
+  if (!q) return res.status(404).json({ error: "Question not found." });
+  if (!answer) return res.status(400).json({ error: "Answer can't be empty." });
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  q.answer = answer;
+  q.answered_by = acct?.username || "team";
+  q.answered_at = new Date().toISOString();
+  saveData(db);
+  res.json(q);
+});
+
+app.delete("/api/faq/:id", requireAuth, requireAdmin, (req, res) => {
+  const idx = db.faqQuestions.findIndex((x) => x.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: "Question not found." });
+  db.faqQuestions.splice(idx, 1);
+  saveData(db);
+  res.json({ ok: true });
 });
 
 // Content packs are shared and read-only.

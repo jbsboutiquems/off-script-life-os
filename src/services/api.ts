@@ -1,4 +1,4 @@
-import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, InterpersonalInsight, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, ExpansionProduct, KhaosPointEntry, KhaosPointAction, KHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
+import { UserProfile, Goal, AntiGoal, FaqQuestion, DailyEntry, PersonalitySnapshot, InterpersonalInsight, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, ExpansionProduct, KhaosPointEntry, KhaosPointAction, KHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
 import { DueReminder } from '../lib/reminders';
 import { aiConsentHeaders } from './aiConsent';
 import { setActiveUserId } from '../storage';
@@ -1145,5 +1145,40 @@ export const api = {
     }
     const list = await this.getFlightCrew().catch(() => [] as FlightCrewContact[]);
     lsSet('flightcrew', list.filter(c => c.id !== id));
+  },
+
+  // ---- Community FAQ board ----
+  async faqList(): Promise<FaqQuestion[]> {
+    const res = await req('/api/faq');
+    if (!res.ok) throw new Error('Could not load questions.');
+    return res.json();
+  },
+
+  async faqAsk(question: string): Promise<FaqQuestion> {
+    const res = await req('/api/faq/ask', {
+      method: 'POST',
+      body: JSON.stringify({ question })
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not post your question.');
+    return body as FaqQuestion;
+  },
+
+  async faqAnswer(id: string, answer: string): Promise<FaqQuestion> {
+    const res = await req('/api/faq/answer', {
+      method: 'POST',
+      body: JSON.stringify({ id, answer })
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not save the answer.');
+    return body as FaqQuestion;
+  },
+
+  async faqDelete(id: string): Promise<void> {
+    const res = await req(`/api/faq/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({} as any));
+      throw new Error(body.error || 'Could not delete the question.');
+    }
   }
 };

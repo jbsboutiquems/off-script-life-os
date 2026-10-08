@@ -18,6 +18,8 @@ export interface UserProfile {
   khaos_name: string;
   word_of_the_year: string;
   slogan?: string;
+  /** True when the server lists this account in ADMIN_USERNAMES. */
+  is_admin?: boolean;
   khaos_mantra: string;
   what_done_pretending: string;
   what_ready_to_admit: string;
@@ -283,4 +285,15 @@ export interface FlightCrewContact {
   role: string; // e.g. "Co-conspirator", "Emergency contact", "Accountability gremlin"
   notes: string;
   created_at: string;
+}
+
+export interface FaqQuestion {
+  id: string;
+  question: string;
+  asker_id: string;
+  asker_name: string;
+  answer: string | null;
+  answered_by: string | null;
+  created_at: string;
+  answered_at: string | null;
 }
