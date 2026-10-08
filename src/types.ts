@@ -1,6 +1,6 @@
 /**
  * Core Data Types for 2027 Life OS: Off*Script (Khaos Year Edition)
- * & The Mei-Style Personality Diagnostic Engine
+ * & The Intent Personality Diagnostic Engine
  */
 
 export interface BuddyProfile {
@@ -49,7 +49,7 @@ export interface UserProfile {
   /** Reminder: weekly nudge time, "HH:MM" 24h. */
   reminder_weekly_time?: string;
   created_at: string;
-  /** The user's AI buddy animal — the visual face of Mei. */
+  /** The user's AI buddy animal — the visual face of the Intent. */
   buddy?: BuddyProfile;
   core_values: {
     autonomy: number;
@@ -137,7 +137,7 @@ export interface DailyEntry {
   midday_checkin: string; // How it's actually going right now
   micro_dare_completed: boolean;
   micro_dare_notes?: string;
-  evening_notes: string; // Field Notes & Rant Box (Inputs to Mei Engine)
+  evening_notes: string; // Field Notes & Rant Box (Inputs to Intent Engine)
   khaos_score: number; // 1-10
   holiday_title?: string;
   holiday_adventure?: string;
@@ -169,7 +169,7 @@ export interface PersonalitySnapshot {
   micro_dare: string; // Recommended antidote dare for the next cycle
 }
 
-/** Per-contact relationship-with-others analysis (Mei's interpersonal half). */
+/** Per-contact relationship-with-others analysis (the Intent's interpersonal half). */
 export type RelationshipType = 'romantic' | 'friendly' | 'professional' | 'family';
 
 export interface InterpersonalInsight {

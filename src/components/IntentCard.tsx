@@ -4,12 +4,12 @@ import { api } from '../services/api';
 import { BuddyAvatar } from './BuddyAvatar';
 import { Sparkles, AlertTriangle, Zap, Eye, ChevronDown, ChevronUp, RefreshCw, Quote, ArrowRight, Activity, Users } from 'lucide-react';
 
-interface MeiDiagnosticCardProps {
+interface IntentCardProps {
   snapshot: PersonalitySnapshot | null;
   onTriggerDiagnosis?: () => void;
   isLoading?: boolean;
   hasLatestEntryContent?: boolean;
-  /** The user's AI buddy — shown as the face of Mei. */
+  /** The user's AI buddy — shown as the face of the Intent. */
   buddy?: BuddyProfile | null;
   onEditBuddy?: () => void;
 }
@@ -22,7 +22,7 @@ const typeBadge: Record<RelationshipType, string> = {
 };
 
 /**
- * "You × Them" — Mei's interpersonal half. Reads the user's own DM threads
+ * "You × Them" — the Intent's interpersonal half. Reads the user's own DM threads
  * (relationship type, warmth, tension, initiation balance) and renders one
  * card per contact. Fetches on mount; graceful empty state when there are no
  * DMs. Users only ever see analysis of their own conversations.
@@ -53,7 +53,7 @@ const InterpersonalSection: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-stone-600 mt-1 max-w-xl">
-            Mei reads your DM threads — relationship type, warmth, tension, who reaches out first. Only your own conversations, only visible to you.
+            The Intent reads your DM threads — relationship type, warmth, tension, who reaches out first. Only your own conversations, only visible to you.
           </p>
         </div>
         <button
@@ -137,7 +137,7 @@ const InterpersonalSection: React.FC = () => {
   );
 };
 
-export const MeiDiagnosticCard: React.FC<MeiDiagnosticCardProps> = ({
+export const IntentCard: React.FC<IntentCardProps> = ({
   snapshot,
   onTriggerDiagnosis,
   isLoading = false,
@@ -162,10 +162,10 @@ export const MeiDiagnosticCard: React.FC<MeiDiagnosticCardProps> = ({
           </div>
         )}
         <h3 className="text-xl font-bold font-serif-display text-slate-900 mb-2">
-          Mei Self-Relationship Engine Idle
+          Intent Self-Relationship Engine Idle
         </h3>
         <p className="text-sm text-stone-600 max-w-md mx-auto mb-6">
-          Write your Evening Field Notes / Rant Box in the Daily Landing section below, then ask the Mei engine to hold up the honest mirror.
+          Write your Evening Field Notes / Rant Box in the Daily Landing section below, then ask the Intent engine to hold up the honest mirror.
         </p>
         {onTriggerDiagnosis && (
           <button
@@ -457,7 +457,7 @@ export const MeiDiagnosticCard: React.FC<MeiDiagnosticCardProps> = ({
                   Detailed Sub-Trait Breakdown (30 Dimensions)
                 </h4>
                 <p className="text-xs text-stone-600">
-                  Granular facets modeled after the Mei psychological natural language framework.
+                  Granular facets modeled after the Intent psychological natural language framework.
                 </p>
               </div>
 

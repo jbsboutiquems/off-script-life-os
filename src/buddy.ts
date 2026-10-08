@@ -1,6 +1,6 @@
 import { userGet, userSet } from './storage';
 
-/** One AI buddy per user. The buddy is the visual face of Mei. */
+/** One AI buddy per user. The buddy is the visual face of the Intent. */
 export interface BuddyProfile {
   /** Creature id from BUDDY_CREATURES, e.g. 'alien'. 'custom' = device upload. */
   creatureId: string;

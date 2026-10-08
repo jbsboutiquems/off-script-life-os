@@ -40,7 +40,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
   const doors: DoorDef[] = [
     { id: 'daily', name: 'Daily Flight Log', description: 'Launch, orbit, landing. Today\'s mess, documented.', icon: Compass, accent: 'from-teal-500 to-teal-700' },
     { id: 'cosmic', name: 'The Cosmic Corner', description: 'Your horoscope + a natal chart drawn by the app, not the ephemeris.', icon: Star, accent: 'from-indigo-500 to-purple-700' },
-    { id: 'diagnostic', name: 'Mei Diagnostic', description: 'The sassy mirror reads your field notes and tells the truth.', icon: Sparkles, accent: 'from-rose-500 to-pink-700' },
+    { id: 'diagnostic', name: 'The Intent', description: 'The sassy mirror reads your field notes and tells the truth.', icon: Sparkles, accent: 'from-rose-500 to-pink-700' },
     { id: 'goals', name: 'Big 6 Goals', description: 'Six slots. No more. Choose like it matters.', icon: Flame, accent: 'from-amber-500 to-orange-700', badge: `${goalsCount}/6` },
     { id: 'antigoals', name: 'Anti-Goals', description: 'What you are officially done doing. Cross it out with feeling.', icon: Ban, accent: 'from-stone-500 to-stone-800' },
     { id: 'trendline', name: 'Khaos Trendline', description: 'Thirty days of dips and spikes. Find your sweet spot.', icon: Activity, accent: 'from-teal-500 to-emerald-700' },

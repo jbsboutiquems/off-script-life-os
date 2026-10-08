@@ -12,7 +12,7 @@ interface BuddyAvatarProps {
 }
 
 /**
- * The buddy's portrait — the visual face of Mei. `beast-stage-N` classes
+ * The buddy's portrait — the visual face of the Intent. `beast-stage-N` classes
  * (defined in index.css) progressively push the portrait toward gremlin.
  */
 export const BuddyAvatar: React.FC<BuddyAvatarProps> = ({

@@ -19,7 +19,7 @@ const FOLDERS: { id: FolderSection; label: string; icon: React.ComponentType<{ c
   { id: 'daily', label: 'Daily', icon: BookOpen },
   { id: 'wall', label: 'Wall', icon: Megaphone },
   { id: 'dms', label: 'DMs', icon: Inbox },
-  { id: 'mei', label: 'Mei', icon: Sparkles },
+  { id: 'mei', label: 'Intent', icon: Sparkles },
   { id: 'field', label: 'Field', icon: MapPin },
 ];
 

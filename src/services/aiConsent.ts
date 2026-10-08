@@ -2,9 +2,9 @@
 //
 // Covered surfaces:
 //   - AI Studio (music / image / video / transcription generation)
-//   - The Mei media-intent handoff (/api/mei/media-intent)
+//   - The media-intent handoff (/api/mei/media-intent)
 //   - The /api/diagnose Gemini fallback
-// Everything else in the app stays on Mei and never needs this.
+// Everything else in the app stays on the local engine and never needs this.
 //
 // The decision is persisted per user under the existing
 // `lifeos:<userId>:` localStorage convention. Declining never blocks the app:

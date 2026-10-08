@@ -833,15 +833,15 @@ export const api = {
     return saved as DailyEntry;
   },
 
-  // ---- Mei diagnostic ----
-  async runMeiDiagnostic(params: {
+  // ---- Intent diagnostic ----
+  async runIntentDiagnostic(params: {
     entry_date: string;
     evening_notes: string;
     morning_intention?: string;
     midday_checkin?: string;
     khaos_score?: number;
     user_profile?: UserProfile;
-    /** Client-computed voice profile so Mei can mirror the user's tone. */
+    /** Client-computed voice profile so the Intent can mirror the user's tone. */
     buddy_voice?: import('../tone').VoiceProfile | null;
   }): Promise<PersonalitySnapshot> {
     try {
@@ -911,8 +911,8 @@ export const api = {
     return lsGet<PersonalitySnapshot[]>('snapshots') || [];
   },
 
-  // ---- Mei interpersonal (relationship-with-others) ----
-  // Short TTL cache: the Mei card renders in two tabs, and we don't want to
+  // ---- Intent interpersonal (relationship-with-others) ----
+  // Short TTL cache: the Intent card renders in two tabs, and we don't want to
   // fire the Gemini path twice for the same mount.
   async getInterpersonalInsights(): Promise<InterpersonalInsight[]> {
     const now = Date.now();

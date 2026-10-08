@@ -758,7 +758,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
             </div>
           </div>
 
-          {/* Trigger Mei Diagnostic Button */}
+          {/* Trigger Intent Button */}
           <div className="mt-5 pt-3 border-t border-rose-200 print:hidden">
             <button
               onClick={() => {
@@ -776,7 +776,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
               ) : (
                 <>
                   <Wand2 className="w-4 h-4" />
-                  <span>Analyze Relationship With Self (Mei Engine)</span>
+                  <span>Analyze Relationship With Self (Intent Engine)</span>
                 </>
               )}
             </button>

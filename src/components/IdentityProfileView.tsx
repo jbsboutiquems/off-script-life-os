@@ -238,7 +238,7 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
               <span>Unfiltered Truth Inventory</span>
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              The Mei Diagnostic engine checks your daily rants against these core confessions.
+              The Intent engine checks your daily rants against these core confessions.
             </p>
           </div>
 

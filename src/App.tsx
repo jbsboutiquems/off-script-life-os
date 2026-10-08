@@ -16,7 +16,7 @@ import { CosmicCornerView } from './components/CosmicCornerView';
 import { HolidaysView } from './components/HolidaysView';
 import { TourGuideView } from './components/TourGuideView';
 import { DailyOSView } from './components/DailyOSView';
-import { MeiDiagnosticCard } from './components/MeiDiagnosticCard';
+import { IntentCard } from './components/IntentCard';
 import { Big6GoalsTracker } from './components/Big6GoalsTracker';
 import { IdentityProfileView } from './components/IdentityProfileView';
 import { WeeklyDebriefView } from './components/WeeklyDebriefView';
@@ -357,12 +357,12 @@ export default function App() {
     }
   };
 
-  // Handle Running Mei Diagnostic
+  // Handle Running Intent Diagnostic
   const handleRunDiagnostic = async () => {
     if (!user) return;
     setIsDiagnosing(true);
     try {
-      const snapshot = await api.runMeiDiagnostic({
+      const snapshot = await api.runIntentDiagnostic({
         entry_date: currentDate,
         evening_notes: dailyEntry.evening_notes || '',
         morning_intention: dailyEntry.morning_intention || '',
@@ -373,8 +373,8 @@ export default function App() {
 
       setLatestSnapshot(snapshot);
       setActiveTab('diagnostic');
-      showToast("Mei Diagnostic complete! Honest mirror updated.");
-      awardPoints('diagnostic_run', `diagnostic_run:${currentDate}`, `Mei Diagnostic · ${currentDate}`);
+      showToast("Intent reading complete! Honest mirror updated.");
+      awardPoints('diagnostic_run', `diagnostic_run:${currentDate}`, `The Intent · ${currentDate}`);
     } catch (err) {
       if (!(err instanceof AuthError)) {
         console.error("Diagnosis error:", err);
@@ -711,8 +711,8 @@ export default function App() {
                 onOpenShare={handleOpenShare}
               />
 
-              {/* Mei Diagnostic Card right below */}
-              <MeiDiagnosticCard
+              {/* Intent Card right below */}
+              <IntentCard
                 snapshot={latestSnapshot}
                 onTriggerDiagnosis={handleRunDiagnostic}
                 isLoading={isDiagnosing}
@@ -764,7 +764,7 @@ export default function App() {
 
           {activeTab === 'diagnostic' && (
             <div className="space-y-6">
-              <MeiDiagnosticCard
+              <IntentCard
                 snapshot={latestSnapshot}
                 onTriggerDiagnosis={handleRunDiagnostic}
                 isLoading={isDiagnosing}
@@ -1031,7 +1031,7 @@ export default function App() {
             <span>Khaos Year Edition</span>
           </div>
           <div className="text-stone-400 dark:text-stone-500">
-            Mei-Style Natural Language Personality Engine · No Toxic Positivity
+            The Intent · Natural Language Personality Engine · No Toxic Positivity
           </div>
           <button
             onClick={() => setPackageModalOpen(true)}

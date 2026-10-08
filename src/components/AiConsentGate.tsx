@@ -65,11 +65,11 @@ export const AiConsentGate: React.FC<Props> = ({ userId }) => {
         <div className="space-y-3 text-sm text-slate-600 dark:text-stone-300">
           <p>
             A few features in this app are powered by <strong className="text-slate-900 dark:text-stone-100">Google&nbsp;Gemini</strong>:
-            the AI&nbsp;Studio (music, images, video, transcription) and parts of the Mei diagnostic.
+            the AI&nbsp;Studio (music, images, video, transcription) and parts of The Intent.
           </p>
           <p>
             If you say yes, the prompts and content you submit for generation are sent to Google&nbsp;Gemini
-            so it can do the work. Everything else in the app keeps running on Mei either way.
+            so it can do the work. Everything else in the app keeps running on the local engine either way.
           </p>
           <p>
             Saying no is completely fine — the rest of the app works exactly the same, and those

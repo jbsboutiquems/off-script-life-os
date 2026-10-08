@@ -10,7 +10,7 @@ const ACTION_META: Record<KhaosPointAction, { label: string; blurb: string; icon
   weekly_debrief: { label: 'Weekly Flight Debrief', blurb: 'Reviewed the wreckage honestly.', icon: <BookOpen className="w-4 h-4" /> },
   antigoal_quashed: { label: 'Anti-Goal Quashed', blurb: 'Stopped doing the thing. Elite.', icon: <Ban className="w-4 h-4" /> },
   goal_completed: { label: 'Goal Completed', blurb: 'Big 6 slot conquered.', icon: <Target className="w-4 h-4" /> },
-  diagnostic_run: { label: 'Mei Diagnostic', blurb: 'Faced the honest mirror.', icon: <Sparkles className="w-4 h-4" /> },
+  diagnostic_run: { label: 'The Intent', blurb: 'Faced the honest mirror.', icon: <Sparkles className="w-4 h-4" /> },
   share_fired: { label: 'Shared the Khaos', blurb: 'Put it out into the world.', icon: <Share2 className="w-4 h-4" /> },
 };
 

@@ -120,7 +120,7 @@ Detected Mood: ${snapshot?.detected_mood || 'Hyper-Reflective'}
 Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
  Big 5 Radar: Openness ${snapshot?.openness ?? 85}% · Neuroticism ${snapshot?.neuroticism ?? 42}%
 
-#MeiDiagnostic #SassyMirror #PsychologicalHonesty #OffScript2027`;
+#TheIntent #SassyMirror #PsychologicalHonesty #OffScript2027`;
     }
 
     setShareText(text);
@@ -291,7 +291,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
       if (selectedContext === 'identity') cardTitle = "Sovereign Identity Protocol";
       if (selectedContext === 'mantra') cardTitle = "Daily Edge Launch Mantra";
       if (selectedContext === 'antigoals') cardTitle = "Subtractive Protocol (Anti-Goals)";
-      if (selectedContext === 'diagnostic') cardTitle = "Mei Sassy Mirror Reality Check";
+      if (selectedContext === 'diagnostic') cardTitle = "The Intent Reality Check";
       ctx.fillText(cardTitle, 70, 230);
 
       // 6. Highlight Quote Box
@@ -529,7 +529,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
               >
                 <Sparkles className={`w-4 h-4 mb-1 ${selectedContext === 'diagnostic' ? 'text-amber-400' : 'text-stone-500'}`} />
                 <span className="text-xs font-bold font-serif-display leading-tight">Sassy Mirror</span>
-                <span className="text-[10px] opacity-70 font-mono-code mt-0.5">Mei NLP Insight</span>
+                <span className="text-[10px] opacity-70 font-mono-code mt-0.5">Intent Insight</span>
               </button>
             </div>
           </div>

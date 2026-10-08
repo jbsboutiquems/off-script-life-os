@@ -2,12 +2,12 @@ import type { DailyEntry } from './types';
 
 /**
  * Client-side tone profiler. Reads the user's locally stored entries and
- * distills a compact voice profile so Mei (the AI buddy) can mirror the
+ * distills a compact voice profile so the Intent (the AI buddy) can mirror the
  * user's own personality tone. Everything runs on-device; only the compact
- * profile object is attached to outgoing Mei requests as `buddy_voice`.
+ * profile object is attached to outgoing Intent requests as `buddy_voice`.
  */
 
-/** Compact voice profile attached to Mei requests as `buddy_voice`. */
+/** Compact voice profile attached to Intent requests as `buddy_voice`. */
 export interface VoiceProfile {
   /** Schema version so the server can evolve parsing safely. */
   v: 1;
