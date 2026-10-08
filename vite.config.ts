@@ -5,7 +5,10 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/off-script-life-os/',
+    // GitHub Pages serves the web build under /off-script-life-os/.
+    // Capacitor loads index.html from the device itself, so absolute
+    // base paths 404 there (blank screen) — mobile builds use './'.
+    base: process.env.CAPACITOR_BUILD ? './' : '/off-script-life-os/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
