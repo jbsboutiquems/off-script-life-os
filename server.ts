@@ -14,6 +14,17 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
+// CORS: the Capacitor webview (capacitor://localhost) and any static hosting
+// are cross-origin to this server. Auth uses Bearer tokens (not cookies), so
+// a wildcard origin is safe here.
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-AI-Consent");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 // ================= DATA MODEL (v2: multi-user) =================
 // Every personal collection is namespaced per user inside `users[userId]`.
 // `contentPacks` and `qrTokens` stay global (packs are shared, QR tokens are
