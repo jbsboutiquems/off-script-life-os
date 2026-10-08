@@ -23,7 +23,7 @@ export const MonthlyMoneyMapView: React.FC<MonthlyMoneyMapViewProps> = ({
   ]);
   const [oneSurprise, setOneSurprise] = useState("A spontaneous client referral paid faster than anticipated.");
   const [onePattern, setOnePattern] = useState("Notice when the impulse to buy books is actually an impulse to feel productive without working.");
-  const [financialCommitment, setFinancialCommitment] = useState("Keep the $500 monthly Chaos Discretionary Fund strictly guilt-free.");
+  const [financialCommitment, setFinancialCommitment] = useState("Keep the $500 monthly Khaos Discretionary Fund strictly guilt-free.");
   const [noShameRecap, setNoShameRecap] = useState("I spent more on take-out during the high-stress sprint week, and that's okay.");
   const [isSaved, setIsSaved] = useState(false);
 

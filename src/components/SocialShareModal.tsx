@@ -74,20 +74,20 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
 
     if (selectedContext === 'daily') {
       text = `⚡ 2027 LIFE OS: OFF*SCRIPT · Daily Living Flight Log (${dateFormatted})
-Pilot: ${user.chaos_name || 'Unruly Sovereign'}
+Pilot: ${user.khaos_name || 'Unruly Sovereign'}
 Slogan: "${user.slogan || 'Boredom=Death'}"
-Chaos Score: ${dailyEntry.chaos_score}/10
+Khaos Score: ${dailyEntry.khaos_score}/10
 Today's Intention: "${dailyEntry.morning_intention || 'Steadiness over optimization'}"
 Anchor Note: "${dailyEntry.today_i_am || 'Architect of my own space'}"
 
 No toxic positivity. Living off-script.
-#OffScript2027 #LifeOS #ChaosYear #BoredomIsDeath`;
+#OffScript2027 #LifeOS #KhaosYear #BoredomIsDeath`;
     } else if (selectedContext === 'identity') {
       text = `🛡️ MY 2027 LIFE OS FLIGHT IDENTITY
-Pilot Designation: ${user.chaos_name || 'Unruly Sovereign'}
+Pilot Designation: ${user.khaos_name || 'Unruly Sovereign'}
 Official Slogan: "${user.slogan || 'Boredom=Death'}"
 Word of the Year: "${user.word_of_the_year || 'Sovereignty'}"
- Core Manifesto: "${user.chaos_mantra || 'Reject polite busywork'}"
+ Core Manifesto: "${user.khaos_mantra || 'Reject polite busywork'}"
 
 "Not a vibe board. An operating system for sovereign living."
 #LifeOS2027 #OffScript #Identity`;
@@ -95,7 +95,7 @@ Word of the Year: "${user.word_of_the_year || 'Sovereignty'}"
       text = `🔥 MORNING LAUNCH MANTRA · Life OS 2027
 "${dailyEntry.morning_intention || 'I refuse to perform enthusiasm for tasks that drain my soul.'}"
 
-Pilot: ${user.chaos_name || 'Unruly Sovereign'} · Slogan: "${user.slogan || 'Boredom=Death'}"
+Pilot: ${user.khaos_name || 'Unruly Sovereign'} · Slogan: "${user.slogan || 'Boredom=Death'}"
 (Edge Tier: Zero Toxic Positivity)
 #OffScript2027 #MorningMantra #RealTalk`;
     } else if (selectedContext === 'antigoals') {
@@ -163,7 +163,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
   };
 
   const handleShareReddit = () => {
-    const title = `Life OS 2027 (Off*Script) - ${user.chaos_name}: ${user.slogan || 'Boredom=Death'}`;
+    const title = `Life OS 2027 (Off*Script) - ${user.khaos_name}: ${user.slogan || 'Boredom=Death'}`;
     const url = `https://reddit.com/submit?url=${encodeURIComponent(appUrl)}&title=${encodeURIComponent(title)}`;
     openSharePopup(url);
   };
@@ -180,7 +180,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
     if (!canNativeShare) return;
     try {
       await navigator.share({
-        title: `Life OS 2027: Off*Script (${user.chaos_name})`,
+        title: `Life OS 2027: Off*Script (${user.khaos_name})`,
         text: shareText,
         url: appUrl
       });
@@ -267,12 +267,12 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
 
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 16px "DM Mono", monospace';
-      ctx.fillText(`CHAOS 2027`, 330, 95);
+      ctx.fillText(`KHAOS 2027`, 330, 95);
 
       // Pilot Tag
       ctx.fillStyle = '#94a3b8';
       ctx.font = '16px "DM Mono", monospace';
-      ctx.fillText(`PILOT: ${user.chaos_name || 'UNRULY SOVEREIGN'}`, width - 380, 95);
+      ctx.fillText(`PILOT: ${user.khaos_name || 'UNRULY SOVEREIGN'}`, width - 380, 95);
 
       // 4. Slogan Pill
       ctx.fillStyle = '#fef3c7';
@@ -308,7 +308,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
       // Text inside box
       let quote = `"${dailyEntry.morning_intention || 'Today I am choosing steadiness over optimization.'}"`;
       if (selectedContext === 'identity') {
-        quote = `Word of the Year: "${user.word_of_the_year || 'Sovereignty'}"\nCore Rule: "${user.chaos_mantra || 'Reject polite busywork and artificial deadlines.'}"`;
+        quote = `Word of the Year: "${user.word_of_the_year || 'Sovereignty'}"\nCore Rule: "${user.khaos_mantra || 'Reject polite busywork and artificial deadlines.'}"`;
       } else if (selectedContext === 'mantra') {
         quote = `"${dailyEntry.morning_intention || 'I refuse to perform enthusiasm for tasks that drain my soul.'}"`;
       } else if (selectedContext === 'antigoals') {
@@ -352,10 +352,10 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
         ctx.fillText(line, 110, currentY);
       }
 
-      // 7. Chaos Score & Stats at bottom of card
+      // 7. Khaos Score & Stats at bottom of card
       const footerY = cardAspect === 'square' ? 820 : 540;
 
-      // Metric 1: Chaos Rating
+      // Metric 1: Khaos Rating
       ctx.fillStyle = 'rgba(234, 71, 152, 0.15)';
       ctx.beginPath();
       ctx.roundRect(70, footerY, 260, 90, 12);
@@ -365,11 +365,11 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
 
       ctx.fillStyle = '#f49ac2';
       ctx.font = 'bold 13px "DM Mono", monospace';
-      ctx.fillText('CHAOS INTENSITY', 90, footerY + 32);
+      ctx.fillText('KHAOS INTENSITY', 90, footerY + 32);
 
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 36px "DM Mono", monospace';
-      ctx.fillText(`${dailyEntry.chaos_score || 7} / 10`, 90, footerY + 72);
+      ctx.fillText(`${dailyEntry.khaos_score || 7} / 10`, 90, footerY + 72);
 
       // Metric 2: Word of the Year
       ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
@@ -473,7 +473,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
               >
                 <Compass className={`w-4 h-4 mb-1 ${selectedContext === 'daily' ? 'text-amber-400' : 'text-stone-500'}`} />
                 <span className="text-xs font-bold font-serif-display leading-tight">Daily Spread</span>
-                <span className="text-[10px] opacity-70 font-mono-code mt-0.5">Chaos & Intent</span>
+                <span className="text-[10px] opacity-70 font-mono-code mt-0.5">Khaos & Intent</span>
               </button>
 
               <button
@@ -697,7 +697,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
             </div>
 
             <p className="text-xs text-stone-300 leading-relaxed">
-              Export high-resolution branded PNG cards customized with your Pilot callsign, slogan, chaos rating, and selected reflection. Perfect for Instagram Stories, Twitter image attachments, or desktop wallpapers.
+              Export high-resolution branded PNG cards customized with your Pilot callsign, slogan, khaos rating, and selected reflection. Perfect for Instagram Stories, Twitter image attachments, or desktop wallpapers.
             </p>
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-stone-800">
@@ -723,7 +723,7 @@ Burnout Risk: ${snapshot?.burnout_risk || 'Low'}
         {/* Modal Footer */}
         <div className="bg-stone-100 px-5 py-3 border-t border-stone-300 flex items-center justify-between shrink-0 text-xs font-mono-code text-stone-600">
           <span className="truncate">
-            Pilot: <strong className="text-slate-900">{user.chaos_name || 'Unruly Sovereign'}</strong> · Slogan: "{user.slogan || 'Boredom=Death'}"
+            Pilot: <strong className="text-slate-900">{user.khaos_name || 'Unruly Sovereign'}</strong> · Slogan: "{user.slogan || 'Boredom=Death'}"
           </span>
           <button
             type="button"

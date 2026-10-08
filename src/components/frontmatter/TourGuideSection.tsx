@@ -7,7 +7,7 @@ import { SectionCard } from './SectionCard';
  * condensed front-matter spread with the same portrait.
  */
 export const TourGuideSection: React.FC = () => (
-  <SectionCard badge="THE HUMAN BEHIND THE CHAOS" badgeClass="bg-[#2da2ee]" kicker="AUTHOR INTRO">
+  <SectionCard badge="THE HUMAN BEHIND THE KHAOS" badgeClass="bg-[#2da2ee]" kicker="AUTHOR INTRO">
     <div className="flex flex-col md:flex-row gap-6 items-start">
       <div className="w-full md:w-56 rounded-2xl border-2 border-stone-800 dark:border-amber-400/40 bg-gradient-to-br from-[#ea4798] via-[#b13a8e] to-[#2da2ee] p-1 flex-shrink-0 shadow-md">
         <div className="w-full h-full bg-slate-900/90 rounded-xl p-4 flex flex-col items-center justify-center space-y-2">

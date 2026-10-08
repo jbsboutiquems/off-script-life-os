@@ -43,22 +43,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
     { id: 'diagnostic', name: 'Mei Diagnostic', description: 'The sassy mirror reads your field notes and tells the truth.', icon: Sparkles, accent: 'from-rose-500 to-pink-700' },
     { id: 'goals', name: 'Big 6 Goals', description: 'Six slots. No more. Choose like it matters.', icon: Flame, accent: 'from-amber-500 to-orange-700', badge: `${goalsCount}/6` },
     { id: 'antigoals', name: 'Anti-Goals', description: 'What you are officially done doing. Cross it out with feeling.', icon: Ban, accent: 'from-stone-500 to-stone-800' },
-    { id: 'trendline', name: 'Chaos Trendline', description: 'Thirty days of dips and spikes. Find your sweet spot.', icon: Activity, accent: 'from-teal-500 to-emerald-700' },
+    { id: 'trendline', name: 'Khaos Trendline', description: 'Thirty days of dips and spikes. Find your sweet spot.', icon: Activity, accent: 'from-teal-500 to-emerald-700' },
     { id: 'weekly', name: 'Weekly Debrief', description: 'Eight questions. Zero performance-review energy.', icon: BookOpen, accent: 'from-teal-500 to-teal-700' },
     { id: 'money', name: 'Money Map', description: 'Where it went, minus the shame spiral.', icon: DollarSign, accent: 'from-emerald-500 to-green-700' },
     { id: 'themes', name: 'Annual Arc Themes', description: 'Twelve themes for the year\'s plot twists.', icon: Award, accent: 'from-pink-500 to-pink-700' },
     { id: 'holidays', name: 'Holiday Vault', description: 'Fourteen made-up holidays with real meaning.', icon: PartyPopper, accent: 'from-amber-400 to-rose-600' },
-    { id: 'points', name: 'Chaos Points & Sharing', description: 'Proof you showed up — and a button to brag about it.', icon: Trophy, accent: 'from-yellow-500 to-amber-700', badge: `${pointsTotal}` },
-    { id: 'wall', name: 'The Chaos Wall', description: 'Scream into the void, together.', icon: Megaphone, accent: 'from-pink-500 to-pink-700' },
+    { id: 'points', name: 'Khaos Points & Sharing', description: 'Proof you showed up — and a button to brag about it.', icon: Trophy, accent: 'from-yellow-500 to-amber-700', badge: `${pointsTotal}` },
+    { id: 'wall', name: 'The Khaos Wall', description: 'Scream into the void, together.', icon: Megaphone, accent: 'from-pink-500 to-pink-700' },
     { id: 'inbox', name: 'Inbox', description: 'Private notes between you and your people.', icon: Inbox, accent: 'from-teal-500 to-teal-700', badge: unreadCount > 0 ? `${unreadCount}` : undefined },
     { id: 'reminders', name: 'Reminders', description: 'Gentle nudges for the flight log and the debrief.', icon: Bell, accent: 'from-amber-500 to-yellow-700', badge: dueCount > 0 ? `${dueCount}` : undefined },
     { id: 'search', name: 'Search', description: 'Find that brilliant 2am note wherever it hid.', icon: Search, accent: 'from-slate-500 to-stone-700' },
     { id: 'crew', name: 'Flight Crew', description: 'Your chosen co-conspirators. Vetted for loyalty, low drama, and good snacks.', icon: Users, accent: 'from-teal-500 to-teal-700', badge: `${crewCount}` },
-    { id: 'backup', name: 'Drive Backup', description: 'Beam your chaos up to Google Drive. Future you says thanks.', icon: HardDrive, accent: 'from-slate-500 to-slate-800' },
+    { id: 'backup', name: 'Drive Backup', description: 'Beam your khaos up to Google Drive. Future you says thanks.', icon: HardDrive, accent: 'from-slate-500 to-slate-800' },
     { id: 'unlock', name: 'Unlock Packs', description: 'Scan the secret QR. Unlock the goods. Feel like a spy.', icon: KeyRound, accent: 'from-lime-500 to-emerald-700' },
     { id: 'cover', name: 'Cover Art', description: 'The jacket. Stop and admire it.', icon: ImageIcon, accent: 'from-pink-500 to-pink-700' },
     { id: 'identity', name: 'Identity Base', description: 'Who is flying this thing — plus your birthday, for the stars.', icon: ShieldAlert, accent: 'from-pink-500 to-pink-700' },
-    { id: 'tourguide', name: 'Meet Your Tour Guide', description: 'The human behind the chaos. Come say hi to Amber.', icon: HeartHandshake, accent: 'from-rose-500 to-amber-600' },
+    { id: 'tourguide', name: 'Meet Your Tour Guide', description: 'The human behind the khaos. Come say hi to Amber.', icon: HeartHandshake, accent: 'from-rose-500 to-amber-600' },
     { id: 'frontmatter', name: 'Front Matter Codex', description: 'The planner\u2019s first 14 pages \u2014 manifesto, one word, audit, permission slip, and your people.', icon: BookMarked, accent: 'from-pink-500 to-teal-600' },
     { id: 'studio', name: 'AI Studio', description: 'Backstage media lab: hype tracks, cover art, video renders.', icon: Clapperboard, accent: 'from-fuchsia-500 to-teal-600' },
   ];
@@ -72,11 +72,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
           <DoorOpen className="w-3.5 h-3.5" /> Mission control
         </div>
         <h2 className="text-2xl sm:text-4xl font-bold font-serif-display mt-2">
-          Pick a door, {user.chaos_name || 'operator'}. <span className="italic text-rose-300">Any door.</span>
+          Pick a door, {user.khaos_name || 'operator'}. <span className="italic text-rose-300">Any door.</span>
         </h2>
         <p className="text-sm text-stone-300 mt-2 max-w-xl">
           {today} · Word of the year: <strong className="text-amber-300 uppercase">"{user.word_of_the_year || 'UNTAMED'}"</strong> ·
-          {' '}<strong className="text-amber-300">{pointsTotal}</strong> chaos points in the vault.
+          {' '}<strong className="text-amber-300">{pointsTotal}</strong> khaos points in the vault.
         </p>
         <p className="text-xs text-stone-400 mt-1 italic">
           🔥 {streak === 1 ? '1 day of showing up. The streak is unhinged.' : `${streak} days of showing up. The streak is unhinged.`}

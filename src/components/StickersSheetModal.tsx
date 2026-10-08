@@ -23,7 +23,7 @@ export const StickersSheetModal: React.FC<StickersSheetModalProps> = ({
     { id: 'essentials', label: 'Essentials' },
     { id: 'mindset', label: 'Mindset & Defiance' },
     { id: 'goals', label: 'Goals & Habits' },
-    { id: 'mood', label: 'Moods & Chaos' },
+    { id: 'mood', label: 'Moods & Khaos' },
     { id: 'power_words', label: 'Power Words' },
   ];
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFlightDebrief, MonthlyMoneyMap, ChaosPointEntry, FlightCrewContact } from './types';
+import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFlightDebrief, MonthlyMoneyMap, KhaosPointEntry, FlightCrewContact } from './types';
 import { api, AuthError } from './services/api';
-import { initTheme, getTheme, cycleTheme, type ChaosTheme } from './theme';
+import { initTheme, getTheme, cycleTheme, type KhaosTheme } from './theme';
 import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
@@ -24,8 +24,8 @@ import { StickersSheetModal } from './components/StickersSheetModal';
 import { SocialShareModal, type ShareContextType } from './components/SocialShareModal';
 import { UnlockScreen } from './components/UnlockScreen';
 import { CoverArtView } from './components/CoverArtView';
-import { ChaosTrendline } from './components/ChaosTrendline';
-import { ChaosPointsView } from './components/ChaosPointsView';
+import { KhaosTrendline } from './components/KhaosTrendline';
+import { KhaosPointsView } from './components/KhaosPointsView';
 import { FlightCrewView } from './components/FlightCrewView';
 import { DriveBackupView } from './components/DriveBackupView';
 import { OnboardingTour } from './components/OnboardingTour';
@@ -61,7 +61,7 @@ function blankDailyEntry(dateStr: string): DailyEntry {
     micro_dare_completed: false,
     micro_dare_notes: '',
     evening_notes: '',
-    chaos_score: 5,
+    khaos_score: 5,
     updated_at: new Date().toISOString()
   };
 }
@@ -70,7 +70,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [oauthPending, setOauthPending] = useState<{ key: string; provider: 'google' | 'facebook' } | null>(null);
-  const [theme, setTheme] = useState<ChaosTheme>(() => getTheme());
+  const [theme, setTheme] = useState<KhaosTheme>(() => getTheme());
   const [buddy, setBuddy] = useState<BuddyProfile | null>(null);
   const [buddyCreatorOpen, setBuddyCreatorOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState<string>(() => {
@@ -88,7 +88,7 @@ export default function App() {
   const [latestSnapshot, setLatestSnapshot] = useState<PersonalitySnapshot | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [antiGoals, setAntiGoals] = useState<AntiGoal[]>([]);
-  const [points, setPoints] = useState<ChaosPointEntry[]>([]);
+  const [points, setPoints] = useState<KhaosPointEntry[]>([]);
   const [flightCrew, setFlightCrew] = useState<FlightCrewContact[]>([]);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -112,14 +112,14 @@ export default function App() {
 
   const pointsTotal = points.reduce((s, p) => s + p.points, 0);
 
-  // Award chaos points and refresh the ledger. Dedupe is enforced server-side by ref.
+  // Award khaos points and refresh the ledger. Dedupe is enforced server-side by ref.
   const awardPoints = async (action: 'daily_log' | 'micro_dare' | 'weekly_debrief' | 'antigoal_quashed' | 'goal_completed' | 'diagnostic_run' | 'share_fired', ref: string, label: string) => {
     try {
       const result = await api.awardPoints(action, ref, label);
       if (!result.duplicate) {
         const list = await api.getPoints();
         setPoints(list);
-        showToast(`+${result.entry.points} Chaos Points — ${label}`);
+        showToast(`+${result.entry.points} Khaos Points — ${label}`);
       }
     } catch (e) {
       if (!(e instanceof AuthError)) console.warn('Points award failed', e);
@@ -152,7 +152,7 @@ export default function App() {
     setLatestSnapshot(null);
     setDailyEntry(blankDailyEntry(currentDate));
     setActiveTab('dashboard');
-    if (!silent) showToast('Logged out. Chaos contained.');
+    if (!silent) showToast('Logged out. Khaos contained.');
   };
 
   // Full data load after authentication
@@ -363,7 +363,7 @@ export default function App() {
         evening_notes: dailyEntry.evening_notes || '',
         morning_intention: dailyEntry.morning_intention || '',
         midday_checkin: dailyEntry.midday_checkin || '',
-        chaos_score: dailyEntry.chaos_score || 5,
+        khaos_score: dailyEntry.khaos_score || 5,
         user_profile: user
       });
 
@@ -528,7 +528,7 @@ export default function App() {
       <main className="flex min-h-screen items-center justify-center bg-cream-canvas text-stone-600 dark:bg-[#000a15] dark:text-stone-300">
         <div className="text-center">
           <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-stone-300 border-t-rose-600" />
-          <p className="font-mono-code text-xs uppercase tracking-widest">Waking up the chaos…</p>
+          <p className="font-mono-code text-xs uppercase tracking-widest">Waking up the khaos…</p>
         </div>
       </main>
     );
@@ -599,7 +599,7 @@ export default function App() {
       <InstallBanner />
 
       <Header
-        username={user.chaos_name}
+        username={user.khaos_name}
         pointsTotal={pointsTotal}
         activeTab={activeTab}
         theme={theme}
@@ -684,7 +684,7 @@ export default function App() {
             <CoverArtView
               onOpenDaily={() => setActiveTab('daily')}
               wordOfTheYear={user.word_of_the_year}
-              chaosName={user.chaos_name}
+              khaosName={user.khaos_name}
               slogan={user.slogan || "Boredom=Death"}
             />
           )}
@@ -714,7 +714,7 @@ export default function App() {
                 onEditBuddy={() => setBuddyCreatorOpen(true)}
               />
 
-              {/* Chaos Trendline Teaser Card */}
+              {/* Khaos Trendline Teaser Card */}
               <div className="bg-gradient-to-r from-stone-900 via-slate-900 to-rose-950 text-white rounded-3xl p-6 border-2 border-stone-800 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
                 <div className="space-y-1 text-center sm:text-left">
                   <div className="flex items-center justify-center sm:justify-start space-x-2">
@@ -724,7 +724,7 @@ export default function App() {
                     <span className="text-xs text-amber-300 font-mono-code">DIPS &amp; SPIKES RADAR</span>
                   </div>
                   <h4 className="text-lg font-bold font-serif-display text-white">
-                    30-Day Chaos Trajectory: Controlled vs. Uncontrolled
+                    30-Day Khaos Trajectory: Controlled vs. Uncontrolled
                   </h4>
                   <p className="text-xs text-stone-300">
                     See where your system operates in the sovereign sweet spot (4–7) versus reactionary overwhelm (8–10).
@@ -735,7 +735,7 @@ export default function App() {
                   className="px-5 py-2.5 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white text-xs font-bold font-mono-code rounded-xl shadow-sm transition-all whitespace-nowrap flex items-center space-x-1.5"
                 >
                   <Activity className="w-4 h-4" />
-                  <span>Open Chaos Trendline →</span>
+                  <span>Open Khaos Trendline →</span>
                 </button>
               </div>
             </div>
@@ -743,7 +743,7 @@ export default function App() {
 
           {activeTab === 'trendline' && (
             <div className="space-y-6">
-              <ChaosTrendline
+              <KhaosTrendline
                 entries={allEntries}
                 currentDate={currentDate}
                 onSelectDate={(selectedD) => {
@@ -863,7 +863,7 @@ export default function App() {
           )}
 
           {activeTab === 'points' && (
-            <ChaosPointsView
+            <KhaosPointsView
               points={points}
               entryDates={allEntries.map((e) => e.entry_date)}
               onRefresh={loadAll}
@@ -967,7 +967,7 @@ export default function App() {
         antiGoals={antiGoals}
         initialContext={shareContext}
         onToast={showToast}
-        onShareFired={() => awardPoints('share_fired', `share_fired:${currentDate}`, `Shared the Chaos · ${currentDate}`)}
+        onShareFired={() => awardPoints('share_fired', `share_fired:${currentDate}`, `Shared the Khaos · ${currentDate}`)}
       />
 
       <PackageAppModal
@@ -1012,7 +1012,7 @@ export default function App() {
           <div className="flex items-center space-x-2">
             <span className="font-bold text-slate-800 dark:text-stone-200">Life OS: Off*Script 2027.</span>
             <span>·</span>
-            <span>Chaos Year Edition</span>
+            <span>Khaos Year Edition</span>
           </div>
           <div className="text-stone-400 dark:text-stone-500">
             Mei-Style Natural Language Personality Engine · No Toxic Positivity

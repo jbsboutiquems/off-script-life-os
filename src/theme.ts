@@ -1,17 +1,17 @@
-export type ChaosTheme = 'light' | 'dark' | 'beast';
+export type KhaosTheme = 'light' | 'dark' | 'beast';
 
 const STORAGE_KEY = 'lifeos_theme';
 
 /** Cycle order for the header theme button: dark -> light -> beast -> dark. */
-const THEME_ORDER: ChaosTheme[] = ['dark', 'light', 'beast'];
+const THEME_ORDER: KhaosTheme[] = ['dark', 'light', 'beast'];
 
-export const THEME_LABELS: Record<ChaosTheme, string> = {
-  dark: 'Midnight Chaos',
+export const THEME_LABELS: Record<KhaosTheme, string> = {
+  dark: 'Midnight Khaos',
   light: 'Daybreak',
   beast: 'Beast Mode',
 };
 
-export function getTheme(): ChaosTheme {
+export function getTheme(): KhaosTheme {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'beast' || saved === 'gremlin') return 'beast';
@@ -21,7 +21,7 @@ export function getTheme(): ChaosTheme {
   return 'dark';
 }
 
-export function applyTheme(theme: ChaosTheme) {
+export function applyTheme(theme: KhaosTheme) {
   const el = document.documentElement;
   el.classList.toggle('dark', theme === 'dark');
   el.classList.toggle('beast', theme === 'beast');
@@ -31,7 +31,7 @@ export function applyTheme(theme: ChaosTheme) {
 }
 
 /** Advance to the next theme in the cycle and persist it. */
-export function cycleTheme(): ChaosTheme {
+export function cycleTheme(): KhaosTheme {
   const current = getTheme();
   const next = THEME_ORDER[(THEME_ORDER.indexOf(current) + 1) % THEME_ORDER.length];
   applyTheme(next);

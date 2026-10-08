@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DailyEntry, UserProfile, ChaosHoliday } from '../types';
+import { DailyEntry, UserProfile, KhaosHoliday } from '../types';
 import { getHolidayForDate } from '../data/holidays';
 import { Sun, Compass, Moon, Sparkles, CheckCircle2, Circle, Flame, AlertCircle, Save, ArrowLeft, ArrowRight, Wand2, Mic, MicOff, Radio, Volume2, Printer, Share2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -38,7 +38,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
   const [microDareCompleted, setMicroDareCompleted] = useState(entry.micro_dare_completed || false);
   const [microDareNotes, setMicroDareNotes] = useState(entry.micro_dare_notes || '');
   const [eveningNotes, setEveningNotes] = useState(entry.evening_notes || '');
-  const [chaosScore, setChaosScore] = useState(entry.chaos_score || 5);
+  const [khaosScore, setKhaosScore] = useState(entry.khaos_score || 5);
   const [showHolidayMeaning, setShowHolidayMeaning] = useState(false);
   const [isSavedNotice, setIsSavedNotice] = useState(false);
 
@@ -180,10 +180,10 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
     setMicroDareCompleted(entry.micro_dare_completed || false);
     setMicroDareNotes(entry.micro_dare_notes || '');
     setEveningNotes(entry.evening_notes || '');
-    setChaosScore(entry.chaos_score || 5);
+    setKhaosScore(entry.khaos_score || 5);
   }, [entry]);
 
-  const holiday: ChaosHoliday = getHolidayForDate(currentDate);
+  const holiday: KhaosHoliday = getHolidayForDate(currentDate);
 
   const handleSave = () => {
     onSaveEntry({
@@ -195,7 +195,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
       micro_dare_completed: microDareCompleted,
       micro_dare_notes: microDareNotes,
       evening_notes: eveningNotes,
-      chaos_score: chaosScore,
+      khaos_score: khaosScore,
       holiday_title: holiday.title,
       holiday_adventure: holiday.adventures[0] || ''
     });
@@ -245,7 +245,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
               })}
             </h1>
             <p className="text-xs text-stone-600 font-mono-code">
-              Pilot: {user.chaos_name} · Word of the Year: "{user.word_of_the_year}"
+              Pilot: {user.khaos_name} · Word of the Year: "{user.word_of_the_year}"
             </p>
           </div>
           <div className="text-right font-mono-code text-xs space-y-1">
@@ -253,7 +253,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
               SLOGAN: "{user.slogan || 'Boredom=Death'}"
             </div>
             <div className="text-[11px] text-stone-600">
-              Chaos Rating: <strong className="text-rose-700">{chaosScore} / 10</strong> · Unofficial Holiday: {holiday.title}
+              Khaos Rating: <strong className="text-rose-700">{khaosScore} / 10</strong> · Unofficial Holiday: {holiday.title}
             </div>
           </div>
         </div>
@@ -343,7 +343,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
                 id="share-daily-os-btn"
                 onClick={() => onOpenShare('daily')}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-rose-50 border border-rose-300 text-rose-700 text-xs font-bold font-mono-code rounded-lg shadow-xs transition-colors print:hidden"
-                title="Share Today's Flight Log & Chaos Rating to Social Media"
+                title="Share Today's Flight Log & Khaos Rating to Social Media"
               >
                 <Share2 className="w-3.5 h-3.5 text-rose-600" />
                 <span>Share Spread</span>
@@ -724,34 +724,34 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
                 />
               </div>
 
-              {/* Chaos Level Scale Slider (1-10) */}
+              {/* Khaos Level Scale Slider (1-10) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-stone-800 font-bold flex items-center gap-1">
                     <Flame className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Daily Chaos Level (1–10):</span>
+                    <span>Daily Khaos Level (1–10):</span>
                   </label>
                   <span className="font-mono-code font-bold text-sm text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                    {chaosScore} / 10
+                    {khaosScore} / 10
                   </span>
                 </div>
                 <input
                   type="range"
                   min={1}
                   max={10}
-                  value={chaosScore}
-                  onChange={(e) => setChaosScore(Number(e.target.value))}
+                  value={khaosScore}
+                  onChange={(e) => setKhaosScore(Number(e.target.value))}
                   className="w-full accent-rose-600 cursor-pointer print:hidden"
                 />
                 <div className="hidden print:block w-full bg-stone-100 rounded-full h-2.5 border border-stone-300 overflow-hidden mt-1">
                   <div
                     className="bg-rose-600 h-full rounded-full"
-                    style={{ width: `${chaosScore * 10}%` }}
+                    style={{ width: `${khaosScore * 10}%` }}
                   />
                 </div>
                 <div className="flex justify-between text-[10px] text-stone-400 font-mono-code mt-0.5 print:hidden">
                   <span>1: Running on fumes</span>
-                  <span>5: Balanced chaos</span>
+                  <span>5: Balanced khaos</span>
                   <span>10: Truly unhinged</span>
                 </div>
               </div>

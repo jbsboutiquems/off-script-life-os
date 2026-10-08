@@ -22,7 +22,7 @@ interface WallPost {
   pinned: boolean;
 }
 
-interface ChaosWallViewProps {
+interface KhaosWallViewProps {
   user: UserProfile;
   myUserId: string;
 }
@@ -194,11 +194,11 @@ const PostCard: React.FC<{
 };
 
 /**
- * The Chaos Wall: "scream into the void, together."
+ * The Khaos Wall: "scream into the void, together."
  * Threads, reactions, and pins included. Prototype-grade moderation:
  * suited to a private/friends deployment, not a public one.
  */
-export const ChaosWallView: React.FC<ChaosWallViewProps> = ({ myUserId }) => {
+export const KhaosWallView: React.FC<KhaosWallViewProps> = ({ myUserId }) => {
   const [posts, setPosts] = useState<WallPost[]>([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -271,7 +271,7 @@ export const ChaosWallView: React.FC<ChaosWallViewProps> = ({ myUserId }) => {
       <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-2xl p-6 shadow-md">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-2xl font-bold font-display-punch tracking-tight text-slate-900 dark:text-cream-canvas flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-rose-600" /> The Chaos Wall
+            <Megaphone className="w-6 h-6 text-rose-600" /> The Khaos Wall
           </h2>
           <button
             onClick={refresh}

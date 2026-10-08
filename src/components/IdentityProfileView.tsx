@@ -13,13 +13,13 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   user,
   onSaveProfile
 }) => {
-  const [chaosName, setChaosName] = useState(user.chaos_name || '');
+  const [khaosName, setKhaosName] = useState(user.khaos_name || '');
   const [wordOfYear, setWordOfYear] = useState(user.word_of_the_year || '');
   const [slogan, setSlogan] = useState(user.slogan || 'Boredom=Death');
-  const [chaosMantra, setChaosMantra] = useState(user.chaos_mantra || '');
+  const [khaosMantra, setKhaosMantra] = useState(user.khaos_mantra || '');
   const [whatDonePretending, setWhatDonePretending] = useState(user.what_done_pretending || '');
   const [whatReadyToAdmit, setWhatReadyToAdmit] = useState(user.what_ready_to_admit || '');
-  const [relationshipWithChaos, setRelationshipWithChaos] = useState(user.relationship_with_chaos || '');
+  const [relationshipWithKhaos, setRelationshipWithKhaos] = useState(user.relationship_with_khaos || '');
   const [permissionGranted, setPermissionGranted] = useState(user.permission_granted || '');
   const [birthday, setBirthday] = useState(user.birthday || '');
   const [birthTime, setBirthTime] = useState(user.birth_time || '');
@@ -43,9 +43,9 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
       const result = await api.changeUsername(newUsername.trim());
       // Keep the header/profile in lockstep: the server syncs the display name
       // when it was still the old username; mirror it locally either way.
-      const syncedName = result.chaosName || result.username;
-      setChaosName(syncedName);
-      onSaveProfile({ chaos_name: syncedName });
+      const syncedName = result.khaosName || result.username;
+      setKhaosName(syncedName);
+      onSaveProfile({ khaos_name: syncedName });
       setRenameOk(`You are now “${result.username}” everywhere — wall, inbox, all of it.`);
       setNewUsername('');
     } catch (err: any) {
@@ -72,13 +72,13 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSaveProfile({
-      chaos_name: chaosName.trim(),
+      khaos_name: khaosName.trim(),
       word_of_the_year: wordOfYear.trim().toUpperCase(),
       slogan: slogan.trim(),
-      chaos_mantra: chaosMantra.trim(),
+      khaos_mantra: khaosMantra.trim(),
       what_done_pretending: whatDonePretending.trim(),
       what_ready_to_admit: whatReadyToAdmit.trim(),
-      relationship_with_chaos: relationshipWithChaos.trim(),
+      relationship_with_khaos: relationshipWithKhaos.trim(),
       permission_granted: permissionGranted.trim(),
       birthday: birthday.trim(),
       birth_time: birthTime.trim(),
@@ -119,12 +119,12 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="block text-stone-700 font-bold mb-1">
-                Chaos Alias / Chosen Name:
+                Khaos Alias / Chosen Name:
               </label>
               <input
                 type="text"
-                value={chaosName}
-                onChange={(e) => setChaosName(e.target.value)}
+                value={khaosName}
+                onChange={(e) => setKhaosName(e.target.value)}
                 placeholder="e.g. The Unruly Architect"
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50/50 focus:outline-rose-500 font-semibold"
                 required
@@ -169,8 +169,8 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
               </label>
               <input
                 type="text"
-                value={chaosMantra}
-                onChange={(e) => setChaosMantra(e.target.value)}
+                value={khaosMantra}
+                onChange={(e) => setKhaosMantra(e.target.value)}
                 placeholder="e.g. An intention is not a prison. I am allowed to update the map."
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50/50 focus:outline-rose-500 font-medium italic"
               />
@@ -271,12 +271,12 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
 
             <div>
               <label className="block text-stone-800 font-bold mb-1">
-                3. My redefined relationship with chaos:
+                3. My redefined relationship with khaos:
               </label>
               <textarea
-                value={relationshipWithChaos}
-                onChange={(e) => setRelationshipWithChaos(e.target.value)}
-                placeholder="Chaos is not my failure to be orderly. It is the unmapped terrain where real breakthroughs happen..."
+                value={relationshipWithKhaos}
+                onChange={(e) => setRelationshipWithKhaos(e.target.value)}
+                placeholder="Khaos is not my failure to be orderly. It is the unmapped terrain where real breakthroughs happen..."
                 rows={2}
                 className="w-full p-3 border border-stone-300 rounded-xl focus:outline-rose-500 bg-white"
               />
@@ -324,14 +324,14 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
               Change username
             </div>
             <p className="text-xs text-stone-500 mb-2">
-              This is the name on the Chaos Wall and in inboxes. Limit: 3 changes per 24 hours.
+              This is the name on the Khaos Wall and in inboxes. Limit: 3 changes per 24 hours.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
-                placeholder={user.chaos_name || 'new username'}
+                placeholder={user.khaos_name || 'new username'}
                 className="flex-1 px-3 py-2 border border-stone-300 dark:border-white/15 rounded-xl bg-white dark:bg-white/5 text-sm font-semibold text-slate-900 dark:text-cream-canvas focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
               <button

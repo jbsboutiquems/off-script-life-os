@@ -1,4 +1,4 @@
-/** Global chaos search. Pure — ranked, no DOM. */
+/** Global khaos search. Pure — ranked, no DOM. */
 
 export interface SearchDoc {
   /** machine key, e.g. 'entry' | 'goal' | 'antigoal' | 'debrief' | 'money' | 'crew' | 'holiday' */

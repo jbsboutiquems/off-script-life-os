@@ -21,7 +21,7 @@ export function vibeLabel(vibe: VibeKind): string {
     opera: 'Fancy feelings',
     baseball: 'Extra innings',
     football: 'Blitz energy',
-    hockey: 'Rink-side chaos',
+    hockey: 'Rink-side khaos',
     plain: 'Unscheduled nonsense',
   };
   return labels[vibe];

@@ -40,7 +40,7 @@ export interface VoiceProfile {
 const EMOJI_RE = /(\p{Extended_Pictographic}|\u2764\uFE0F?|[\u2600-\u27BF])/gu;
 const WARM_WORDS = /\b(love|loved|lovely|grateful|thank|thanks|cozy|gentle|kind|sweet|soft|tender|hug|proud|joy|beautiful|amazing)\b/i;
 const DIRECT_WORDS = /\b(nope|no\.|stop|enough|done|never|won't|refuse|boundar|say no|hell no|absolutely not|do it|just do|go)\b/i;
-const PLAYFUL_WORDS = /\b(lol|lmao|rofl|haha|hehe|oops|chaos|feral|unhinged|absurd|ridiculous|silly|goofy|😂|🤣|💀|✨|🔥)\b/i;
+const PLAYFUL_WORDS = /\b(lol|lmao|rofl|haha|hehe|oops|khaos|feral|unhinged|absurd|ridiculous|silly|goofy|😂|🤣|💀|✨|🔥)\b/i;
 
 function countRe(re: RegExp, text: string): number {
   const m = text.match(re);

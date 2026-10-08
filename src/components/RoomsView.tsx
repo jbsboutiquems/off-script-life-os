@@ -30,7 +30,7 @@ function relativeTime(iso: string): string {
 }
 
 /**
- * Group rooms: named channels for crews, krewes, and chaos collectives.
+ * Group rooms: named channels for crews, krewes, and khaos collectives.
  * Membership-gated; the founder can demolish a room.
  */
 export const RoomsView: React.FC<{ myUserId: string }> = ({ myUserId }) => {

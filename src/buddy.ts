@@ -62,7 +62,7 @@ export const BUDDY_PALETTES: BuddyPalette[] = [
   { id: 'lime', name: 'Acid Lime', color: '#b6ff2e' },
   { id: 'navy', name: 'Deep Navy', color: '#1b3a6b' },
   { id: 'cream', name: 'Cream', color: '#f2ecdc' },
-  { id: 'midnight', name: 'Midnight Chaos', color: '#0b1c33' },
+  { id: 'midnight', name: 'Midnight Khaos', color: '#0b1c33' },
   { id: 'daybreak', name: 'Daybreak', color: '#7cc7f2' },
   { id: 'beast', name: 'Beast Mode', color: '#4a7a1e' },
 ];

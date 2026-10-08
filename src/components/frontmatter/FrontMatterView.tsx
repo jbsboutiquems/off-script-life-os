@@ -43,7 +43,7 @@ export const FrontMatterView: React.FC<FrontMatterViewProps> = ({
             </h2>
           </div>
           <span className="text-xs font-mono-code text-stone-500 dark:text-stone-400">
-            Pages 01–14 · Chaos Year Edition
+            Pages 01–14 · Khaos Year Edition
           </span>
         </div>
 

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { ChaosWallView } from './ChaosWallView';
+import { KhaosWallView } from './KhaosWallView';
 import { RoomsView } from './RoomsView';
 import { Megaphone, Users } from 'lucide-react';
 
 /**
- * The WALL folder: the Chaos Wall plus group rooms, side by side.
+ * The WALL folder: the Khaos Wall plus group rooms, side by side.
  */
 export const CommunityView: React.FC<{ user: UserProfile; myUserId: string }> = ({ user, myUserId }) => {
   const [tab, setTab] = useState<'wall' | 'rooms'>('wall');
@@ -15,7 +15,7 @@ export const CommunityView: React.FC<{ user: UserProfile; myUserId: string }> = 
       <div className="flex gap-1 p-1 rounded-2xl bg-stone-100 dark:bg-white/5 w-fit">
         {(
           [
-            { id: 'wall', label: 'Chaos Wall', icon: Megaphone },
+            { id: 'wall', label: 'Khaos Wall', icon: Megaphone },
             { id: 'rooms', label: 'Rooms', icon: Users },
           ] as const
         ).map(({ id, label, icon: Icon }) => (
@@ -29,7 +29,7 @@ export const CommunityView: React.FC<{ user: UserProfile; myUserId: string }> = 
         ))}
       </div>
       {tab === 'wall' ? (
-        <ChaosWallView user={user} myUserId={myUserId} />
+        <KhaosWallView user={user} myUserId={myUserId} />
       ) : (
         <RoomsView myUserId={myUserId} />
       )}

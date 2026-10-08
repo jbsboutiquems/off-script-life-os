@@ -121,7 +121,7 @@ export function StudioHeader() {
         <h2 className="text-2xl font-black mt-1">Make some beautiful noise</h2>
         <p className="text-sm text-slate-300 mt-1 max-w-xl">
           Compose tracks, conjure images, render video, and transcribe voice notes — a private backstage
-          for your chaos. Everything stays inside your Life OS.
+          for your khaos. Everything stays inside your Life OS.
         </p>
       </div>
     </div>

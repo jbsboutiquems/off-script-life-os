@@ -39,7 +39,7 @@ export interface RegionMatch {
 /**
  * All eligible Familiar zones for a position, nearest first.
  * When zones overlap, the caller should let the user choose rather than
- * silently picking one — "which chaos are you claiming today?"
+ * silently picking one — "which khaos are you claiming today?"
  */
 export function findCandidateRegions(coordinates: Coordinates, uncertaintyRadiusKm = 0): RegionMatch[] {
   const quantized = quantizeCoordinates(coordinates);

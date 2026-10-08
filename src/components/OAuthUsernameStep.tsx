@@ -57,7 +57,7 @@ export const OAuthUsernameStep: React.FC<OAuthUsernameStepProps> = ({ pendingKey
           <RecoveryCodeReveal
             code={freshCode}
             context="register"
-            doneLabel="Saved it — enter the chaos"
+            doneLabel="Saved it — enter the khaos"
             onDone={() => onAuthed(pendingUser)}
           />
         </div>
@@ -77,7 +77,7 @@ export const OAuthUsernameStep: React.FC<OAuthUsernameStepProps> = ({ pendingKey
           </h1>
           <p className="text-sm text-stone-500 dark:text-stone-400">
             {providerName} vouched for you. Now the important part: pick the name the void will know you by.
-            This is what shows on the Chaos Wall and in inboxes — choose like it matters.
+            This is what shows on the Khaos Wall and in inboxes — choose like it matters.
           </p>
         </div>
 

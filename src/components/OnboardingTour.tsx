@@ -14,7 +14,7 @@ const STEPS = [
   {
     icon: Compass,
     title: 'The Daily Flight Log is home base',
-    body: 'Log your launch, orbit, and landing. Do the micro-dare. Each log earns Chaos Points and feeds your streak — consecutive days of showing up, computed from your actual entries, so back-filling a missed day heals it. No shame spirals, just field notes.',
+    body: 'Log your launch, orbit, and landing. Do the micro-dare. Each log earns Khaos Points and feeds your streak — consecutive days of showing up, computed from your actual entries, so back-filling a missed day heals it. No shame spirals, just field notes.',
   },
   {
     icon: Star,
@@ -24,7 +24,7 @@ const STEPS = [
   {
     icon: Trophy,
     title: 'The rest of the ship',
-    body: 'Big 6 Goals (six slots, no more). The Chaos Wall — scream into the void, together. A private Inbox for your people. Reminders that nudge instead of nag. Global search when you lose a brilliant 2am note. One-tap export when you want your data back. Poke around — you can\'t break anything a backup can\'t fix.',
+    body: 'Big 6 Goals (six slots, no more). The Khaos Wall — scream into the void, together. A private Inbox for your people. Reminders that nudge instead of nag. Global search when you lose a brilliant 2am note. One-tap export when you want your data back. Poke around — you can\'t break anything a backup can\'t fix.',
   },
 ];
 

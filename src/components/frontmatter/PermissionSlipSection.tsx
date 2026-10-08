@@ -15,7 +15,7 @@ const DEFAULT_COMMITMENT =
  */
 export const PermissionSlipSection: React.FC<FrontMatterSectionProps> = ({ user, onSaveProfile, onToast }) => {
   const [commitment, setCommitment] = useState(user.permission_granted || DEFAULT_COMMITMENT);
-  const [signature, setSignature] = useState(user.chaos_name || '');
+  const [signature, setSignature] = useState(user.khaos_name || '');
   const [date, setDate] = useState('2027-01-01');
   const [committed, setCommitted] = useState(false);
   const [savedTick, setSavedTick] = useState(false);
@@ -27,11 +27,11 @@ export const PermissionSlipSection: React.FC<FrontMatterSectionProps> = ({ user,
   useEffect(() => {
     const saved = loadFrontMatter<PermissionSlipData>(user.id, FM_KEYS.permissionSlip);
     if (saved) {
-      setSignature(saved.sig || user.chaos_name || '');
+      setSignature(saved.sig || user.khaos_name || '');
       setDate(saved.date || '2027-01-01');
       setCommitted(Boolean(saved.committed));
     } else {
-      setSignature(user.chaos_name || '');
+      setSignature(user.khaos_name || '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
@@ -53,7 +53,7 @@ export const PermissionSlipSection: React.FC<FrontMatterSectionProps> = ({ user,
     <SectionCard
       badge="09 — THE PERMISSION SLIP"
       cardClass="bg-[#fffdf9] dark:bg-[#02142e] border-[#ea4798] dark:border-[#ea4798]/50"
-      kicker="CHAOS YEAR 2027"
+      kicker="KHAOS YEAR 2027"
     >
       <h3 className="text-3xl sm:text-4xl font-black font-serif-display text-slate-900 dark:text-cream-canvas">
         The Permission Slip.

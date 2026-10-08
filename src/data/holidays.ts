@@ -1,6 +1,6 @@
-import { ChaosHoliday } from '../types';
+import { KhaosHoliday } from '../types';
 
-export const CORE_HOLIDAYS: Record<string, ChaosHoliday> = {
+export const CORE_HOLIDAYS: Record<string, KhaosHoliday> = {
   "01-01": {
     dateKey: "01-01",
     month: 1,
@@ -242,7 +242,7 @@ export const CORE_HOLIDAYS: Record<string, ChaosHoliday> = {
 };
 
 // Procedural fallback generator for any day of the year
-export function getHolidayForDate(dateStr: string): ChaosHoliday {
+export function getHolidayForDate(dateStr: string): KhaosHoliday {
   const [year, monthStr, dayStr] = dateStr.split('-');
   const month = parseInt(monthStr, 10);
   const day = parseInt(dayStr, 10);

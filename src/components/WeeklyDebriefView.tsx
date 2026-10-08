@@ -12,7 +12,7 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
   initialWeek = 1
 }) => {
   const [weekNumber, setWeekNumber] = useState(initialWeek);
-  const [chaosLevel, setChaosLevel] = useState(6);
+  const [khaosLevel, setKhaosLevel] = useState(6);
   const [q1, setQ1] = useState("Felt pressure to follow a rigid routine that collapsed by Wednesday.");
   const [q2, setQ2] = useState("Admitting I didn't want to attend the group planning call.");
   const [q3, setQ3] = useState("A 20-minute unscheduled walk completely solved a sticky architecture bottleneck.");
@@ -30,7 +30,7 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
         id: `debrief_w${weekNumber}`,
         week_number: weekNumber,
         date_range: `Week ${weekNumber} (2027)`,
-        chaos_level: chaosLevel,
+        khaos_level: khaosLevel,
         q1_script_disapproval: q1,
         q2_honest_moment: q2,
         q3_useful_surprise: q3,
@@ -71,7 +71,7 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
               WEEK {weekNumber} / 52
             </div>
             <div className="text-[11px] text-stone-600">
-              Overall Chaos Level: <strong className="text-rose-700">{chaosLevel} / 10</strong> · Slogan: "Boredom=Death"
+              Overall Khaos Level: <strong className="text-rose-700">{khaosLevel} / 10</strong> · Slogan: "Boredom=Death"
             </div>
           </div>
         </div>
@@ -124,29 +124,29 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
           </div>
         </div>
 
-        {/* Weekly Chaos Score Gauge */}
+        {/* Weekly Khaos Score Gauge */}
         <div className="mt-4 pt-3 border-t border-stone-200">
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
               <Flame className="w-3.5 h-3.5 text-rose-600" />
-              <span>Overall Week Chaos Level (1–10):</span>
+              <span>Overall Week Khaos Level (1–10):</span>
             </label>
             <span className="font-mono-code font-bold text-xs bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
-              {chaosLevel} / 10
+              {khaosLevel} / 10
             </span>
           </div>
           <input
             type="range"
             min={1}
             max={10}
-            value={chaosLevel}
-            onChange={(e) => setChaosLevel(Number(e.target.value))}
+            value={khaosLevel}
+            onChange={(e) => setKhaosLevel(Number(e.target.value))}
             className="w-full accent-rose-600 cursor-pointer print:hidden"
           />
           <div className="hidden print:block w-full bg-stone-100 rounded-full h-2.5 border border-stone-300 overflow-hidden mt-1">
             <div
               className="bg-rose-600 h-full rounded-full"
-              style={{ width: `${chaosLevel * 10}%` }}
+              style={{ width: `${khaosLevel * 10}%` }}
             />
           </div>
         </div>

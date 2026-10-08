@@ -1,5 +1,5 @@
 /**
- * Front Matter static copy for the Off*Script 2027 Chaos Year Edition
+ * Front Matter static copy for the Off*Script 2027 Khaos Year Edition
  * (planner pages 01-14, ported into the app as interactive sections).
  *
  * Brand: "Off*Script" (always with asterisk), slogan "Boredom=Death".
@@ -125,7 +125,7 @@ export const MANUAL_STEPS: ManualStep[] = [
   { num: '01', title: 'START WITH FRONT MATTER', text: "These pages are your foundation. Don't skip them. Don't rush them. A half-answer is still an answer." },
   { num: '02', title: 'FILL IN YOUR BIG 6 GOALS', text: 'Six goals. That\'s it. Not 22 wishes on a vision board. Six things you are actually moving toward.' },
   { num: '03', title: 'MAP YOUR QUARTERS', text: 'Each quarter is its own chapter. Your Q3 might look nothing like Q1. That\'s not failure. That\'s data.' },
-  { num: '04', title: 'USE THE DAILY SPREAD', text: 'Brain dump, prioritize, build your day. Structured chaos — use every section or none of them.' },
+  { num: '04', title: 'USE THE DAILY SPREAD', text: 'Brain dump, prioritize, build your day. Structured khaos — use every section or none of them.' },
   { num: '05', title: 'REVIEW + RESET', text: 'Monthly and weekly debriefs are non-negotiable. Growth lives in the reflecting, not just the doing.' },
   { num: '06', title: 'BREAK THE FORMAT', text: 'Cross things out. Write sideways. Skip pages. This planner works because you make it YOURS.' }
 ];

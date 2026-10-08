@@ -15,7 +15,7 @@ const ROLE_SUGGESTIONS = [
   'Emergency contact',
   'Hype squad',
   'Voice of reason',
-  'Chaos witness',
+  'Khaos witness',
   'No-advice listener',
 ];
 

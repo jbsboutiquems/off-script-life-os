@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { CHAOS_THEMES, ChaosMonthTheme } from '../data/themes';
+import { KHAOS_THEMES, KhaosMonthTheme } from '../data/themes';
 import { Award, Compass, Sparkles, ChevronRight } from 'lucide-react';
 
 export const ThemesGalleryView: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<number>(1);
-  const activeTheme: ChaosMonthTheme = CHAOS_THEMES.find(t => t.month === selectedMonth) || CHAOS_THEMES[0];
+  const activeTheme: KhaosMonthTheme = KHAOS_THEMES.find(t => t.month === selectedMonth) || KHAOS_THEMES[0];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -14,7 +14,7 @@ export const ThemesGalleryView: React.FC = () => {
           <span className="bg-purple-600 text-white text-[10px] font-mono-code font-bold uppercase px-2 py-0.5 rounded tracking-wider">
             ANNUAL CALENDAR
           </span>
-          <span className="text-xs text-stone-500 font-mono-code">12 MONTHLY CHAOS THEMES</span>
+          <span className="text-xs text-stone-500 font-mono-code">12 MONTHLY KHAOS THEMES</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 mt-1">
           12 Arc Themes of 2027
@@ -26,7 +26,7 @@ export const ThemesGalleryView: React.FC = () => {
 
       {/* Month Selector Carousel / Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-        {CHAOS_THEMES.map((theme) => (
+        {KHAOS_THEMES.map((theme) => (
           <button
             key={theme.month}
             onClick={() => setSelectedMonth(theme.month)}

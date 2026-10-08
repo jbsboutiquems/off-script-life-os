@@ -7,7 +7,7 @@ export const TourGuideView: React.FC = () => {
       {/* Header */}
       <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-2xl p-6 shadow-sm text-center">
         <span className="inline-block bg-rose-600 text-white text-[10px] font-mono-code font-bold uppercase px-2.5 py-1 rounded tracking-widest">
-          The human behind the chaos
+          The human behind the khaos
         </span>
         <h2 className="text-3xl sm:text-4xl font-bold font-serif-display text-slate-900 dark:text-cream-canvas mt-2">
           Meet Your Tour Guide

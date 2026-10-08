@@ -93,7 +93,7 @@ export const FieldView: React.FC = () => {
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-black tracking-tight">The Field</h2>
         <p className="text-sm text-stone-500 dark:text-stone-400 max-w-md mx-auto">
-          Your Familiar zones are anchored to real places. Go outside, find yours, claim the chaos.
+          Your Familiar zones are anchored to real places. Go outside, find yours, claim the khaos.
         </p>
         <button
           onClick={locate}
@@ -122,7 +122,7 @@ export const FieldView: React.FC = () => {
 
       {candidates && candidates.length > 1 && !selected && (
         <div className="max-w-2xl mx-auto space-y-3">
-          <p className="text-center font-black text-lg">You're in range of {candidates.length} zones. Which chaos are you claiming today?</p>
+          <p className="text-center font-black text-lg">You're in range of {candidates.length} zones. Which khaos are you claiming today?</p>
           <div className="grid sm:grid-cols-2 gap-3">
             {candidates.map(({ region, distanceKm }) => (
               <button

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { CORE_HOLIDAYS } from '../data/holidays';
-import { ChaosHoliday } from '../types';
+import { KhaosHoliday } from '../types';
 import { PartyPopper, ChevronDown } from 'lucide-react';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-function HolidayCard({ holiday }: { holiday: ChaosHoliday }) {
+function HolidayCard({ holiday }: { holiday: KhaosHoliday }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="bg-white dark:bg-[#02142e] border border-stone-300 dark:border-white/10 rounded-2xl p-5 shadow-xs">

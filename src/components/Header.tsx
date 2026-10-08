@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Zap, Home, LogOut, Sun, Moon, Flame, User, Search, Inbox, Bell, ChevronDown } from 'lucide-react';
-import type { ChaosTheme } from '../theme';
+import type { KhaosTheme } from '../theme';
 import type { BuddyProfile } from '../types';
 import { BuddyAvatar } from './BuddyAvatar';
 
@@ -8,7 +8,7 @@ interface HeaderProps {
   username: string;
   pointsTotal: number;
   activeTab: string;
-  theme: ChaosTheme;
+  theme: KhaosTheme;
   dueCount: number;
   unreadCount: number;
   toggleTheme: () => void;
@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenSearch}
               className={iconBtn(activeTab === 'search')}
-              title="Search your chaos"
+              title="Search your khaos"
             >
               <Search className="w-4 h-4" />
             </button>
@@ -114,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenPoints}
               className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-bold font-mono-code border border-amber-700/30 shadow-sm hover:from-amber-400 hover:to-orange-400 transition-all"
-              title="Chaos Points & Sharing"
+              title="Khaos Points & Sharing"
             >
               <Zap className="w-3.5 h-3.5" fill="currentColor" />
               <span>{pointsTotal}</span>
@@ -134,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({
               title={
                 theme === 'dark' ? 'Switch to Daybreak'
                 : theme === 'light' ? 'Switch to Beast Mode'
-                : 'Switch to Midnight Chaos'
+                : 'Switch to Midnight Khaos'
               }
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" />

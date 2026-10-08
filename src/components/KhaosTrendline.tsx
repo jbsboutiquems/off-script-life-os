@@ -27,7 +27,7 @@ import {
   Filter
 } from 'lucide-react';
 
-interface ChaosTrendlineProps {
+interface KhaosTrendlineProps {
   entries?: DailyEntry[];
   currentDate: string;
   onSelectDate?: (date: string) => void;
@@ -46,7 +46,7 @@ interface TrendDataPoint {
   isRealEntry: boolean;
 }
 
-export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
+export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
   entries = [],
   currentDate,
   onSelectDate
@@ -57,7 +57,7 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
   const isDark = theme === 'dark';
   const isBeast = theme === 'beast';
 
-  // Chart palette: luminous brand colors on the deep navy canvas in Midnight Chaos,
+  // Chart palette: luminous brand colors on the deep navy canvas in Midnight Khaos,
   // acid lime + electric purple on green-black in Beast Mode.
   const chart = {
     grid: isBeast ? '#2c3f16' : isDark ? '#274264' : '#e7e5e4',
@@ -114,8 +114,8 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
       let microDareCompleted = false;
       let isRealEntry = false;
 
-      if (existingEntry && typeof existingEntry.chaos_score === 'number') {
-        score = existingEntry.chaos_score;
+      if (existingEntry && typeof existingEntry.khaos_score === 'number') {
+        score = existingEntry.khaos_score;
         note = existingEntry.evening_notes || "Field notes recorded in Daily OS.";
         intention = existingEntry.morning_intention || "";
         microDareCompleted = existingEntry.micro_dare_completed || false;
@@ -134,10 +134,10 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
 
       if (score >= 8) {
         type = 'uncontrolled';
-        typeLabel = 'Uncontrolled Chaos (Overwhelm)';
+        typeLabel = 'Uncontrolled Khaos (Overwhelm)';
       } else if (score >= 4) {
         type = 'controlled';
-        typeLabel = 'Controlled Chaos (Sweet Spot)';
+        typeLabel = 'Controlled Khaos (Sweet Spot)';
       } else {
         type = 'stagnant';
         typeLabel = 'Rigid Order / Stagnation';
@@ -211,15 +211,15 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <span className="bg-gradient-to-r from-rose-600 to-amber-600 text-white text-[10px] font-mono-code font-bold uppercase px-2.5 py-0.5 rounded tracking-wider shadow-2xs">
-              CHAOS PATTERN FORENSICS
+              KHAOS PATTERN FORENSICS
             </span>
             <span className="text-xs text-stone-500 font-mono-code">30-DAY TRAJECTORY</span>
           </div>
           <h3 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 mt-1">
-            Chaos Trendline &amp; Pattern Map
+            Khaos Trendline &amp; Pattern Map
           </h3>
           <p className="text-xs sm:text-sm text-stone-600 mt-0.5">
-            Visualize the critical distinction between <span className="font-bold text-amber-800">Controlled Chaos</span> (deliberate play, boundary pushing) and <span className="font-bold text-rose-700">Uncontrolled Chaos</span> (burnout, reactive spiraling).
+            Visualize the critical distinction between <span className="font-bold text-amber-800">Controlled Khaos</span> (deliberate play, boundary pushing) and <span className="font-bold text-rose-700">Uncontrolled Khaos</span> (burnout, reactive spiraling).
           </p>
         </div>
 
@@ -244,7 +244,7 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div className="bg-stone-50 border border-stone-200 p-3.5 rounded-2xl">
           <div className="text-[10px] font-mono-code uppercase font-bold text-stone-500">
-            30-Day Mean Chaos
+            30-Day Mean Khaos
           </div>
           <div className="text-2xl font-bold font-mono-code text-slate-900 mt-0.5 flex items-baseline gap-1">
             {stats.avgScore} <span className="text-xs text-stone-400 font-normal">/ 10</span>
@@ -256,7 +256,7 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
 
         <div className="bg-amber-50/70 border border-amber-200 p-3.5 rounded-2xl">
           <div className="text-[10px] font-mono-code uppercase font-bold text-amber-800">
-            Controlled Chaos Ratio
+            Controlled Khaos Ratio
           </div>
           <div className="text-2xl font-bold font-mono-code text-amber-900 mt-0.5">
             {stats.controlledPct}%
@@ -317,7 +317,7 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
             >
               <defs>
                 {/* Gradient for the sovereign sweet spot curve */}
-                <linearGradient id="chaosGradient" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="khaosGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ea4798" stopOpacity={0.45} />
                   <stop offset="35%" stopColor="#f59e0b" stopOpacity={0.35} />
                   <stop offset="75%" stopColor="#2da2ee" stopOpacity={0.2} />
@@ -327,14 +327,14 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
               
-              {/* Background Reference Zone for Controlled Chaos (Sweet Spot: 4 to 7.5) */}
+              {/* Background Reference Zone for Controlled Khaos (Sweet Spot: 4 to 7.5) */}
               <ReferenceArea
                 y1={4}
                 y2={7.5}
                 fill={chart.zoneFill}
                 fillOpacity={isDark ? 0.12 : 0.45}
                 label={{
-                  value: "CONTROLLED CHAOS (SOVEREIGN FLOW)",
+                  value: "CONTROLLED KHAOS (SOVEREIGN FLOW)",
                   position: "insideTopRight",
                   fill: chart.zoneLabel,
                   fontSize: 10,
@@ -432,7 +432,7 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
                 stroke="#ea4798"
                 strokeWidth={2.5}
                 fillOpacity={1}
-                fill="url(#chaosGradient)"
+                fill="url(#khaosGradient)"
                 dot={(props: any) => {
                   const { cx, cy, payload } = props;
                   const isSpike = payload.score >= 8;
@@ -474,17 +474,17 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
             <span className="bg-amber-800 text-white font-mono-code text-[10px] font-bold px-2 py-0.5 rounded uppercase">
               MEI PATTERN RADAR
             </span>
-            <span className="font-bold text-slate-900 font-display-punch">The Rhythm of Your Chaos</span>
+            <span className="font-bold text-slate-900 font-display-punch">The Rhythm of Your Khaos</span>
           </div>
 
           <p className="text-stone-700 leading-relaxed">
             {stats.reboundSpikes > 0 ? (
               <>
-                <strong className="text-rose-700">Suppression Blowout Detected:</strong> You experienced {stats.reboundSpikes} uncontrolled spikes immediately following days of low chaos (score ≤ 3). When you force yourself into rigid order for too long, the system over-corrects into reactive explosion.
+                <strong className="text-rose-700">Suppression Blowout Detected:</strong> You experienced {stats.reboundSpikes} uncontrolled spikes immediately following days of low khaos (score ≤ 3). When you force yourself into rigid order for too long, the system over-corrects into reactive explosion.
               </>
             ) : (
               <>
-                <strong className="text-emerald-800">Stable Boundary Regulation:</strong> You have kept chaos largely in the sovereign flow zone without severe rebound blowouts. Your transitions between high-creativity and recovery are relatively smooth.
+                <strong className="text-emerald-800">Stable Boundary Regulation:</strong> You have kept khaos largely in the sovereign flow zone without severe rebound blowouts. Your transitions between high-creativity and recovery are relatively smooth.
               </>
             )}
           </p>
@@ -517,7 +517,7 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
 
           <p className="text-[11px] text-stone-600 mt-1">
             {Number(stats.weekdayAvg) > Number(stats.weekendAvg)
-              ? "External demands drive most weekday chaos. Protect your Sunday reset ritual."
+              ? "External demands drive most weekday khaos. Protect your Sunday reset ritual."
               : "Weekend restlessness is driving your spikes. Try intentional open studio time."}
           </p>
         </div>

@@ -46,7 +46,7 @@
 
 /* ============ DAYBREAK (light mode) ============
    Daylight theme: soft sky-blue grounds, deep navy-teal ink, deeper teal
-   + softer pink accents. The dark variant ("Midnight Chaos") lives under
+   + softer pink accents. The dark variant ("Midnight Khaos") lives under
    `.dark` below. theme.ts defaults to dark. */
 :root {
   --paper: #cfeafb;
@@ -66,7 +66,7 @@
 .bg-\[\#fffdfa\], .bg-\[\#faf5eb\], .bg-\[\#f0ece1\] { background-color: #e2f2fd; }
 .bg-\[\#fdf2f7\] { background-color: #fbe7f2; }
 
-/* ============ MIDNIGHT CHAOS (dark mode — the default) ============
+/* ============ MIDNIGHT KHAOS (dark mode — the default) ============
    Toggled via the `dark` class on <html>. A first-class brand
    surface: deep navy grounds, cream/off-white text, neon teal +
    hot-pink accents, gold highlights. Hard-coded light surfaces
@@ -380,7 +380,7 @@
   background-image: linear-gradient(to bottom, transparent 27px, rgba(233, 255, 217, 0.14) 28px);
 }
 
-/* Theme toggle button: base (Daybreak) + Midnight Chaos + Beast Mode. */
+/* Theme toggle button: base (Daybreak) + Midnight Khaos + Beast Mode. */
 .theme-toggle-btn { background: #e2f2fd; color: #0a2a3f; }
 .theme-toggle-btn:hover { background: #bfe3fa; }
 .dark .theme-toggle-btn { background: rgba(255, 255, 255, 0.10); color: #fcd34d; }
@@ -499,7 +499,7 @@
     size: auto;
   }
 
-  /* Print follows the ACTIVE theme (Amber's call, 2026-10-05): Midnight Chaos
+  /* Print follows the ACTIVE theme (Amber's call, 2026-10-05): Midnight Khaos
      prints dark cosmic, Daybreak prints light-blue daylight, Beast Mode
      prints its acid palette. Theme tokens and the .dark/.beast utility
      remaps above flow through untouched — only layout/legibility rules

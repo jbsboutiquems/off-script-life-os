@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { ChaosTheme } from '../theme';
+import type { KhaosTheme } from '../theme';
 
-function readTheme(): ChaosTheme {
+function readTheme(): KhaosTheme {
   if (typeof document === 'undefined') return 'dark';
   const cls = document.documentElement.classList;
   if (cls.contains('beast')) return 'beast';
@@ -9,11 +9,11 @@ function readTheme(): ChaosTheme {
 }
 
 /**
- * Tracks the active ChaosTheme (the `dark` / `beast` classes on <html>).
+ * Tracks the active KhaosTheme (the `dark` / `beast` classes on <html>).
  * Observes the class so components re-render when the theme cycles.
  */
-export function useTheme(): ChaosTheme {
-  const [theme, setTheme] = useState<ChaosTheme>(readTheme);
+export function useTheme(): KhaosTheme {
+  const [theme, setTheme] = useState<KhaosTheme>(readTheme);
 
   useEffect(() => {
     const el = document.documentElement;
@@ -28,7 +28,7 @@ export function useTheme(): ChaosTheme {
 }
 
 /**
- * Tracks whether Midnight Chaos (the `dark` class on <html>) is active.
+ * Tracks whether Midnight Khaos (the `dark` class on <html>) is active.
  * Kept for call sites that only care about dark-vs-not.
  */
 export function useDarkMode(): boolean {

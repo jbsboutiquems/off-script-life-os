@@ -256,7 +256,7 @@ export const CosmicCornerView: React.FC<CosmicCornerViewProps> = ({ user, onEdit
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-stone-200 dark:border-white/10">
                   <span className="text-xs font-mono-code text-stone-500 dark:text-stone-400">
-                    Lucky chaos number: <strong className="text-amber-600 dark:text-amber-300 text-base">{horoscope.luckyNumber}</strong>
+                    Lucky khaos number: <strong className="text-amber-600 dark:text-amber-300 text-base">{horoscope.luckyNumber}</strong>
                   </span>
                   <span className="text-[10px] italic text-stone-400 dark:text-stone-500">
                     Written by the app, not the stars. For fun, not fate.

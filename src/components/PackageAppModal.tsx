@@ -141,8 +141,8 @@ export const PackageAppModal: React.FC<PackageAppModalProps> = ({
                 </span>
                 <ul className="list-disc list-inside space-y-1 text-stone-600 pl-1">
                   <li><strong>Mei Chat</strong> — all AI endpoints run through Mei (called by bot ID). No Gemini, no Groq, no Firebase, no API keys in the app.</li>
-                  <li><strong>Full Life OS</strong> — Daily OS, Big 6 Goals, Weekly Debriefs, Money Maps, Cosmic Corner, Chaos Points.</li>
-                  <li><strong>Chaos Wall + private DMs</strong> — the gated community layer, just like the web app.</li>
+                  <li><strong>Full Life OS</strong> — Daily OS, Big 6 Goals, Weekly Debriefs, Money Maps, Cosmic Corner, Khaos Points.</li>
+                  <li><strong>Khaos Wall + private DMs</strong> — the gated community layer, just like the web app.</li>
                   <li><strong>Drive backup</strong> — your data can be backed up to Google Drive from inside the app.</li>
                   <li><strong>Playdate ND game corner</strong> — zero timers, zero scores, zero pressure.</li>
                 </ul>

@@ -66,7 +66,7 @@ export const MORNING_MANTRAS: MorningMantra[] = [
   {
     id: 'm9',
     text: "Interesting friction beats sterile consensus every single time.",
-    attitude: "Chaos Appetite",
+    attitude: "Khaos Appetite",
     edgeLevel: "Sharp",
     contextTag: "Creative Engine"
   },

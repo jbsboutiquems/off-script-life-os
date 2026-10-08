@@ -4,14 +4,14 @@ import { ArrowRight, BookOpen, Compass, Flame, Sparkles } from 'lucide-react';
 interface CoverArtViewProps {
   onOpenDaily: () => void;
   wordOfTheYear?: string;
-  chaosName?: string;
+  khaosName?: string;
   slogan?: string;
 }
 
 export const CoverArtView: React.FC<CoverArtViewProps> = ({
   onOpenDaily,
   wordOfTheYear = 'FERAL',
-  chaosName = 'Unruly Sovereign',
+  khaosName = 'Unruly Sovereign',
   slogan = 'Boredom=Death'
 }) => {
   return (
@@ -53,7 +53,7 @@ export const CoverArtView: React.FC<CoverArtViewProps> = ({
 
         <div className="ink-panel rounded-3xl border-2 border-[var(--ink)] p-6 shadow-[7px_8px_0_var(--teal)] sm:p-8">
           <p className="font-mono-code text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--yellow)]">Operator card</p>
-          <h2 className="mt-2 font-serif-display text-3xl font-bold text-white">{chaosName}</h2>
+          <h2 className="mt-2 font-serif-display text-3xl font-bold text-white">{khaosName}</h2>
           <div className="mt-5 space-y-3 border-t border-white/20 pt-5 font-mono-code text-xs text-stone-200">
             <p><span className="text-[var(--yellow)]">WORD:</span> “{wordOfTheYear}”</p>
             <p><span className="text-[var(--pink)]">SLOGAN:</span> “{slogan}”</p>

@@ -1,4 +1,4 @@
-import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, InterpersonalInsight, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, ChaosPointEntry, ChaosPointAction, CHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
+import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, InterpersonalInsight, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, KhaosPointEntry, KhaosPointAction, KHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
 import { DueReminder } from '../lib/reminders';
 import { aiConsentHeaders } from './aiConsent';
 import { setActiveUserId } from '../storage';
@@ -97,12 +97,12 @@ async function req(path: string, options: RequestInit = {}): Promise<Response> {
 function blankProfile(id: string): UserProfile {
   return {
     id,
-    chaos_name: '',
+    khaos_name: '',
     word_of_the_year: '',
-    chaos_mantra: '',
+    khaos_mantra: '',
     what_done_pretending: '',
     what_ready_to_admit: '',
-    relationship_with_chaos: '',
+    relationship_with_khaos: '',
     permission_granted: '',
     birthday: '',
     birth_time: '',
@@ -310,7 +310,7 @@ export const api = {
     return body;
   },
 
-  async changeUsername(username: string): Promise<{ username: string; chaosName: string }> {
+  async changeUsername(username: string): Promise<{ username: string; khaosName: string }> {
     const res = await req('/api/auth/username', {
       method: 'POST',
       body: JSON.stringify({ username })
@@ -332,7 +332,7 @@ export const api = {
     return res.json();
   },
 
-  // ---- The Chaos Wall ----
+  // ---- The Khaos Wall ----
 
   async getWallPosts(): Promise<{ id: string; userId: string; username: string; text: string; created_at: string }[]> {
     const res = await req('/api/wall');
@@ -765,7 +765,7 @@ export const api = {
       midday_checkin: '',
       micro_dare_completed: false,
       evening_notes: '',
-      chaos_score: 5,
+      khaos_score: 5,
       updated_at: new Date().toISOString()
     };
     const saved = { ...existing, ...entry, updated_at: new Date().toISOString() };
@@ -779,7 +779,7 @@ export const api = {
     evening_notes: string;
     morning_intention?: string;
     midday_checkin?: string;
-    chaos_score?: number;
+    khaos_score?: number;
     user_profile?: UserProfile;
     /** Client-computed voice profile so Mei can mirror the user's tone. */
     buddy_voice?: import('../tone').VoiceProfile | null;
@@ -970,8 +970,8 @@ export const api = {
     return map;
   },
 
-  // ---- Chaos Points ----
-  async getPoints(): Promise<ChaosPointEntry[]> {
+  // ---- Khaos Points ----
+  async getPoints(): Promise<KhaosPointEntry[]> {
     try {
       const res = await req('/api/points');
       if (res.ok) {
@@ -983,15 +983,15 @@ export const api = {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading local points', e);
     }
-    return lsGet<ChaosPointEntry[]>('points') || [];
+    return lsGet<KhaosPointEntry[]>('points') || [];
   },
 
-  getPointsTotal(points: ChaosPointEntry[]): number {
+  getPointsTotal(points: KhaosPointEntry[]): number {
     return points.reduce((s, p) => s + p.points, 0);
   },
 
-  async awardPoints(action: ChaosPointAction, ref: string, label?: string): Promise<{ entry: ChaosPointEntry; total: number; duplicate: boolean }> {
-    const points = CHAOS_POINT_VALUES[action];
+  async awardPoints(action: KhaosPointAction, ref: string, label?: string): Promise<{ entry: KhaosPointEntry; total: number; duplicate: boolean }> {
+    const points = KHAOS_POINT_VALUES[action];
     try {
       const res = await req('/api/points/award', {
         method: 'POST',
@@ -1007,12 +1007,12 @@ export const api = {
       console.warn('API error, awarding local points', e);
     }
     // Local fallback with the same dedupe rule
-    const list = await this.getPoints().catch(() => [] as ChaosPointEntry[]);
+    const list = await this.getPoints().catch(() => [] as KhaosPointEntry[]);
     const existing = list.find(p => p.ref === ref && p.action === action);
     if (existing) {
       return { entry: existing, total: this.getPointsTotal(list), duplicate: true };
     }
-    const entry: ChaosPointEntry = {
+    const entry: KhaosPointEntry = {
       id: `pts_${Date.now()}`,
       action,
       points,

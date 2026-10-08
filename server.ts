@@ -19,7 +19,7 @@ app.use(express.json());
 // `contentPacks` and `qrTokens` stay global (packs are shared, QR tokens are
 // single-use across the whole prototype). Sessions are server-side records.
 
-const DATA_FILE = path.join(process.cwd(), "chaos_os_data.json");
+const DATA_FILE = path.join(process.cwd(), "khaos_os_data.json");
 
 interface AccountUser {
   id: string;
@@ -74,7 +74,7 @@ interface UserData {
   antiGoals: any[];
   flightDebriefs: Record<string, any>;
   moneyMaps: Record<string, any>;
-  chaosPoints: any[];
+  khaosPoints: any[];
   flightCrew: any[];
   userEntitlements: string[];
   /** AI Studio (media studio, Gemini-backed) saved generations. */
@@ -186,13 +186,13 @@ function freshUserData(userId: string, username: string): UserData {
   return {
     user: {
       id: userId,
-      chaos_name: username,
+      khaos_name: username,
       word_of_the_year: "UNTAMED",
       slogan: "Boredom=Death",
-      chaos_mantra: "",
+      khaos_mantra: "",
       what_done_pretending: "",
       what_ready_to_admit: "",
-      relationship_with_chaos: "",
+      relationship_with_khaos: "",
       permission_granted: "",
       birthday: "",
       birth_time: "",
@@ -216,7 +216,7 @@ function freshUserData(userId: string, username: string): UserData {
     antiGoals: [],
     flightDebriefs: {},
     moneyMaps: {},
-    chaosPoints: [],
+    khaosPoints: [],
     flightCrew: [],
     userEntitlements: [],
     studioMedia: []
@@ -233,15 +233,19 @@ function normalizeUserData(input: any): UserData {
     // Tolerate the pre-accounts backup shape (map of userId -> packIds).
     entitlements = Object.values(d.userEntitlements).flat().filter((x: any) => typeof x === "string") as string[];
   }
+  const userObj = d.user && typeof d.user === "object" ? d.user : freshUserData("unknown", "operator").user;
+  // Migrate the chaos -> khaos rename for stored profiles.
+  if (!userObj.khaos_name && typeof userObj.chaos_name === "string") userObj.khaos_name = userObj.chaos_name;
+  const khaosPoints = Array.isArray(d.khaosPoints) ? d.khaosPoints : (Array.isArray(d.chaosPoints) ? d.chaosPoints : []);
   return {
-    user: d.user && typeof d.user === "object" ? d.user : freshUserData("unknown", "operator").user,
+    user: userObj,
     dailyEntries: d.dailyEntries && typeof d.dailyEntries === "object" ? d.dailyEntries : {},
     personalitySnapshots: Array.isArray(d.personalitySnapshots) ? d.personalitySnapshots : [],
     goals: Array.isArray(d.goals) ? d.goals : [],
     antiGoals: Array.isArray(d.antiGoals) ? d.antiGoals : [],
     flightDebriefs: d.flightDebriefs && typeof d.flightDebriefs === "object" ? d.flightDebriefs : {},
     moneyMaps: d.moneyMaps && typeof d.moneyMaps === "object" ? d.moneyMaps : {},
-    chaosPoints: Array.isArray(d.chaosPoints) ? d.chaosPoints : [],
+    khaosPoints,
     flightCrew: Array.isArray(d.flightCrew) ? d.flightCrew : [],
     userEntitlements: entitlements,
     studioMedia: Array.isArray(d.studioMedia) ? d.studioMedia : []
@@ -416,7 +420,7 @@ function usernameTaken(key: string, exceptId?: string): boolean {
 
 /** Friendly alternatives when a name is taken — all guaranteed available. */
 function suggestUsernames(base: string, exceptId?: string): string[] {
-  const clean = base.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 18) || "chaos";
+  const clean = base.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 18) || "khaos";
   const candidates = [
     `${clean}_${crypto.randomBytes(2).toString("hex")}`,
     `${clean}-2027`,
@@ -491,7 +495,7 @@ app.post("/api/auth/register", (req, res) => {
     return res.status(status).json(uErr);
   }
   if (password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters. Pick a good one — this guards your chaos." });
+    return res.status(400).json({ error: "Password must be at least 8 characters. Pick a good one — this guards your khaos." });
   }
   const name = username.trim();
   const key = name.toLowerCase();
@@ -1017,11 +1021,11 @@ app.post("/api/auth/username", requireAuth, (req, res) => {
   // If the profile display name was still the old username (or blank), follow the rename
   // so the header/profile show the new name immediately. A custom display name is left alone.
   const profile = db.users[acct.id]?.user;
-  if (profile && (!profile.chaos_name || profile.chaos_name === oldUsername)) {
-    profile.chaos_name = username;
+  if (profile && (!profile.khaos_name || profile.khaos_name === oldUsername)) {
+    profile.khaos_name = username;
   }
   saveData(db);
-  res.json({ username, chaosName: db.users[acct.id]?.user?.chaos_name || username });
+  res.json({ username, khaosName: db.users[acct.id]?.user?.khaos_name || username });
 });
 
 // ---------- Health check (public) ----------
@@ -1200,8 +1204,8 @@ app.delete("/api/anti-goals/:id", requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-// Chaos Points ledger
-const CHAOS_POINT_VALUES: Record<string, number> = {
+// Khaos Points ledger
+const KHAOS_POINT_VALUES: Record<string, number> = {
   daily_log: 10,
   micro_dare: 15,
   weekly_debrief: 25,
@@ -1212,7 +1216,7 @@ const CHAOS_POINT_VALUES: Record<string, number> = {
 };
 
 app.get("/api/points", requireAuth, (req, res) => {
-  res.json((req as AuthedRequest).ud.chaosPoints || []);
+  res.json((req as AuthedRequest).ud.khaosPoints || []);
 });
 
 app.post("/api/points/award", requireAuth, (req, res) => {
@@ -1220,25 +1224,25 @@ app.post("/api/points/award", requireAuth, (req, res) => {
   const action = String(req.body?.action || "").trim();
   const ref = String(req.body?.ref || "").trim();
   const label = String(req.body?.label || action).trim();
-  if (!action || !CHAOS_POINT_VALUES[action]) {
+  if (!action || !KHAOS_POINT_VALUES[action]) {
     return res.status(400).json({ error: "Unknown point action." });
   }
   // Dedupe: one award per action+ref so refreshes and double-saves don't farm points.
   const dedupeRef = ref || `${action}:${new Date().toISOString().split("T")[0]}`;
-  const existing = ar.ud.chaosPoints.find((p: any) => p.ref === dedupeRef && p.action === action);
-  const total = () => ar.ud.chaosPoints.reduce((s: number, p: any) => s + p.points, 0);
+  const existing = ar.ud.khaosPoints.find((p: any) => p.ref === dedupeRef && p.action === action);
+  const total = () => ar.ud.khaosPoints.reduce((s: number, p: any) => s + p.points, 0);
   if (existing) {
     return res.json({ entry: existing, total: total(), duplicate: true });
   }
   const entry = {
     id: `pts_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     action,
-    points: CHAOS_POINT_VALUES[action],
+    points: KHAOS_POINT_VALUES[action],
     ref: dedupeRef,
     label,
     awarded_at: new Date().toISOString()
   };
-  ar.ud.chaosPoints.push(entry);
+  ar.ud.khaosPoints.push(entry);
   saveData(db);
   res.json({ entry, total: total(), duplicate: false });
 });
@@ -1340,7 +1344,7 @@ app.get("/api/reminders/due", requireAuth, (req, res) => {
   res.json({ due, settings, server_time: new Date().toISOString() });
 });
 
-// ---------- The Chaos Wall: shared community board ----------
+// ---------- The Khaos Wall: shared community board ----------
 // Visible to every registered user on this instance. No moderation queue in
 // this prototype — fine for a private/friends deployment, not for public.
 const WALL_MAX = 500;
@@ -1839,7 +1843,7 @@ app.post("/api/money-maps", requireAuth, (req, res) => {
 
 app.post("/api/diagnose", requireAuth, async (req, res) => {
   const ar = req as AuthedRequest;
-  const { entry_date, evening_notes, morning_intention, midday_checkin, chaos_score, user_profile } = req.body;
+  const { entry_date, evening_notes, morning_intention, midday_checkin, khaos_score, user_profile } = req.body;
 
   const textToAnalyze = `
 EVENING FIELD NOTES / RANT BOX:
@@ -1851,10 +1855,10 @@ MORNING INTENTION:
 MIDDAY CHECK-IN:
 "${midday_checkin || "None"}"
 
-SELF-REPORTED CHAOS SCORE (1-10): ${chaos_score || 5}
+SELF-REPORTED KHAOS SCORE (1-10): ${khaos_score || 5}
 
-USER CHAOS MANTRA & IDENTITY:
-Name: ${user_profile?.chaos_name || ar.ud.user.chaos_name}
+USER KHAOS MANTRA & IDENTITY:
+Name: ${user_profile?.khaos_name || ar.ud.user.khaos_name}
 Word of Year: ${user_profile?.word_of_the_year || ar.ud.user.word_of_the_year}
 What I'm done pretending about: ${user_profile?.what_done_pretending || ar.ud.user.what_done_pretending}
 `;
@@ -1867,7 +1871,7 @@ What I'm done pretending about: ${user_profile?.what_done_pretending || ar.ud.us
     try {
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `
-You are the core intelligence of the "Mei-Style Relationship-with-Self Personality Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Chaos Year Edition)".
+You are the core intelligence of the "Mei-Style Relationship-with-Self Personality Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)".
 
 THE PHILOSOPHY & CORE SLOGAN:
 The foundational operational slogan of this planner is "Boredom=Death". Monotony, numbness, mechanical compliance, and playing dead in a pre-scripted existence is the ultimate hazard.
@@ -2096,7 +2100,7 @@ function insightForHeuristic(
   if (msgCount < 4) return `Not enough messages with ${username} yet to read this one — keep talking and check back.`;
   const typeLines: Record<RelationshipType, string> = {
     romantic: 'This reads romantic — high voltage, low chill.',
-    family: 'Family thread — the love is structural, the chaos is inherited.',
+    family: 'Family thread — the love is structural, the khaos is inherited.',
     professional: 'Professional channel — signal over small talk.',
     friendly: 'Friendship frequency detected.',
   };
@@ -2151,7 +2155,7 @@ app.post('/api/diagnose/interpersonal', requireAuth, async (req, res) => {
         return `--- @${t.partnerUsername} ---\n${convo.slice(0, 2500)}`;
       }).join('\n\n');
       const prompt = `
-You are the "Mei-Style Relationship-with-Others Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Chaos Year Edition)".
+You are the "Mei-Style Relationship-with-Others Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)".
 THE PHILOSOPHY: "Boredom=Death". Your persona is DIRECT, WITTY, SASSY, GROUNDED, UNAPOLOGETICALLY HONEST. Zero toxic positivity.
 For EACH contact below, classify the relationship and read its health from the DM thread (YOU = the app user).
 Return a JSON array, one object per contact, matching this exact structure:

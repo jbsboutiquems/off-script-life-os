@@ -70,7 +70,7 @@ export const InstallBanner: React.FC = () => {
               </span>
             </div>
             <p className="text-[11px] text-white/85 truncate">
-              Install to your home screen for full-screen mode and faster chaos.
+              Install to your home screen for full-screen mode and faster khaos.
             </p>
           </div>
         </div>

@@ -1,5 +1,5 @@
 /**
- * Core Data Types for 2027 Life OS: Off*Script (Chaos Year Edition)
+ * Core Data Types for 2027 Life OS: Off*Script (Khaos Year Edition)
  * & The Mei-Style Personality Diagnostic Engine
  */
 
@@ -15,13 +15,13 @@ export interface BuddyProfile {
 
 export interface UserProfile {
   id: string;
-  chaos_name: string;
+  khaos_name: string;
   word_of_the_year: string;
   slogan?: string;
-  chaos_mantra: string;
+  khaos_mantra: string;
   what_done_pretending: string;
   what_ready_to_admit: string;
-  relationship_with_chaos: string;
+  relationship_with_khaos: string;
   permission_granted: string;
   /** Birthday in YYYY-MM-DD form. Powers the Cosmic Corner horoscope + natal chart. */
   birthday?: string;
@@ -118,7 +118,7 @@ export interface DailyEntry {
   micro_dare_completed: boolean;
   micro_dare_notes?: string;
   evening_notes: string; // Field Notes & Rant Box (Inputs to Mei Engine)
-  chaos_score: number; // 1-10
+  khaos_score: number; // 1-10
   holiday_title?: string;
   holiday_adventure?: string;
   updated_at: string;
@@ -176,7 +176,7 @@ export interface WeeklyFlightDebrief {
   id: string;
   week_number: number; // 1-52
   date_range: string;
-  chaos_level: number; // 1-10
+  khaos_level: number; // 1-10
   q1_script_disapproval: string;
   q2_honest_moment: string;
   q3_useful_surprise: string;
@@ -198,7 +198,7 @@ export interface MoneyExpense {
 
 export interface VariableSpendingItem {
   id: string;
-  category: 'Food + Groceries' | 'Eating Out + Coffee' | 'Gas + Transport' | 'Health + Wellness' | 'Entertainment + Fun' | 'Chaos & Spontaneous';
+  category: 'Food + Groceries' | 'Eating Out + Coffee' | 'Gas + Transport' | 'Health + Wellness' | 'Entertainment + Fun' | 'Khaos & Spontaneous';
   amount: number;
   note: string;
 }
@@ -217,7 +217,7 @@ export interface MonthlyMoneyMap {
   updated_at: string;
 }
 
-export interface ChaosHoliday {
+export interface KhaosHoliday {
   dateKey: string; // MM-DD
   month: number;
   day: number;
@@ -230,7 +230,7 @@ export interface ChaosHoliday {
   anchorQuestion: string;
 }
 
-export type ChaosPointAction =
+export type KhaosPointAction =
   | 'daily_log'
   | 'micro_dare'
   | 'weekly_debrief'
@@ -239,9 +239,9 @@ export type ChaosPointAction =
   | 'diagnostic_run'
   | 'share_fired';
 
-export interface ChaosPointEntry {
+export interface KhaosPointEntry {
   id: string;
-  action: ChaosPointAction;
+  action: KhaosPointAction;
   points: number;
   /** Dedupe key, e.g. "daily_log:2027-03-14" or "antigoal_quashed:antigoal_123". */
   ref: string;
@@ -249,7 +249,7 @@ export interface ChaosPointEntry {
   awarded_at: string;
 }
 
-export const CHAOS_POINT_VALUES: Record<ChaosPointAction, number> = {
+export const KHAOS_POINT_VALUES: Record<KhaosPointAction, number> = {
   daily_log: 10,
   micro_dare: 15,
   weekly_debrief: 25,

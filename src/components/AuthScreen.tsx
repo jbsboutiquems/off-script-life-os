@@ -115,7 +115,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
           <RecoveryCodeReveal
             code={freshCode}
             context={freshCodeContext}
-            doneLabel={freshCodeContext === 'register' ? 'Saved it — enter the chaos' : 'Saved it — back to log in'}
+            doneLabel={freshCodeContext === 'register' ? 'Saved it — enter the khaos' : 'Saved it — back to log in'}
             onDone={() => {
               setFreshCode(null);
               if (freshCodeContext === 'register' && pendingUser) {
@@ -146,7 +146,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
             2027 Life OS <span className="text-rose-600 italic font-serif-display font-normal">Off*Script</span>
           </h1>
           <p className="text-xs text-stone-500 dark:text-stone-400 font-mono-code uppercase tracking-widest">
-            Chaos Year Edition · Members Only (kinda)
+            Khaos Year Edition · Members Only (kinda)
           </p>
         </div>
 
@@ -296,7 +296,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                   className="w-full py-3 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-sm font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Zap className="w-4 h-4" />
-                  {busy ? 'Working…' : mode === 'login' ? 'Enter the chaos' : 'Claim your chaos'}
+                  {busy ? 'Working…' : mode === 'login' ? 'Enter the khaos' : 'Claim your khaos'}
                 </button>
 
                 {mode === 'login' && (
