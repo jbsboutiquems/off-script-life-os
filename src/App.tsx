@@ -37,6 +37,7 @@ import { InboxView } from './components/InboxView';
 import { FrontMatterView } from './components/frontmatter';
 import { AiStudioView } from './components/studio/AiStudioView';
 import { InstallBanner } from './components/InstallBanner';
+import { UpdateBanner } from './components/UpdateBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { AiConsentGate } from './components/AiConsentGate';
 import { AndroidPermissionGate } from './components/AndroidPermissionGate';
@@ -602,6 +603,7 @@ export default function App() {
     <div className="min-h-screen bg-cream-canvas text-stone-900 dark:bg-[#000a15] dark:text-cream-canvas flex flex-col font-sans selection:bg-rose-200 selection:text-rose-900">
 
       <InstallBanner />
+      <UpdateBanner />
 
       <Header
         username={user.khaos_name}

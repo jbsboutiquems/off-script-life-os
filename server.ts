@@ -1166,7 +1166,17 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
   res.json({ ...ar.ud.user, email: acct?.email || null, emailVerified: !!acct?.emailVerified, is_admin: isAdminUsername(acct?.username) });
 });
 
-// ---- Community FAQ board: users ask, admins answer ----
+// ---- App self-update check (sideloaded APKs) ----
+// Bump this every time a new APK is published to the GitHub release.
+// The native app compares its installed versionCode against this and
+// shows an "update available" banner when the server is newer.
+const LATEST_APK_VERSION_CODE = 4;
+const LATEST_APK_URL =
+  "https://github.com/jbsboutiquems/off-script-life-os/releases/download/apk-test-build-2026-10-07/OffScript-LifeOS-app-debug-latest.apk";
+
+app.get("/api/app-version", (_req, res) => {
+  res.json({ versionCode: LATEST_APK_VERSION_CODE, url: LATEST_APK_URL });
+});
 app.get("/api/faq", requireAuth, (_req, res) => {
   const list = [...(db.faqQuestions || [])].sort((a, b) => b.created_at.localeCompare(a.created_at));
   res.json(list);
