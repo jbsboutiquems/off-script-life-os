@@ -6,7 +6,7 @@ const RULES: Array<{ kind: Exclude<VibeKind, 'plain'>; terms: string[] }> = [
   { kind: 'opera', terms: ['opera', 'symphony', 'ballet', 'theater', 'theatre', 'concert hall'] },
   { kind: 'baseball', terms: ['baseball', 'ballgame', 'dugout', 'innings'] },
   { kind: 'football', terms: ['football', 'touchdown', 'blitz', 'stadium'] },
-  { kind: 'hockey', terms: ['hockey', 'rink', 'zamboni', 'penalty box'] },
+  { kind: 'hockey', terms: ['hockey', 'rink', 'penalty box', 'hat trick'] },
 ];
 
 export function parseVibe(input: string): VibeKind {

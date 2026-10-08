@@ -39,7 +39,7 @@ import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
 import { getBuddy, saveBuddy, type BuddyProfile } from './buddy';
 import { BuddyCreator } from './components/BuddyCreator';
-import { MogwaiHost } from './components/MogwaiHost';
+import { FeralHost } from './components/FeralHost';
 import { ChevronLeft, Activity, Mail } from 'lucide-react';
 
 initTheme();
@@ -929,7 +929,7 @@ export default function App() {
       />
 
       <OfflineIndicator />
-      <MogwaiHost buddy={buddy} />
+      <FeralHost buddy={buddy} />
       <BuddyCreator
         open={buddyCreatorOpen}
         onClose={() => {

@@ -1,5 +1,5 @@
 /**
- * Per-user localStorage helpers shared by the buddy / mogwai / tone modules.
+ * Per-user localStorage helpers shared by the buddy / feral / tone modules.
  * Mirrors the `lifeos:<userId>:` namespacing convention in services/api.ts
  * without importing it (avoids module cycles).
  */

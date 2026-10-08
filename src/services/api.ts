@@ -2,7 +2,7 @@ import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, Interpers
 import { DueReminder } from '../lib/reminders';
 import { aiConsentHeaders } from './aiConsent';
 import { setActiveUserId } from '../storage';
-import { noteSaveAction } from '../mogwai';
+import { noteSaveAction } from '../feral';
 import { getVoiceProfile } from '../tone';
 
 // ================= Auth + session =================

@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Ghost, Sun, MoonStar, Droplets, Sparkles } from 'lucide-react';
 import {
-  trackInteraction, initShakeListener, tickForgiveness, getMogwaiStage,
-  onMogwaiStage, onMogwaiWarning, type MogwaiWarning,
-} from '../mogwai';
+  trackInteraction, initShakeListener, tickForgiveness, getFeralStage,
+  onFeralStage, onFeralWarning, type FeralWarning,
+} from '../feral';
 import type { BuddyProfile } from '../buddy';
 
-interface Toast extends MogwaiWarning {
+interface Toast extends FeralWarning {
   id: number;
 }
 
-const ICONS: Record<MogwaiWarning['kind'], React.ReactNode> = {
+const ICONS: Record<FeralWarning['kind'], React.ReactNode> = {
   heat: <Sun className="w-4 h-4" />,
   sleepy: <MoonStar className="w-4 h-4" />,
   wet: <Droplets className="w-4 h-4" />,
@@ -19,17 +19,17 @@ const ICONS: Record<MogwaiWarning['kind'], React.ReactNode> = {
 };
 
 /**
- * Invisible host for the Mogwai engine: interaction-velocity tracking,
+ * Invisible host for the Feral engine: interaction-velocity tracking,
  * shake listener, forgiveness ticks, and warning toasts. Also paints the
- * app-wide mogwai aura class for the current transformation stage.
+ * app-wide feral aura class for the current transformation stage.
  */
-export const MogwaiHost: React.FC<{ buddy: BuddyProfile | null }> = ({ buddy }) => {
-  const [stage, setStage] = useState(() => getMogwaiStage());
+export const FeralHost: React.FC<{ buddy: BuddyProfile | null }> = ({ buddy }) => {
+  const [stage, setStage] = useState(() => getFeralStage());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [heatShimmer, setHeatShimmer] = useState(false);
 
   useEffect(() => {
-    const pushToast = (w: MogwaiWarning) => {
+    const pushToast = (w: FeralWarning) => {
       const id = Date.now() + Math.random();
       setToasts(prev => [...prev.slice(-2), { ...w, id }]);
       if (w.kind === 'heat') {
@@ -41,8 +41,8 @@ export const MogwaiHost: React.FC<{ buddy: BuddyProfile | null }> = ({ buddy }) 
       }, 6000);
     };
 
-    const offStage = onMogwaiStage(setStage);
-    const offWarn = onMogwaiWarning(pushToast);
+    const offStage = onFeralStage(setStage);
+    const offWarn = onFeralWarning(pushToast);
 
     const onPointer = () => trackInteraction();
     const onNav = () => trackInteraction();
@@ -65,11 +65,11 @@ export const MogwaiHost: React.FC<{ buddy: BuddyProfile | null }> = ({ buddy }) 
   // App-wide aura class follows the transformation stage.
   useEffect(() => {
     const el = document.documentElement;
-    el.classList.toggle('mogwai-aura-1', stage >= 1);
-    el.classList.toggle('mogwai-aura-2', stage >= 2);
-    el.classList.toggle('mogwai-aura-3', stage >= 3);
+    el.classList.toggle('feral-aura-1', stage >= 1);
+    el.classList.toggle('feral-aura-2', stage >= 2);
+    el.classList.toggle('feral-aura-3', stage >= 3);
     return () => {
-      el.classList.remove('mogwai-aura-1', 'mogwai-aura-2', 'mogwai-aura-3');
+      el.classList.remove('feral-aura-1', 'feral-aura-2', 'feral-aura-3');
     };
   }, [stage]);
 
