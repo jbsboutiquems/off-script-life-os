@@ -7,6 +7,7 @@ import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
 import { CommunityView } from './components/CommunityView';
 import { NotificationBell } from './components/NotificationBell';
+import { ExpansionsView } from './components/ExpansionsView';
 import { AuthScreen } from './components/AuthScreen';
 import { OAuthUsernameStep } from './components/OAuthUsernameStep';
 import { DashboardView, type DashboardTab } from './components/DashboardView';
@@ -588,6 +589,7 @@ export default function App() {
     { id: 'backup', label: 'Backup' },
     { id: 'frontmatter', label: 'FrontMatter' },
     { id: 'studio', label: 'AI Studio' },
+    { id: 'expansions', label: 'Expansions' },
     { id: 'unlock', label: 'Unlock' },
   ];
   const menuIds = menuItems.map(m => m.id);
@@ -905,6 +907,10 @@ export default function App() {
 
           {activeTab === 'studio' && (
             <AiStudioView userId={user.id} />
+          )}
+
+          {activeTab === 'expansions' && (
+            <ExpansionsView />
           )}
 
           {activeTab === 'field' && (

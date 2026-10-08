@@ -71,6 +71,24 @@ export interface UserEntitlement {
   user_id: string;
   pack_id: string;
   unlocked_at: string;
+  expires_at: string | null;
+  expired: boolean;
+  days_left: number | null;
+}
+
+export interface ExpansionProduct {
+  product_id: string;
+  title: string;
+  blurb: string;
+  price: number;
+  days: number;
+  kind: "theme" | "holiday" | "zodiac" | "wedding";
+  owned: boolean;
+  expired: boolean;
+  expires_at: string | null;
+  days_left: number | null;
+  link_url?: string;
+  link_label?: string;
 }
 
 export interface TokenRedemptionResult {

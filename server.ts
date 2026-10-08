@@ -76,9 +76,74 @@ interface UserData {
   moneyMaps: Record<string, any>;
   khaosPoints: any[];
   flightCrew: any[];
-  userEntitlements: string[];
+  /** pack/product id -> grant record. expires_at null = lifetime (pre-expiry QR grants). */
+  userEntitlements: Record<string, { unlocked_at: string; expires_at: string | null }>;
   /** AI Studio (media studio, Gemini-backed) saved generations. */
   studioMedia: StudioMediaItem[];
+}
+
+interface ExpansionProduct {
+  product_id: string;
+  title: string;
+  blurb: string;
+  price: number;
+  days: number;
+  kind: "theme" | "holiday" | "zodiac" | "wedding";
+  link_url?: string;
+  link_label?: string;
+}
+
+const ZODIAC_SIGNS = [
+  "aries", "taurus", "gemini", "cancer", "leo", "virgo",
+  "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces",
+];
+
+const EXPANSION_PRODUCTS: ExpansionProduct[] = [
+  {
+    product_id: "monthly-theme",
+    title: "Monthly Khaos Theme",
+    blurb: "A fresh khaos theme every month. New prompts, new energy.",
+    price: 0.99,
+    days: 30,
+    kind: "theme",
+  },
+  {
+    product_id: "holiday-special",
+    title: "Holiday Special",
+    blurb: "Seasonal spreads and rituals for the current holiday.",
+    price: 0.99,
+    days: 30,
+    kind: "holiday",
+  },
+  ...ZODIAC_SIGNS.map((sign) => ({
+    product_id: `zodiac-${sign}`,
+    title: `${sign.charAt(0).toUpperCase() + sign.slice(1)} Expansion`,
+    blurb: `A full year of ${sign.charAt(0).toUpperCase() + sign.slice(1)}-flavored prompts and spreads.`,
+    price: 5,
+    days: 365,
+    kind: "zodiac" as const,
+  })),
+  {
+    product_id: "wedding",
+    title: "Wedding Expansion",
+    blurb: "The full 365-day Becoming an Off*Script Bride arc, in-app. Includes the Wedding Party HQ connector — shareable HQ pages for all 7 wedding-party roles.",
+    price: 10,
+    days: 365,
+    kind: "wedding" as const,
+    link_url: "https://muse.ai/s/maid-of-honor-duties-xmz6awpxfxbkwi",
+    link_label: "Open Wedding Party HQ",
+  },
+];
+
+/** True when the user holds a live (unexpired) entitlement for a pack/product. */
+function entitlementActive(
+  ud: { userEntitlements?: Record<string, { expires_at: string | null }> },
+  packId: string,
+): boolean {
+  const e = ud.userEntitlements?.[packId];
+  if (!e) return false;
+  if (!e.expires_at) return true; // lifetime (pre-expiry QR grants)
+  return Date.parse(e.expires_at) > Date.now();
 }
 
 interface WallReply {
@@ -218,7 +283,7 @@ function freshUserData(userId: string, username: string): UserData {
     moneyMaps: {},
     khaosPoints: [],
     flightCrew: [],
-    userEntitlements: [],
+    userEntitlements: {},
     studioMedia: []
   };
 }
@@ -226,12 +291,21 @@ function freshUserData(userId: string, username: string): UserData {
 // Make sure an imported/restored namespace has every collection present.
 function normalizeUserData(input: any): UserData {
   const d = input && typeof input === "object" ? input : {};
-  let entitlements: string[] = [];
+  let entitlements: Record<string, { unlocked_at: string; expires_at: string | null }> = {};
   if (Array.isArray(d.userEntitlements)) {
-    entitlements = d.userEntitlements.filter((x: any) => typeof x === "string");
+    // Migrate the old string[] shape: lifetime grants (pre-expiry QR packs).
+    for (const x of d.userEntitlements) {
+      if (typeof x === "string") entitlements[x] = { unlocked_at: "", expires_at: null };
+    }
   } else if (d.userEntitlements && typeof d.userEntitlements === "object") {
-    // Tolerate the pre-accounts backup shape (map of userId -> packIds).
-    entitlements = Object.values(d.userEntitlements).flat().filter((x: any) => typeof x === "string") as string[];
+    for (const [k, v] of Object.entries<any>(d.userEntitlements)) {
+      if (v && typeof v === "object" && typeof v.unlocked_at === "string") {
+        entitlements[k] = { unlocked_at: v.unlocked_at, expires_at: typeof v.expires_at === "string" ? v.expires_at : null };
+      } else if (typeof v === "string") {
+        // Tolerate the pre-accounts backup shape (map of userId -> packIds).
+        entitlements[v] = { unlocked_at: "", expires_at: null };
+      }
+    }
   }
   const userObj = d.user && typeof d.user === "object" ? d.user : freshUserData("unknown", "operator").user;
   // Migrate the chaos -> khaos rename for stored profiles.
@@ -279,7 +353,9 @@ function migrateLegacyFile(old: any): DataStore {
   if (old && old.userEntitlements && typeof old.userEntitlements === "object" && !Array.isArray(old.userEntitlements)) {
     const oldUserId = old.user?.id;
     const packs = (old.userEntitlements[oldUserId] || []) as string[];
-    legacyUserData.userEntitlements = packs.filter((x) => typeof x === "string");
+    for (const x of packs.filter((x) => typeof x === "string")) {
+      legacyUserData.userEntitlements[x] = { unlocked_at: "", expires_at: null };
+    }
   }
   const store = freshStore();
   store.accounts.push({
@@ -1054,22 +1130,76 @@ app.get("/api/content-packs", requireAuth, (_req, res) => {
 
 app.get("/api/entitlements", requireAuth, (req, res) => {
   const ar = req as AuthedRequest;
-  const packIds = ar.ud.userEntitlements || [];
+  const grants = ar.ud.userEntitlements || {};
   const redeemedAt: Record<string, string> = {};
   for (const t of Object.values<any>(db.qrTokens || {})) {
     if (t.redeemed_by_user_id === ar.userId && t.pack_id) redeemedAt[t.pack_id] = t.redeemed_at || "";
   }
-  const entitlements = packIds
-    .map((packId: string) => db.contentPacks?.[packId])
-    .filter(Boolean)
-    .map((pack: any) => ({
-      user_id: ar.userId,
-      pack_id: pack.pack_id,
-      unlocked_at: redeemedAt[pack.pack_id] || "",
-      title: pack.title,
-      assets_url: pack.assets_url
-    }));
+  const entitlements = Object.keys(grants)
+    .map((packId) => {
+      const pack = db.contentPacks?.[packId];
+      const g = grants[packId];
+      const expired = !!g.expires_at && Date.parse(g.expires_at) <= Date.now();
+      const daysLeft = g.expires_at
+        ? Math.max(0, Math.ceil((Date.parse(g.expires_at) - Date.now()) / 86400000))
+        : null;
+      return {
+        user_id: ar.userId,
+        pack_id: packId,
+        unlocked_at: g.unlocked_at || redeemedAt[packId] || "",
+        expires_at: g.expires_at,
+        expired,
+        days_left: daysLeft,
+        title: pack?.title || packId,
+        assets_url: pack?.assets_url || null,
+      };
+    });
   res.json(entitlements);
+});
+
+// ---------- Expansion shop: priced, expiring content ----------
+
+app.get("/api/expansions", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const grants = ar.ud.userEntitlements || {};
+  res.json(EXPANSION_PRODUCTS.map((p) => {
+    const g = grants[p.product_id];
+    const expired = !!g?.expires_at && Date.parse(g.expires_at) <= Date.now();
+    return {
+      ...p,
+      owned: !!g && !expired,
+      expired: !!g && expired,
+      expires_at: g?.expires_at || null,
+      days_left: g?.expires_at
+        ? Math.max(0, Math.ceil((Date.parse(g.expires_at) - Date.now()) / 86400000))
+        : null,
+    };
+  }));
+});
+
+app.post("/api/expansions/purchase", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const productId = String(req.body?.product_id || "");
+  const product = EXPANSION_PRODUCTS.find((p) => p.product_id === productId);
+  if (!product) return res.status(404).json({ error: "That expansion doesn't exist." });
+  // NOTE: payment collection (Stripe / Google Play) is not wired yet.
+  // This endpoint grants the entitlement; hook the payment confirmation here
+  // before granting in production.
+  const now = new Date();
+  const expires = new Date(now.getTime() + product.days * 86400000);
+  ar.ud.userEntitlements = ar.ud.userEntitlements || {};
+  ar.ud.userEntitlements[productId] = {
+    unlocked_at: now.toISOString(),
+    expires_at: expires.toISOString(),
+  };
+  saveData(db);
+  res.json({
+    success: true,
+    product_id: productId,
+    title: product.title,
+    unlocked_at: now.toISOString(),
+    expires_at: expires.toISOString(),
+  });
 });
 
 app.post("/api/redeem-token", requireAuth, (req, res) => {
@@ -1098,8 +1228,9 @@ app.post("/api/redeem-token", requireAuth, (req, res) => {
   token.is_redeemed = true;
   token.redeemed_by_user_id = userId;
   token.redeemed_at = new Date().toISOString();
-  if (!ar.ud.userEntitlements.includes(pack.pack_id)) {
-    ar.ud.userEntitlements.push(pack.pack_id);
+  ar.ud.userEntitlements = ar.ud.userEntitlements || {};
+  if (!ar.ud.userEntitlements[pack.pack_id]) {
+    ar.ud.userEntitlements[pack.pack_id] = { unlocked_at: token.redeemed_at, expires_at: null };
   }
   saveData(db);
 

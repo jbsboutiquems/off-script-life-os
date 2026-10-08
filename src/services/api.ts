@@ -1,4 +1,4 @@
-import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, InterpersonalInsight, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, KhaosPointEntry, KhaosPointAction, KHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
+import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, InterpersonalInsight, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, ExpansionProduct, KhaosPointEntry, KhaosPointAction, KHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
 import { DueReminder } from '../lib/reminders';
 import { aiConsentHeaders } from './aiConsent';
 import { setActiveUserId } from '../storage';
@@ -494,6 +494,22 @@ export const api = {
     return lsGet<UserEntitlement[]>('entitlements') || [];
   },
 
+  async getExpansions(): Promise<ExpansionProduct[]> {
+    const res = await req('/api/expansions');
+    if (!res.ok) throw new Error('Could not load expansions.');
+    return res.json();
+  },
+
+  async purchaseExpansion(productId: string): Promise<{ success: boolean; expires_at: string }> {
+    const res = await req('/api/expansions/purchase', {
+      method: 'POST',
+      body: JSON.stringify({ product_id: productId }),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not complete that purchase.');
+    return body;
+  },
+
   async redeemToken(tokenId: string): Promise<TokenRedemptionResult> {
     const normalizedToken = tokenId.trim().toUpperCase();
     try {
@@ -509,7 +525,10 @@ export const api = {
         const entitlement: UserEntitlement = {
           user_id: cachedUserId || '',
           pack_id: result.packId,
-          unlocked_at: new Date().toISOString()
+          unlocked_at: new Date().toISOString(),
+          expires_at: null,
+          expired: false,
+          days_left: null
         };
         lsSet('entitlements', [...current, entitlement]);
       }
@@ -533,7 +552,10 @@ export const api = {
       const entitlement: UserEntitlement = {
         user_id: cachedUserId || '',
         pack_id: 'planner_2027_core',
-        unlocked_at: new Date().toISOString()
+        unlocked_at: new Date().toISOString(),
+        expires_at: null,
+        expired: false,
+        days_left: null
       };
       lsSet('entitlements', [...current, entitlement]);
     }
