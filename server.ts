@@ -10,7 +10,7 @@ import { computeDueReminders, type ReminderSettings } from "./src/lib/reminders"
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
@@ -19,7 +19,7 @@ app.use(express.json());
 // `contentPacks` and `qrTokens` stay global (packs are shared, QR tokens are
 // single-use across the whole prototype). Sessions are server-side records.
 
-const DATA_FILE = path.join(process.cwd(), "khaos_os_data.json");
+const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), "khaos_os_data.json");
 
 interface AccountUser {
   id: string;
