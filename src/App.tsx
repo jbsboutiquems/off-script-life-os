@@ -8,6 +8,7 @@ import { FieldView } from './components/FieldView';
 import { CommunityView } from './components/CommunityView';
 import { NotificationBell } from './components/NotificationBell';
 import { ExpansionsView } from './components/ExpansionsView';
+import { FaqView } from './components/FaqView';
 import { AuthScreen } from './components/AuthScreen';
 import { OAuthUsernameStep } from './components/OAuthUsernameStep';
 import { DashboardView, type DashboardTab } from './components/DashboardView';
@@ -592,6 +593,7 @@ export default function App() {
     { id: 'studio', label: 'AI Studio' },
     { id: 'expansions', label: 'Expansions' },
     { id: 'unlock', label: 'Unlock' },
+    { id: 'faq', label: 'FAQ' },
   ];
   const menuIds = menuItems.map(m => m.id);
   const activeMenuId = menuIds.includes(activeTab) ? activeTab : null;
@@ -912,6 +914,10 @@ export default function App() {
 
           {activeTab === 'expansions' && (
             <ExpansionsView />
+          )}
+
+          {activeTab === 'faq' && (
+            <FaqView />
           )}
 
           {activeTab === 'field' && (
