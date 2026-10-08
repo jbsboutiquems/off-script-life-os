@@ -1,6 +1,9 @@
-import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, ChaosPointEntry, ChaosPointAction, CHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
+import { UserProfile, Goal, AntiGoal, DailyEntry, PersonalitySnapshot, InterpersonalInsight, WeeklyFlightDebrief, MonthlyMoneyMap, TokenRedemptionResult, UserEntitlement, ChaosPointEntry, ChaosPointAction, CHAOS_POINT_VALUES, FlightCrewContact, AuthResult } from '../types';
 import { DueReminder } from '../lib/reminders';
 import { aiConsentHeaders } from './aiConsent';
+import { setActiveUserId } from '../storage';
+import { noteSaveAction } from '../mogwai';
+import { getVoiceProfile } from '../tone';
 
 // ================= Auth + session =================
 
@@ -31,6 +34,7 @@ function setToken(token: string) {
     // ignore
   }
   cachedUserId = null;
+    setActiveUserId(null);
 }
 
 function clearToken() {
@@ -40,6 +44,7 @@ function clearToken() {
     // ignore
   }
   cachedUserId = null;
+    setActiveUserId(null);
 }
 
 // Per-user namespaced localStorage keys, so offline fallbacks never leak one
@@ -151,6 +156,10 @@ const defaultAntiGoals: AntiGoal[] = [
   }
 ];
 
+let interpersonalCache: InterpersonalInsight[] | null = null;
+let interpersonalCacheAt = 0;
+let interpersonalInflight: Promise<InterpersonalInsight[]> | null = null;
+
 export const api = {
   // ---- Auth ----
   getToken,
@@ -175,6 +184,7 @@ export const api = {
     }
     setToken(body.token);
     cachedUserId = body.user?.id || null;
+    setActiveUserId(cachedUserId);
     return body as AuthResult;
   },
 
@@ -188,6 +198,7 @@ export const api = {
     if (!res.ok) throw new Error(body.error || 'Login failed.');
     setToken(body.token);
     cachedUserId = body.user?.id || null;
+    setActiveUserId(cachedUserId);
     return body as AuthResult;
   },
 
@@ -248,6 +259,7 @@ export const api = {
     }
     setToken(body.token);
     cachedUserId = body.user?.id || null;
+    setActiveUserId(cachedUserId);
     return body;
   },
 
@@ -261,6 +273,7 @@ export const api = {
     if (!res.ok) throw new Error(body.error || 'Login failed.');
     setToken(body.token);
     cachedUserId = body.user?.id || null;
+    setActiveUserId(cachedUserId);
     return body;
   },
 
@@ -293,6 +306,7 @@ export const api = {
     }
     setToken(body.token);
     cachedUserId = body.user?.id || null;
+    setActiveUserId(cachedUserId);
     return body;
   },
 
@@ -380,6 +394,7 @@ export const api = {
     }
     const user = (await res.json()) as UserProfile;
     cachedUserId = user.id || cachedUserId;
+    setActiveUserId(cachedUserId);
     return user;
   },
 
@@ -487,6 +502,7 @@ export const api = {
   },
 
   async createGoal(goalData: Omit<Goal, 'id' | 'created_at' | 'is_completed'>): Promise<Goal> {
+    noteSaveAction();
     try {
       const res = await req('/api/goals', {
         method: 'POST',
@@ -564,6 +580,7 @@ export const api = {
   },
 
   async createAntiGoal(antiGoalData: Omit<AntiGoal, 'id' | 'created_at' | 'is_completed'> & { is_completed?: boolean }): Promise<AntiGoal> {
+    noteSaveAction();
     try {
       const res = await req('/api/anti-goals', {
         method: 'POST',
@@ -639,6 +656,7 @@ export const api = {
   },
 
   async saveDailyEntry(entry: Partial<DailyEntry> & { entry_date: string }): Promise<DailyEntry> {
+    noteSaveAction();
     try {
       const res = await req('/api/entries', {
         method: 'POST',
@@ -679,14 +697,17 @@ export const api = {
     midday_checkin?: string;
     chaos_score?: number;
     user_profile?: UserProfile;
+    /** Client-computed voice profile so Mei can mirror the user's tone. */
+    buddy_voice?: import('../tone').VoiceProfile | null;
   }): Promise<PersonalitySnapshot> {
     try {
       // The server only runs its Gemini fallback when this header says the
       // user consented; without it, diagnose falls back to the local engine.
+      const enriched = { ...params, buddy_voice: getVoiceProfile() };
       const res = await req('/api/diagnose', {
         method: 'POST',
         headers: aiConsentHeaders(),
-        body: JSON.stringify(params)
+        body: JSON.stringify(enriched)
       });
       if (res.ok) {
         const snapshot = await res.json();
@@ -746,6 +767,39 @@ export const api = {
     return lsGet<PersonalitySnapshot[]>('snapshots') || [];
   },
 
+  // ---- Mei interpersonal (relationship-with-others) ----
+  // Short TTL cache: the Mei card renders in two tabs, and we don't want to
+  // fire the Gemini path twice for the same mount.
+  async getInterpersonalInsights(): Promise<InterpersonalInsight[]> {
+    const now = Date.now();
+    if (now - interpersonalCacheAt < 60_000 && interpersonalCache) return interpersonalCache;
+    if (interpersonalInflight) return interpersonalInflight;
+    interpersonalInflight = (async (): Promise<InterpersonalInsight[]> => {
+      try {
+        const res = await req('/api/diagnose/interpersonal', {
+          method: 'POST',
+          headers: aiConsentHeaders(),
+        });
+        if (res.ok) {
+          const body = await res.json();
+          const insights = Array.isArray(body.insights) ? body.insights : [];
+          interpersonalCache = insights;
+          interpersonalCacheAt = Date.now();
+          return insights;
+        }
+      } catch (e) {
+        if (e instanceof AuthError) throw e;
+        console.warn('Interpersonal diagnostic unavailable, showing empty state', e);
+      }
+      return [];
+    })();
+    try {
+      return await interpersonalInflight;
+    } finally {
+      interpersonalInflight = null;
+    }
+  },
+
   // ---- Weekly debriefs ----
   async getWeeklyDebrief(weekNum: number): Promise<WeeklyFlightDebrief | null> {
     try {
@@ -763,6 +817,7 @@ export const api = {
   },
 
   async saveWeeklyDebrief(debrief: WeeklyFlightDebrief): Promise<WeeklyFlightDebrief> {
+    noteSaveAction();
     try {
       const res = await req('/api/flight-debriefs', {
         method: 'POST',

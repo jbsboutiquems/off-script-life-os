@@ -1689,6 +1689,218 @@ ${textToAnalyze}
   res.json(fallbackSnapshot);
 });
 
+// ================= INTERPERSONAL RELATIONSHIP DIAGNOSTIC =================
+// Mei's other half: relationship-with-OTHERS analysis from the user's own DM
+// threads. Privacy model: only threads involving the requesting user are read
+// (same filter as /api/inbox/threads); nothing about anyone else's private
+// conversations is touched, and results are returned only to the user whose
+// DMs they are. Architecture mirrors /api/diagnose: Gemini path behind the
+// AI-consent gate, local heuristic fallback otherwise. No external calls.
+
+type RelationshipType = 'romantic' | 'friendly' | 'professional' | 'family';
+
+interface InterpersonalInsight {
+  partnerId: string;
+  partnerUsername: string;
+  relationship_type: RelationshipType;
+  confidence: 'low' | 'medium' | 'high';
+  message_count: number;
+  days_active: number;
+  initiation_balance: number;
+  warmth: number;
+  tension: number;
+  avg_reply_hours_you: number | null;
+  avg_reply_hours_them: number | null;
+  insight: string;
+  analyzed_at: string;
+}
+
+const clamp100 = (n: number) => Math.max(5, Math.min(98, Math.round(n)));
+
+function threadFeatures(userId: string, msgs: DmMessage[]) {
+  const sorted = [...msgs].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  let myInit = 0, theirInit = 0, lastT = -Infinity;
+  for (const m of sorted) {
+    const t = Date.parse(m.created_at);
+    if (!isFinite(t)) continue;
+    if (t - lastT > 8 * 3600 * 1000) {
+      if (m.fromId === userId) myInit++; else theirInit++;
+    }
+    lastT = t;
+  }
+  const convos = myInit + theirInit;
+  const replyYou: number[] = [], replyThem: number[] = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1], cur = sorted[i];
+    if (prev.fromId === cur.fromId) continue;
+    const gap = Date.parse(cur.created_at) - Date.parse(prev.created_at);
+    if (!isFinite(gap) || gap < 0 || gap > 24 * 3600 * 1000) continue;
+    (cur.fromId === userId ? replyYou : replyThem).push(gap / 3600000);
+  }
+  const med = (a: number[]) =>
+    a.length ? Math.round(a.sort((x, y) => x - y)[Math.floor(a.length / 2)] * 10) / 10 : null;
+  const days = new Set(sorted.map((m) => (m.created_at || '').slice(0, 10)));
+  return {
+    sorted,
+    initiation_balance: convos > 0 ? Math.round((100 * myInit) / convos) : 50,
+    avg_reply_hours_you: med(replyYou),
+    avg_reply_hours_them: med(replyThem),
+    days_active: days.size,
+  };
+}
+
+function classifyRelationshipHeuristic(allText: string): { type: RelationshipType; confidence: 'low' | 'medium' | 'high' } {
+  const t = allText.toLowerCase();
+  const rx = (patterns: RegExp[]) => patterns.reduce((n, p) => n + (t.match(p)?.length || 0), 0);
+  const romantic = rx([/\b(babe|baby|bae|sweetheart|honey|darling)\b/g, /love you/g, /miss you/g, /\bxoxo\b/g, /\bkiss(es)?\b/g, /date night/g, /❤️|💋|💕|😘/g]);
+  const family = rx([/\b(mom|dad|mommy|daddy|mama|papa|nana|grandma|grandpa|brother|sister|aunt|uncle|cousin)\b/g, /my (mother|father)/g]);
+  const professional = rx([/\b(meeting|deadline|deliverable|invoice|standup|roadmap|okr|kpi|client)\b/g, /action item/g, /circle back/g, /touch base/g, /per my last/g]);
+  const scores: [RelationshipType, number][] = [['romantic', romantic], ['family', family], ['professional', professional]];
+  scores.sort((a, b) => b[1] - a[1]);
+  if (scores[0][1] === 0) return { type: 'friendly', confidence: 'low' };
+  const confidence = scores[0][1] >= 5 && scores[0][1] > 2 * scores[1][1] ? 'high' : scores[0][1] >= 2 ? 'medium' : 'low';
+  return { type: scores[0][0], confidence };
+}
+
+function warmthTensionHeuristic(allText: string, msgCount: number) {
+  const t = allText;
+  const emojiCount = (t.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu) || []).length;
+  const affection = (t.toLowerCase().match(/\b(love|thanks|thank you|haha|lol|yay|awesome|great|appreciate|congrats|proud of you)\b/g) || []).length;
+  const exclaims = (t.match(/!/g) || []).length;
+  const tensionMarks = (t.toLowerCase().match(/we need to talk|whatever\b|\bfine\.|\bk\.|calm down|you always|you never|actually\?|wow\.|okay then|not my problem|do whatever you want/g) || []).length;
+  const capsWords = (t.match(/\b[A-Z]{3,}\b/g) || []).length;
+  const perMsg = msgCount || 1;
+  const warmth = clamp100(50 + Math.min(20, (emojiCount / perMsg) * 12) + Math.min(15, (affection / perMsg) * 10) + Math.min(10, (exclaims / perMsg) * 8) - Math.min(25, (tensionMarks / perMsg) * 30));
+  const tension = clamp100(Math.min(95, (tensionMarks / perMsg) * 60 + (capsWords / perMsg) * 25));
+  return { warmth, tension, tensionMarks };
+}
+
+function insightForHeuristic(
+  username: string, type: RelationshipType, f: ReturnType<typeof threadFeatures>,
+  warmth: number, tension: number, tensionMarks: number, msgCount: number
+): string {
+  if (msgCount < 4) return `Not enough messages with ${username} yet to read this one — keep talking and check back.`;
+  const typeLines: Record<RelationshipType, string> = {
+    romantic: 'This reads romantic — high voltage, low chill.',
+    family: 'Family thread — the love is structural, the chaos is inherited.',
+    professional: 'Professional channel — signal over small talk.',
+    friendly: 'Friendship frequency detected.',
+  };
+  const signals: string[] = [];
+  if (tension >= 60) signals.push(`There's static in the line — about ${tensionMarks} sharp edge${tensionMarks === 1 ? '' : 's'} in recent messages. Worth a real conversation, not a text thread.`);
+  if (f.initiation_balance >= 70) signals.push(`You start ${f.initiation_balance}% of the conversations here — you're the engine of this ${type === 'family' ? 'family line' : type === 'professional' ? 'working dynamic' : type + 'ship'}. Make sure it's reciprocated, not just tolerated.`);
+  else if (f.initiation_balance <= 30) signals.push(`They do most of the reaching out (${100 - f.initiation_balance}% initiation). You're the mysterious one here — or just bad at texting back.`);
+  if (f.avg_reply_hours_you != null && f.avg_reply_hours_them != null && f.avg_reply_hours_them > 6 && f.avg_reply_hours_them > 3 * f.avg_reply_hours_you)
+    signals.push(`You reply in ~${f.avg_reply_hours_you}h on average; they take ~${f.avg_reply_hours_them}h. The energy asymmetry is showing.`);
+  if (warmth >= 70) signals.push(type === 'professional' ? 'Professional but human — rare combo. The warmth is doing quiet work.' : 'Genuinely warm thread. This one is load-bearing — protect it.');
+  else if (warmth <= 35 && type === 'professional') signals.push('All business, no banter. Efficient. Possibly a robot. (It is not a robot.)');
+  if (f.initiation_balance >= 40 && f.initiation_balance <= 60 && warmth >= 60 && tension < 50)
+    signals.push('Beautifully balanced — you both show up. This is what healthy looks like.');
+  const picked = signals.slice(0, 1);
+  return `${typeLines[type]}${picked.length ? ' ' + picked[0] : ''}`;
+}
+
+app.post('/api/diagnose/interpersonal', requireAuth, async (req, res) => {
+  const ar = req as AuthedRequest;
+  const userId = ar.userId;
+  const analyzed_at = new Date().toISOString();
+
+  // Group the requesting user's own DM threads by partner. Nobody else's
+  // conversations are ever read here.
+  const byPartner = new Map<string, DmMessage[]>();
+  for (const m of db.dmMessages || []) {
+    if (m.fromId !== userId && m.toId !== userId) continue;
+    const partnerId = m.fromId === userId ? m.toId : m.fromId;
+    if (!byPartner.has(partnerId)) byPartner.set(partnerId, []);
+    byPartner.get(partnerId)!.push(m);
+  }
+
+  const threads = [...byPartner.entries()]
+    .map(([partnerId, msgs]) => {
+      const f = threadFeatures(userId, msgs);
+      const last = f.sorted[f.sorted.length - 1];
+      const acct = db.accounts.find((a) => a.id === partnerId);
+      const partnerUsername = acct?.username || (last.fromId === partnerId ? last.fromUsername : last.toUsername) || 'unknown';
+      const allText = f.sorted.map((m) => m.text).join('\n');
+      return { partnerId, partnerUsername, msgs: f.sorted, features: f, allText, message_count: f.sorted.length };
+    })
+    .filter((t) => t.message_count > 0)
+    .sort((a, b) => b.message_count - a.message_count)
+    .slice(0, 25);
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && aiConsentGranted(req) && threads.length > 0) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const threadBlocks = threads.slice(0, 12).map((t) => {
+        const convo = t.msgs.slice(-30).map((m) => `${m.fromId === userId ? 'YOU' : 'THEM'}: ${m.text}`.slice(0, 400)).join('\n');
+        return `--- @${t.partnerUsername} ---\n${convo.slice(0, 2500)}`;
+      }).join('\n\n');
+      const prompt = `
+You are the "Mei-Style Relationship-with-Others Diagnostic Engine" inside the planner companion app "2027 Life OS: Off*Script (Chaos Year Edition)".
+THE PHILOSOPHY: "Boredom=Death". Your persona is DIRECT, WITTY, SASSY, GROUNDED, UNAPOLOGETICALLY HONEST. Zero toxic positivity.
+For EACH contact below, classify the relationship and read its health from the DM thread (YOU = the app user).
+Return a JSON array, one object per contact, matching this exact structure:
+[{"partnerUsername": string, "relationship_type": "romantic"|"friendly"|"professional"|"family", "confidence": "low"|"medium"|"high", "warmth": number 0-100, "tension": number 0-100, "insight": string (1-2 punchy, sassy sentences: the relationship type read plus the single sharpest observation about warmth, tension, or initiation balance)}]
+THREADS:
+${threadBlocks}`;
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: { responseMimeType: 'application/json', temperature: 0.7 },
+      });
+      const parsed = JSON.parse(response.text || '[]');
+      const arr: any[] = Array.isArray(parsed) ? parsed : [];
+      const byName = new Map(arr.map((p: any) => [String(p.partnerUsername || '').toLowerCase(), p]));
+      const insights: InterpersonalInsight[] = threads.map((t) => {
+        const g = byName.get(t.partnerUsername.toLowerCase()) || {};
+        const { warmth, tension } = warmthTensionHeuristic(t.allText, t.message_count);
+        const cls = classifyRelationshipHeuristic(t.allText);
+        return {
+          partnerId: t.partnerId,
+          partnerUsername: t.partnerUsername,
+          relationship_type: (['romantic', 'friendly', 'professional', 'family'].includes(g.relationship_type) ? g.relationship_type : cls.type) as RelationshipType,
+          confidence: (['low', 'medium', 'high'].includes(g.confidence) ? g.confidence : cls.confidence) as 'low' | 'medium' | 'high',
+          message_count: t.message_count,
+          days_active: t.features.days_active,
+          initiation_balance: t.features.initiation_balance,
+          warmth: typeof g.warmth === 'number' ? clamp100(g.warmth) : warmth,
+          tension: typeof g.tension === 'number' ? clamp100(g.tension) : tension,
+          avg_reply_hours_you: t.features.avg_reply_hours_you,
+          avg_reply_hours_them: t.features.avg_reply_hours_them,
+          insight: typeof g.insight === 'string' && g.insight ? g.insight : insightForHeuristic(t.partnerUsername, cls.type, t.features, warmth, tension, 0, t.message_count),
+          analyzed_at,
+        };
+      });
+      return res.json({ insights, analyzed_at });
+    } catch (err: any) {
+      console.error('Gemini interpersonal error, falling back to local engine:', err.message);
+    }
+  }
+
+  // Local heuristic fallback — no consent needed, everything on-device.
+  const insights: InterpersonalInsight[] = threads.map((t) => {
+    const cls = classifyRelationshipHeuristic(t.allText);
+    const { warmth, tension, tensionMarks } = warmthTensionHeuristic(t.allText, t.message_count);
+    return {
+      partnerId: t.partnerId,
+      partnerUsername: t.partnerUsername,
+      relationship_type: cls.type,
+      confidence: cls.confidence,
+      message_count: t.message_count,
+      days_active: t.features.days_active,
+      initiation_balance: t.features.initiation_balance,
+      warmth,
+      tension,
+      avg_reply_hours_you: t.features.avg_reply_hours_you,
+      avg_reply_hours_them: t.features.avg_reply_hours_them,
+      insight: insightForHeuristic(t.partnerUsername, cls.type, t.features, warmth, tension, tensionMarks, t.message_count),
+      analyzed_at,
+    };
+  });
+  res.json({ insights, analyzed_at });
+});
+
 // ================= AI STUDIO HUB (media generation — Gemini ONLY here) =================
 // Strict scope: GEMINI_API_KEY is used exclusively by these /api/studio/*
 // endpoints. Every other AI route in this server stays on Mei by bot ID.

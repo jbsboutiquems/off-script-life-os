@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DailyEntry } from '../types';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { useTheme } from '../hooks/useDarkMode';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -53,19 +53,22 @@ export const ChaosTrendline: React.FC<ChaosTrendlineProps> = ({
 }) => {
   const [filterMode, setFilterMode] = useState<'all' | 'spikes' | 'controlled' | 'dips'>('all');
   const [hoveredPoint, setHoveredPoint] = useState<TrendDataPoint | null>(null);
-  const isDark = useDarkMode();
+  const theme = useTheme();
+  const isDark = theme === 'dark';
+  const isBeast = theme === 'beast';
 
-  // Chart palette: luminous brand colors on the deep navy canvas in Midnight Chaos.
+  // Chart palette: luminous brand colors on the deep navy canvas in Midnight Chaos,
+  // acid lime + electric purple on green-black in Beast Mode.
   const chart = {
-    grid: isDark ? '#274264' : '#e7e5e4',
-    axis: isDark ? '#8b93a8' : '#78716c',
-    zoneFill: isDark ? '#f5c51b' : '#fef3c7',
-    zoneLabel: isDark ? '#fde68a' : '#92400e',
-    spikeLine: isDark ? '#ea4798' : '#ea4798',
-    spikeLabel: isDark ? '#f49ac2' : '#ea4798',
-    lullLine: isDark ? '#8b93a8' : '#64748b',
-    lullLabel: isDark ? '#a3abc0' : '#475569',
-    dipDot: isDark ? '#8b93a8' : '#475569',
+    grid: isBeast ? '#2c3f16' : isDark ? '#274264' : '#e7e5e4',
+    axis: isBeast ? '#7fa068' : isDark ? '#8b93a8' : '#78716c',
+    zoneFill: isBeast ? '#b6ff2e' : isDark ? '#f5c51b' : '#fef3c7',
+    zoneLabel: isBeast ? '#0c1206' : isDark ? '#fde68a' : '#92400e',
+    spikeLine: isBeast ? '#c26bff' : '#ea4798',
+    spikeLabel: isBeast ? '#d69aff' : isDark ? '#f49ac2' : '#ea4798',
+    lullLine: isBeast ? '#63814f' : isDark ? '#8b93a8' : '#64748b',
+    lullLabel: isBeast ? '#9dbd87' : isDark ? '#a3abc0' : '#475569',
+    dipDot: isBeast ? '#7fa068' : isDark ? '#8b93a8' : '#475569',
   };
 
   // Generate 30 days of data, filling in actual user entries and realistic sample context

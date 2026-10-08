@@ -1,29 +1,166 @@
-import React, { useState } from 'react';
-import { PersonalitySnapshot, SubTrait } from '../types';
-import { Sparkles, AlertTriangle, Zap, Eye, ChevronDown, ChevronUp, RefreshCw, Quote, ArrowRight, Activity } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { PersonalitySnapshot, SubTrait, InterpersonalInsight, RelationshipType, type BuddyProfile } from '../types';
+import { api } from '../services/api';
+import { BuddyAvatar } from './BuddyAvatar';
+import { Sparkles, AlertTriangle, Zap, Eye, ChevronDown, ChevronUp, RefreshCw, Quote, ArrowRight, Activity, Users } from 'lucide-react';
 
 interface MeiDiagnosticCardProps {
   snapshot: PersonalitySnapshot | null;
   onTriggerDiagnosis?: () => void;
   isLoading?: boolean;
   hasLatestEntryContent?: boolean;
+  /** The user's AI buddy — shown as the face of Mei. */
+  buddy?: BuddyProfile | null;
+  onEditBuddy?: () => void;
 }
+
+const typeBadge: Record<RelationshipType, string> = {
+  romantic: 'bg-rose-100 text-rose-800 border-rose-300',
+  friendly: 'bg-sky-100 text-sky-800 border-sky-300',
+  family: 'bg-amber-100 text-amber-800 border-amber-300',
+  professional: 'bg-slate-200 text-slate-700 border-slate-300',
+};
+
+/**
+ * "You × Them" — Mei's interpersonal half. Reads the user's own DM threads
+ * (relationship type, warmth, tension, initiation balance) and renders one
+ * card per contact. Fetches on mount; graceful empty state when there are no
+ * DMs. Users only ever see analysis of their own conversations.
+ */
+const InterpersonalSection: React.FC = () => {
+  const [insights, setInsights] = useState<InterpersonalInsight[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api.getInterpersonalInsights()
+      .then((r) => setInsights(r))
+      .catch(() => setInsights([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="mt-8 border-t-2 border-dashed border-stone-200 pt-6">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Users className="w-4 h-4 text-rose-600" />
+            <h3 className="text-lg font-bold font-serif-display text-slate-900">You × Them</h3>
+            <span className="text-[10px] font-mono-code font-bold uppercase tracking-widest bg-violet-100 text-violet-800 px-2 py-0.5 rounded">
+              Relationship Radar
+            </span>
+          </div>
+          <p className="text-xs text-stone-600 mt-1 max-w-xl">
+            Mei reads your DM threads — relationship type, warmth, tension, who reaches out first. Only your own conversations, only visible to you.
+          </p>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-300 text-xs font-semibold text-slate-700 hover:bg-stone-100 transition-colors disabled:opacity-50"
+          title="Re-scan DM threads"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>{loading ? 'Scanning...' : 'Re-scan'}</span>
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-8 text-sm text-stone-500">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          <span>Reading the room...</span>
+        </div>
+      ) : !insights || insights.length === 0 ? (
+        <div className="border-2 border-dashed border-stone-300 rounded-xl p-6 text-center">
+          <Users className="w-6 h-6 mx-auto text-stone-400 mb-2" />
+          <p className="text-sm font-semibold text-slate-700">No DM threads yet</p>
+          <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+            Your relationship radar lights up here once you start messaging your people — type, warmth, tension, and who reaches out first.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          {insights.map((ins) => (
+            <div key={ins.partnerId} className="bg-white border border-stone-200 rounded-xl p-4 shadow-2xs hover:shadow-xs transition-shadow">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="font-bold text-sm text-slate-900 truncate" title={ins.partnerUsername}>
+                  @{ins.partnerUsername}
+                </span>
+                <span className={`shrink-0 text-[10px] font-mono-code font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${typeBadge[ins.relationship_type]}`}>
+                  {ins.relationship_type}
+                </span>
+              </div>
+              <p className="text-[13px] text-slate-700 leading-relaxed mb-3">{ins.insight}</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[11px]">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-stone-500 font-semibold">Warmth</span>
+                    <span className="font-mono-code font-bold text-slate-800">{ins.warmth}%</span>
+                  </div>
+                  <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-rose-500 h-full rounded-full" style={{ width: `${ins.warmth}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-stone-500 font-semibold">Tension</span>
+                    <span className="font-mono-code font-bold text-slate-800">{ins.tension}%</span>
+                  </div>
+                  <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-slate-500 h-full rounded-full" style={{ width: `${ins.tension}%` }} />
+                  </div>
+                </div>
+                <div className="text-stone-600">
+                  <span className="font-semibold text-stone-500">You initiate:</span>{' '}
+                  <span className="font-bold text-slate-800">{ins.initiation_balance}%</span>
+                </div>
+                <div className="text-stone-600">
+                  <span className="font-semibold text-stone-500">Replies:</span>{' '}
+                  <span className="font-bold text-slate-800">
+                    {ins.avg_reply_hours_you != null ? `you ~${ins.avg_reply_hours_you}h` : 'you —'}
+                    {' · '}
+                    {ins.avg_reply_hours_them != null ? `them ~${ins.avg_reply_hours_them}h` : 'them —'}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center justify-between text-[10px] text-stone-400 font-mono-code">
+                <span>{ins.message_count} messages · {ins.days_active}d active</span>
+                {ins.confidence === 'low' && ins.message_count >= 4 && <span className="italic">low-confidence read — thin thread</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const MeiDiagnosticCard: React.FC<MeiDiagnosticCardProps> = ({
   snapshot,
   onTriggerDiagnosis,
   isLoading = false,
-  hasLatestEntryContent = true
+  hasLatestEntryContent = true,
+  buddy = null,
+  onEditBuddy,
 }) => {
   const [showSubTraits, setShowSubTraits] = useState(false);
   const [selectedDimension, setSelectedDimension] = useState<string>('All');
 
   if (!snapshot) {
     return (
+      <>
       <div className="bg-white rounded-2xl p-8 border-2 border-dashed border-stone-300 text-center shadow-xs">
-        <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
-          <Sparkles className="w-7 h-7" />
-        </div>
+        {buddy ? (
+          <div className="mb-4 flex justify-center">
+            <BuddyAvatar buddy={buddy} size={72} showName />
+          </div>
+        ) : (
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+            <Sparkles className="w-7 h-7" />
+          </div>
+        )}
         <h3 className="text-xl font-bold font-serif-display text-slate-900 mb-2">
           Mei Self-Relationship Engine Idle
         </h3>
@@ -50,6 +187,10 @@ export const MeiDiagnosticCard: React.FC<MeiDiagnosticCardProps> = ({
           </button>
         )}
       </div>
+        <div className="bg-white rounded-2xl border border-stone-300 shadow-sm mt-6 p-5 sm:p-7">
+          <InterpersonalSection />
+        </div>
+      </>
     );
   }
 
@@ -150,6 +291,11 @@ export const MeiDiagnosticCard: React.FC<MeiDiagnosticCardProps> = ({
           </div>
 
           <div className="flex items-center space-x-3">
+            {buddy && (
+              <button onClick={onEditBuddy} title={`${buddy.name} — your AI buddy (tap to reshape)`} className="shrink-0">
+                <BuddyAvatar buddy={buddy} size={52} showName />
+              </button>
+            )}
             {onTriggerDiagnosis && (
               <button
                 onClick={onTriggerDiagnosis}
@@ -365,6 +511,10 @@ export const MeiDiagnosticCard: React.FC<MeiDiagnosticCardProps> = ({
           </div>
         )}
 
+      </div>
+
+      <div className="px-5 sm:px-7 pb-6 sm:pb-7">
+        <InterpersonalSection />
       </div>
     </section>
   );

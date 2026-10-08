@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFlightDebrief, MonthlyMoneyMap, ChaosPointEntry, FlightCrewContact } from './types';
 import { api, AuthError } from './services/api';
-import { initTheme, getTheme, toggleTheme } from './theme';
+import { initTheme, getTheme, cycleTheme, type ChaosTheme } from './theme';
 import { Header } from './components/Header';
 import { AuthScreen } from './components/AuthScreen';
 import { OAuthUsernameStep } from './components/OAuthUsernameStep';
@@ -37,6 +37,9 @@ import { AiConsentGate } from './components/AiConsentGate';
 import { AndroidPermissionGate } from './components/AndroidPermissionGate';
 import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
+import { getBuddy, saveBuddy, type BuddyProfile } from './buddy';
+import { BuddyCreator } from './components/BuddyCreator';
+import { MogwaiHost } from './components/MogwaiHost';
 import { ChevronLeft, Activity, Mail } from 'lucide-react';
 
 initTheme();
@@ -64,7 +67,9 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [oauthPending, setOauthPending] = useState<{ key: string; provider: 'google' | 'facebook' } | null>(null);
-  const [darkMode, setDarkMode] = useState(() => getTheme() === 'midnight');
+  const [theme, setTheme] = useState<ChaosTheme>(() => getTheme());
+  const [buddy, setBuddy] = useState<BuddyProfile | null>(null);
+  const [buddyCreatorOpen, setBuddyCreatorOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
@@ -232,6 +237,33 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Buddy: load on login; first-run creation flow.
+  useEffect(() => {
+    if (!user) return;
+    const existing = getBuddy();
+    // Server profile may carry the buddy (synced on save) — local wins if newer.
+    const fromProfile = (user as any).buddy as BuddyProfile | undefined;
+    const resolved = existing || fromProfile || null;
+    setBuddy(resolved);
+    try {
+      if (!resolved && !localStorage.getItem('offscript_buddy_onboarded')) {
+        setBuddyCreatorOpen(true);
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const handleSaveBuddy = (profile: BuddyProfile) => {
+    saveBuddy(profile);
+    setBuddy(profile);
+    try { localStorage.setItem('offscript_buddy_onboarded', '1'); } catch { /* ignore */ }
+    // Best-effort sync into the user profile (server keeps unknown fields or ignores).
+    api.updateUser({ buddy: profile } as any).then(
+      (updated) => setUser(updated),
+      () => setUser((u) => (u ? { ...u, buddy: profile } : u)),
+    );
+  };
 
   // Poll badge counts quietly while signed in (no WebSockets in this prototype).
   useEffect(() => {
@@ -483,8 +515,8 @@ export default function App() {
   };
 
   const handleToggleAppTheme = () => {
-    const next = toggleTheme();
-    setDarkMode(next === 'midnight');
+    const next = cycleTheme();
+    setTheme(next);
   };
 
   // ---------- Auth gate ----------
@@ -537,7 +569,7 @@ export default function App() {
         username={user.chaos_name}
         pointsTotal={pointsTotal}
         activeTab={activeTab}
-        darkMode={darkMode}
+        theme={theme}
         dueCount={dueCount}
         unreadCount={unreadCount}
         toggleTheme={handleToggleAppTheme}
@@ -548,6 +580,8 @@ export default function App() {
         onOpenInbox={() => setActiveTab('inbox')}
         onOpenReminders={() => setActiveTab('reminders')}
         onLogout={() => handleLogout()}
+        buddy={buddy}
+        onOpenBuddy={() => setBuddyCreatorOpen(true)}
       />
 
       {/* Email verification nudge */}
@@ -632,6 +666,8 @@ export default function App() {
                 onTriggerDiagnosis={handleRunDiagnostic}
                 isLoading={isDiagnosing}
                 hasLatestEntryContent={Boolean(dailyEntry.evening_notes && dailyEntry.evening_notes.length > 5)}
+                buddy={buddy}
+                onEditBuddy={() => setBuddyCreatorOpen(true)}
               />
 
               {/* Chaos Trendline Teaser Card */}
@@ -682,6 +718,8 @@ export default function App() {
                 onTriggerDiagnosis={handleRunDiagnostic}
                 isLoading={isDiagnosing}
                 hasLatestEntryContent={Boolean(dailyEntry.evening_notes && dailyEntry.evening_notes.length > 5)}
+                buddy={buddy}
+                onEditBuddy={() => setBuddyCreatorOpen(true)}
               />
 
               {/* Quick Jump back to write notes */}
@@ -891,6 +929,16 @@ export default function App() {
       />
 
       <OfflineIndicator />
+      <MogwaiHost buddy={buddy} />
+      <BuddyCreator
+        open={buddyCreatorOpen}
+        onClose={() => {
+          setBuddyCreatorOpen(false);
+          try { localStorage.setItem('offscript_buddy_onboarded', '1'); } catch { /* ignore */ }
+        }}
+        initial={buddy}
+        onSave={handleSaveBuddy}
+      />
 
       {/* Google Gemini consent gate + Android first-launch permission explainer.
           Both are passive overlays: declining/dismissing never blocks the app. */}

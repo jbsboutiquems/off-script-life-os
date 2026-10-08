@@ -1,22 +1,36 @@
 import { useEffect, useState } from 'react';
+import type { ChaosTheme } from '../theme';
+
+function readTheme(): ChaosTheme {
+  if (typeof document === 'undefined') return 'dark';
+  const cls = document.documentElement.classList;
+  if (cls.contains('beast')) return 'beast';
+  return cls.contains('dark') ? 'dark' : 'light';
+}
 
 /**
- * Tracks whether Midnight Chaos (the `dark` class on <html>) is active.
- * Observes the class so components re-render when the theme toggles.
+ * Tracks the active ChaosTheme (the `dark` / `beast` classes on <html>).
+ * Observes the class so components re-render when the theme cycles.
  */
-export function useDarkMode(): boolean {
-  const [isDark, setIsDark] = useState<boolean>(
-    () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
-  );
+export function useTheme(): ChaosTheme {
+  const [theme, setTheme] = useState<ChaosTheme>(readTheme);
 
   useEffect(() => {
     const el = document.documentElement;
-    const update = () => setIsDark(el.classList.contains('dark'));
+    const update = () => setTheme(readTheme());
     update();
     const observer = new MutationObserver(update);
     observer.observe(el, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
 
-  return isDark;
+  return theme;
+}
+
+/**
+ * Tracks whether Midnight Chaos (the `dark` class on <html>) is active.
+ * Kept for call sites that only care about dark-vs-not.
+ */
+export function useDarkMode(): boolean {
+  return useTheme() === 'dark';
 }

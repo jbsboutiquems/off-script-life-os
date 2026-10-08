@@ -5,6 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: '/off-script-life-os/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

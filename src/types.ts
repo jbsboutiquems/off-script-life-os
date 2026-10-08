@@ -3,6 +3,16 @@
  * & The Mei-Style Personality Diagnostic Engine
  */
 
+export interface BuddyProfile {
+  creatureId: string;
+  name: string;
+  color: string;
+  /** Device-upload portrait as a dataURL. Only set when creatureId === 'custom'. */
+  customImage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserProfile {
   id: string;
   chaos_name: string;
@@ -37,6 +47,8 @@ export interface UserProfile {
   /** Reminder: weekly nudge time, "HH:MM" 24h. */
   reminder_weekly_time?: string;
   created_at: string;
+  /** The user's AI buddy animal — the visual face of Mei. */
+  buddy?: BuddyProfile;
   core_values: {
     autonomy: number;
     honesty: number;
@@ -135,6 +147,29 @@ export interface PersonalitySnapshot {
   contradiction_callout: string;
   ai_feedback: string; // The direct, witty, sassy "Honest Mirror" feedback
   micro_dare: string; // Recommended antidote dare for the next cycle
+}
+
+/** Per-contact relationship-with-others analysis (Mei's interpersonal half). */
+export type RelationshipType = 'romantic' | 'friendly' | 'professional' | 'family';
+
+export interface InterpersonalInsight {
+  partnerId: string;
+  partnerUsername: string;
+  relationship_type: RelationshipType;
+  confidence: 'low' | 'medium' | 'high';
+  message_count: number;
+  days_active: number;
+  /** 0-100 — % of conversations initiated by the user (50 = balanced). */
+  initiation_balance: number;
+  /** 0-100 */
+  warmth: number;
+  /** 0-100 */
+  tension: number;
+  avg_reply_hours_you: number | null;
+  avg_reply_hours_them: number | null;
+  /** 1-2 punchy sentences of insight. */
+  insight: string;
+  analyzed_at: string;
 }
 
 export interface WeeklyFlightDebrief {

@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Zap, Home, LogOut, Sun, Moon, User, Search, Inbox, Bell, ChevronDown } from 'lucide-react';
+import { Zap, Home, LogOut, Sun, Moon, Flame, User, Search, Inbox, Bell, ChevronDown } from 'lucide-react';
+import type { ChaosTheme } from '../theme';
+import type { BuddyProfile } from '../types';
+import { BuddyAvatar } from './BuddyAvatar';
 
 interface HeaderProps {
   username: string;
   pointsTotal: number;
   activeTab: string;
-  darkMode: boolean;
+  theme: ChaosTheme;
   dueCount: number;
   unreadCount: number;
   toggleTheme: () => void;
@@ -16,12 +19,15 @@ interface HeaderProps {
   onOpenInbox: () => void;
   onOpenReminders: () => void;
   onLogout: () => void;
+  buddy?: BuddyProfile | null;
+  onOpenBuddy?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  username, pointsTotal, activeTab, darkMode, dueCount, unreadCount,
+  username, pointsTotal, activeTab, theme, dueCount, unreadCount,
   toggleTheme, onDashboard, onOpenProfile, onOpenPoints,
-  onOpenSearch, onOpenInbox, onOpenReminders, onLogout
+  onOpenSearch, onOpenInbox, onOpenReminders, onLogout,
+  buddy, onOpenBuddy
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -115,11 +121,25 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl bg-stone-200 dark:bg-white/10 text-stone-700 dark:text-amber-300 hover:bg-stone-300 dark:hover:bg-white/20 transition-colors"
-              title={darkMode ? 'Switch to Cream Canvas' : 'Switch to Midnight Chaos'}
+              onClick={onOpenBuddy}
+              className="p-1 rounded-xl hover:bg-stone-300 dark:hover:bg-white/20 transition-colors"
+              title={buddy ? `${buddy.name} — your AI buddy (tap to reshape)` : 'Meet your AI buddy'}
             >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              <BuddyAvatar buddy={buddy || null} size={32} />
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className="theme-toggle-btn p-2 rounded-xl transition-colors"
+              title={
+                theme === 'dark' ? 'Switch to Daybreak'
+                : theme === 'light' ? 'Switch to Beast Mode'
+                : 'Switch to Midnight Chaos'
+              }
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" />
+                : theme === 'light' ? <Flame className="w-4 h-4" />
+                : <Moon className="w-4 h-4" />}
             </button>
 
             {/* User menu dropdown */}
