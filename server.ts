@@ -1170,7 +1170,7 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 // Bump this every time a new APK is published to the GitHub release.
 // The native app compares its installed versionCode against this and
 // shows an "update available" banner when the server is newer.
-const LATEST_APK_VERSION_CODE = 4;
+const LATEST_APK_VERSION_CODE = 5;
 const LATEST_APK_URL =
   "https://github.com/jbsboutiquems/off-script-life-os/releases/download/apk-test-build-2026-10-07/OffScript-LifeOS-app-debug-latest.apk";
 
