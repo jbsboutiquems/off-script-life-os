@@ -69,7 +69,7 @@ export const BuddyCreator: React.FC<BuddyCreatorProps> = ({ open, onClose, initi
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Create your AI buddy">
-      <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-white/20 shadow-2xl overflow-hidden">
+      <div className="w-full max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col rounded-3xl bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-white/20 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-stone-200 dark:border-white/10">
           <div className="flex items-center gap-2">
@@ -99,7 +99,7 @@ export const BuddyCreator: React.FC<BuddyCreatorProps> = ({ open, onClose, initi
           ))}
         </div>
 
-        <div className="p-5">
+        <div className="p-5 overflow-y-auto flex-1 min-h-0">
           {step === 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {BUDDY_CREATURES.map(c => {
