@@ -1,5 +1,6 @@
 import { userGet, userSet } from './storage';
 import { getBuddy } from './buddy';
+import { getTheme, applyTheme } from './theme';
 
 /**
  * Beast Mode transformation engine.
@@ -21,6 +22,8 @@ export interface BeastWarning {
   kind: BeastWarningKind;
   stage: number;
   message: string;
+  /** Optional toast action, e.g. "match the mood" theme switch on full beast. */
+  action?: { label: string; run: () => void };
 }
 
 const STAGE_KEY = 'beast_stage';
@@ -105,7 +108,11 @@ export function advanceBeastStage(reason: 'sunlight' | 'midnight-snack' | 'wet')
   const before = getBeastStage();
   setStage(next);
   if (next !== before) {
-    emitWarning({ kind: 'stage-up', stage: next, message: STAGE_UP_COPY[next]() });
+    const warning: BeastWarning = { kind: 'stage-up', stage: next, message: STAGE_UP_COPY[next]() };
+    if (next >= BEAST_MAX_STAGE && getTheme() !== 'beast') {
+      warning.action = { label: 'Match the mood', run: () => applyTheme('beast') };
+    }
+    emitWarning(warning);
   }
   return next;
 }

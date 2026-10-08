@@ -96,6 +96,17 @@ export const BeastHost: React.FC<{ buddy: BuddyProfile | null }> = ({ buddy }) =
                 <span className="opacity-70"> — {buddy.name} is changing…</span>
               )}
             </span>
+            {t.action && (
+              <button
+                onClick={() => {
+                  t.action!.run();
+                  setToasts(prev => prev.filter(x => x.id !== t.id));
+                }}
+                className="ml-1 shrink-0 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wide bg-[#b6ff2e] text-[#0c1206] hover:brightness-110 transition"
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>
