@@ -59,7 +59,7 @@ export const TestModeNotice: React.FC = () => {
         </p>
         <div className="flex flex-col gap-2">
           <a
-            href="mailto:lifeosoffscript@gmail.com?subject=Off*Script%20bug%20report"
+            href="mailto:support@lifeosoffscript.info?subject=Off*Script%20bug%20report"
             className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ea4798] to-[#2da2ee] px-4 py-2.5 text-sm font-bold text-white"
           >
             <Bug size={16} />
