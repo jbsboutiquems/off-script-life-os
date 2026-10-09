@@ -734,6 +734,12 @@ app.get("/api/auth/config", (_req, res) => {
   });
 });
 
+// Data-deletion instructions (Meta App Review / Live mode requirement).
+// Users email lifeosoffscript@gmail.com with subject "Delete my data".
+app.get("/data-deletion", (_req, res) => {
+  res.type("html").send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Deletion — Off*Script Life OS</title></head><body style="font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#1c1917"><h1>Request data deletion</h1><p>To request deletion of your Off*Script Life OS account and all associated data, email <a href="mailto:lifeosoffscript@gmail.com?subject=Delete%20my%20data">lifeosoffscript@gmail.com</a> with the subject line <strong>"Delete my data"</strong> and the username of the account.</p><p>We delete the account and all associated entries, messages, and settings within 30 days and confirm by reply email.</p></body></html>`);
+});
+
 // Short-lived CSRF states and pending OAuth signups (single-process prototype).
 const oauthStates = new Map<string, { provider: string; createdAt: number }>();
 const oauthPending = new Map<string, {
