@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { api } from '../services/api';
+import { api, apiUrl } from '../services/api';
 import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail } from 'lucide-react';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
 
@@ -158,7 +158,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                 <div className="space-y-2 mb-5">
                   {authConfig.google && (
                     <button
-                      onClick={() => { window.location.href = '/api/auth/oauth/google'; }}
+                      onClick={() => { window.location.href = apiUrl('/api/auth/oauth/google'); }}
                       className="w-full py-2.5 bg-white dark:bg-white/5 border-2 border-stone-300 dark:border-white/20 rounded-xl text-sm font-bold text-stone-700 dark:text-stone-200 hover:border-stone-500 dark:hover:border-white/40 transition-all flex items-center justify-center gap-2"
                     >
                       <span className="text-base font-black"><span className="text-blue-500">G</span></span>
@@ -167,7 +167,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                   )}
                   {authConfig.facebook && (
                     <button
-                      onClick={() => { window.location.href = '/api/auth/oauth/facebook'; }}
+                      onClick={() => { window.location.href = apiUrl('/api/auth/oauth/facebook'); }}
                       className="w-full py-2.5 bg-[#1877f2] hover:bg-[#1466d6] rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
                     >
                       <span className="w-5 h-5 rounded-full bg-white text-[#1877f2] flex items-center justify-center text-xs font-black">f</span>
