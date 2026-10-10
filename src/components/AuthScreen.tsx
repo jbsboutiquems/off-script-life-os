@@ -325,7 +325,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                 </h2>
               </div>
               <p className="text-xs text-stone-500 dark:text-stone-400 mb-4">
-                Two ways back, depending on what you still have.
+                {authConfig.smtp ? 'Two ways back, depending on what you still have.' : 'One way back: your recovery code.'}
               </p>
 
               {/* Option 1: email reset link */}

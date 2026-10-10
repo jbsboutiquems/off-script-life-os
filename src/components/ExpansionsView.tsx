@@ -22,21 +22,8 @@ const ProductCard: React.FC<{
   product: ExpansionProduct;
   onBought: () => void;
 }> = ({ product, onBought }) => {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const buy = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.purchaseExpansion(product.product_id);
-      onBought();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not complete that.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  // Purchases are disabled until a payment provider is wired (2026-10-10).
+  // The buttons above are intentionally inert "coming soon" placeholders.
 
   return (
     <div className={`p-4 rounded-2xl border-2 bg-white dark:bg-[#02142e] ${product.owned ? 'border-emerald-400 dark:border-emerald-400/50' : product.expired ? 'border-amber-400 dark:border-amber-400/50' : 'border-stone-200 dark:border-white/10'}`}>
@@ -68,24 +55,23 @@ const ProductCard: React.FC<{
           </span>
         ) : product.expired ? (
           <button
-            onClick={buy}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-amber-500 hover:brightness-110 disabled:opacity-50"
+            disabled
+            title="Purchases aren't available yet"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white bg-stone-300 dark:bg-white/10 cursor-not-allowed"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
-            {busy ? 'Renewing…' : `Renew — ${price(product.price)}`}
+            <RefreshCw className="w-3.5 h-3.5" />
+            {`Renew — ${price(product.price)} (soon)`}
           </button>
         ) : (
           <button
-            onClick={buy}
-            disabled={busy}
-            className="px-4 py-2 rounded-xl text-xs font-black text-white bg-gradient-to-r from-[#2da2ee] to-[#ea4798] hover:brightness-110 disabled:opacity-50"
+            disabled
+            title="Purchases aren't available yet"
+            className="px-4 py-2 rounded-xl text-xs font-black text-white bg-stone-300 dark:bg-white/10 cursor-not-allowed"
           >
-            {busy ? '…' : `Get — ${price(product.price)}/${term(product.days)}`}
+            {`Coming soon — ${price(product.price)}/${term(product.days)}`}
           </button>
         )}
       </div>
-      {error && <p className="text-xs text-rose-500 font-bold mt-1.5">{error}</p>}
     </div>
   );
 };

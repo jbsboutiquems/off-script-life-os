@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFlightDebrief, MonthlyMoneyMap, KhaosPointEntry, FlightCrewContact } from './types';
 import { api, AuthError } from './services/api';
 import { initTheme, getTheme, cycleTheme, type KhaosTheme } from './theme';
+import { isDevMode } from './lib/devmode';
 import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
@@ -36,6 +37,8 @@ import { SearchView } from './components/SearchView';
 import { InboxView } from './components/InboxView';
 import { FrontMatterView } from './components/frontmatter';
 import { AiStudioView } from './components/studio/AiStudioView';
+import { studioApi } from './components/studio/studioApi';
+import { syncNativeReminders } from './lib/nativeNotifications';
 import { InstallBanner } from './components/InstallBanner';
 import { UpdateBanner } from './components/UpdateBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
@@ -99,6 +102,10 @@ export default function App() {
   const [debriefs, setDebriefs] = useState<WeeklyFlightDebrief[]>([]);
   const [moneyMaps, setMoneyMaps] = useState<MonthlyMoneyMap[]>([]);
   const [dueCount, setDueCount] = useState(0);
+  // AI Studio hides from the menu until the server reports it configured.
+  // Showing a "set an env var" admin note to paying customers is a refund
+  // waiting to happen (found 2026-10-10).
+  const [studioConfigured, setStudioConfigured] = useState<boolean | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [tourDismissed, setTourDismissed] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -247,7 +254,23 @@ export default function App() {
 
   // Buddy: load on login; first-run creation flow.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setStudioConfigured(null);
+      return;
+    }
+    // AI Studio menu visibility follows the server's configured flag.
+    studioApi.status().then(
+      (s) => setStudioConfigured(s.configured),
+      () => setStudioConfigured(false)
+    );
+    // Re-schedule on-device reminder notifications from the stored settings.
+    void syncNativeReminders({
+      dailyEnabled: !!(user as any).reminder_daily_enabled,
+      dailyTime: (user as any).reminder_daily_time || '20:00',
+      weeklyEnabled: !!(user as any).reminder_weekly_enabled,
+      weeklyDay: typeof (user as any).reminder_weekly_day === 'number' ? (user as any).reminder_weekly_day : 0,
+      weeklyTime: (user as any).reminder_weekly_time || '18:00',
+    });
     const existing = getBuddy();
     // Server profile may carry the buddy (synced on save) — local wins if newer.
     const fromProfile = (user as any).buddy as BuddyProfile | undefined;
@@ -591,7 +614,8 @@ export default function App() {
     { id: 'search', label: 'Search' },
     { id: 'backup', label: 'Backup' },
     { id: 'frontmatter', label: 'FrontMatter' },
-    { id: 'studio', label: 'AI Studio' },
+    // AI Studio only appears when the server has it configured.
+    ...(studioConfigured ? [{ id: 'studio', label: 'AI Studio' }] : []),
     { id: 'expansions', label: 'Expansions' },
     { id: 'unlock', label: 'Unlock' },
     { id: 'faq', label: 'FAQ' },
@@ -604,6 +628,7 @@ export default function App() {
 
       <InstallBanner />
       <UpdateBanner />
+      <TestModeNotice />
 
       <Header
         username={user.khaos_name}
@@ -910,7 +935,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'studio' && (
+          {activeTab === 'studio' && studioConfigured && (
             <AiStudioView userId={user.id} />
           )}
 
@@ -1007,7 +1032,6 @@ export default function App() {
           Both are passive overlays: declining/dismissing never blocks the app. */}
       <AiConsentGate userId={user.id} />
       <AndroidPermissionGate userId={user.id} />
-      <TestModeNotice />
 
       {/* First-run onboarding tour */}
       {showTour && (
@@ -1033,12 +1057,14 @@ export default function App() {
           <div className="text-stone-400 dark:text-stone-500">
             The Intent · Natural Language Personality Engine · No Toxic Positivity
           </div>
-          <button
-            onClick={() => setPackageModalOpen(true)}
-            className="text-[11px] font-mono-code font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors underline underline-offset-2"
-          >
-            Package the Android app
-          </button>
+          {isDevMode() && (
+            <button
+              onClick={() => setPackageModalOpen(true)}
+              className="text-[11px] font-mono-code font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors underline underline-offset-2"
+            >
+              Package the Android app
+            </button>
+          )}
         </div>
       </footer>
     </div>

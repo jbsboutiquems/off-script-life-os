@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { WeeklyFlightDebrief } from '../types';
 import { BookOpen, Save, Flame, Compass, Printer } from 'lucide-react';
+import { canPrint } from '../lib/exporter';
 
 interface WeeklyDebriefViewProps {
   onSaveDebrief?: (debrief: WeeklyFlightDebrief) => void;
@@ -111,6 +112,7 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
             <span className="hidden print:inline-block font-mono-code font-bold text-xs bg-stone-100 px-2.5 py-1 rounded border border-stone-300">
               Week {weekNumber} of 52
             </span>
+            {canPrint() && (
             <button
               type="button"
               id="print-weekly-debrief-btn"
@@ -121,6 +123,7 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
               <Printer className="w-3.5 h-3.5 text-stone-600" />
               <span>Print / PDF</span>
             </button>
+            )}
           </div>
         </div>
 
@@ -278,6 +281,7 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
         </div>
 
         <div className="flex items-center justify-between pt-2 print:hidden">
+          {canPrint() && (
           <button
             type="button"
             onClick={handlePrint}
@@ -286,6 +290,7 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
             <Printer className="w-3.5 h-3.5" />
             <span>Print Weekly Forensic Report</span>
           </button>
+          )}
           <button
             type="submit"
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl shadow-xs transition-all"

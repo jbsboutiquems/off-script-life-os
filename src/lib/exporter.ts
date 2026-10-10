@@ -1,7 +1,38 @@
 /** Client-side export helpers: one-tap downloads, no Drive required. */
 import type { DailyEntry } from '../types';
+import { Capacitor } from '@capacitor/core';
 
-export function downloadFile(filename: string, mime: string, text: string): void {
+/**
+ * window.print() is a no-op inside the Android WebView.
+ * Print buttons should hide there instead of pretending to work.
+ */
+export function canPrint(): boolean {
+  return !Capacitor.isNativePlatform();
+}
+
+/**
+ * Save a text file to the device.
+ * - In a real browser: Blob + <a download> (works).
+ * - In the native WebView: Blob downloads are silently ignored, so write
+ *   via @capacitor/filesystem and hand the file to the system share sheet.
+ */
+export async function downloadFile(filename: string, mime: string, text: string): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+    const { Share } = await import('@capacitor/share');
+    const result = await Filesystem.writeFile({
+      path: filename,
+      data: text,
+      directory: Directory.Cache,
+    });
+    await Share.share({
+      title: filename,
+      text: `Your Off*Script export: ${filename}`,
+      url: result.uri,
+      dialogTitle: 'Save or share your export',
+    });
+    return;
+  }
   const blob = new Blob([text], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

@@ -314,8 +314,7 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
             <span>Account Safety</span>
           </h3>
           <p className="text-xs text-stone-500">
-            Your recovery code is the backup way back in if you forget your password. Accounts with a verified
-            email can also reset by email; no email on file means this code is the only way back — guard it
+            Your recovery code is the way back in if you forget your password — guard it
             like a good parking spot.
             Mint a fresh one any time; the old code retires immediately and the new one is shown exactly once.
           </p>

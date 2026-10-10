@@ -45,7 +45,8 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
 
   return (
     <div className="border-b-2 border-stone-200 dark:border-white/10 bg-cream-canvas/80 dark:bg-transparent print:hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-end gap-1 pt-2 overflow-x-auto">
+      <div className="relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-end gap-1 pt-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {FOLDERS.map(({ id, label, icon: Icon }) => {
           const active = activeSection === id;
           return (
@@ -91,6 +92,9 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
             </div>
           )}
         </div>
+      </div>
+      {/* Fade cue: the strip scrolls on narrow phones — this signals there's more */}
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-cream-canvas dark:from-[#000a15] to-transparent" />
       </div>
     </div>
   );

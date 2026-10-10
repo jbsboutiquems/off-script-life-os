@@ -250,7 +250,7 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
           </button>
         </div>
         <p className="mt-3 text-[11px] text-stone-500 dark:text-stone-400 italic font-serif-display">
-          {serverSaved ? 'Saved. ' : ''}Leave empty when running with the built-in dev server. The installed Android app needs your deployed server's URL here (or baked in at build time).
+          {serverSaved ? 'Saved. ' : ''}Leave empty to use the default connection. Only change this if you were given a custom server URL.
         </p>
       </div>
 

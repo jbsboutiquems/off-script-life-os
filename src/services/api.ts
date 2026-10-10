@@ -477,8 +477,8 @@ export const api = {
 
   // ---- Inbox (DMs) ----
 
-  async getUserDirectory(): Promise<{ id: string; username: string }[]> {
-    const res = await req('/api/users/directory');
+  async getUserDirectory(query?: string): Promise<{ id: string; username: string }[]> {
+    const res = await req('/api/users/directory' + (query ? `?q=${encodeURIComponent(query)}` : ''));
     if (!res.ok) throw new Error('Could not load the directory.');
     return res.json();
   },
@@ -573,31 +573,10 @@ export const api = {
       return result;
     } catch (e) {
       if (e instanceof AuthError) throw e;
-      console.warn('API unavailable, attempting local token redemption', e);
+      // No local fallback: entitlements are granted server-side only.
+      // (Offline demo grants were a forgery hole — removed 2026-10-10.)
+      return { success: false, error: 'Connect to the internet to redeem this code.' };
     }
-
-    const redeemedTokens = lsGet<Record<string, string>>('redeemed_tokens') || {};
-    if (redeemedTokens[normalizedToken]) {
-      return { success: false, error: 'This QR code has already been claimed.' };
-    }
-    if (normalizedToken !== 'PACK-DEMO-2027') {
-      return { success: false, error: 'Invalid QR code.' };
-    }
-    redeemedTokens[normalizedToken] = cachedUserId || '';
-    lsSet('redeemed_tokens', redeemedTokens);
-    const current = await this.getEntitlements().catch(() => [] as UserEntitlement[]);
-    if (!current.some(e => e.pack_id === 'planner_2027_core')) {
-      const entitlement: UserEntitlement = {
-        user_id: cachedUserId || '',
-        pack_id: 'planner_2027_core',
-        unlocked_at: new Date().toISOString(),
-        expires_at: null,
-        expired: false,
-        days_left: null
-      };
-      lsSet('entitlements', [...current, entitlement]);
-    }
-    return { success: true, packId: 'planner_2027_core', title: 'Off*Script 2027 Core Planner' };
   },
 
   // ---- Profile ----

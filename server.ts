@@ -239,6 +239,25 @@ interface DataStore {
   roomMessages: RoomMessage[];
   /** Community FAQ board — users ask, admins answer. */
   faqQuestions: FaqQuestion[];
+  /** Field presence: userId -> last region heartbeat (region-level only, never coordinates). */
+  fieldPresence: Record<string, FieldPresence>;
+  /** Active Field game sessions: userId -> session. While active, nearby players are hidden. */
+  fieldGames: Record<string, FieldGameSession>;
+}
+
+interface FieldPresence {
+  userId: string;
+  regionId: string;
+  /** ms timestamp of last heartbeat */
+  at: number;
+  visible: boolean;
+}
+
+interface FieldGameSession {
+  userId: string;
+  gameId: string;
+  kind: string;
+  startedAt: number;
 }
 
 interface FaqQuestion {
@@ -359,6 +378,8 @@ function freshStore(): DataStore {
     contentPacks: JSON.parse(JSON.stringify(defaultContentPacks)),
     qrTokens: JSON.parse(JSON.stringify(defaultQrTokens)),
     wallPosts: [],
+    fieldPresence: {},
+    fieldGames: {},
     dmMessages: [],
     dmRead: {},
     emailTokens: {},
@@ -416,6 +437,8 @@ function loadData(): DataStore {
         if (!Array.isArray(store.rooms)) store.rooms = [];
         if (!Array.isArray(store.roomMessages)) store.roomMessages = [];
         if (!Array.isArray(store.faqQuestions)) store.faqQuestions = [];
+        if (!store.fieldPresence || typeof store.fieldPresence !== "object") store.fieldPresence = {};
+        if (!store.fieldGames || typeof store.fieldGames !== "object") store.fieldGames = {};
         for (const a of store.accounts) if (typeof a.recoveryHash !== "string") a.recoveryHash = "";
         return store;
       }
@@ -1287,27 +1310,15 @@ app.get("/api/expansions", requireAuth, (req, res) => {
 });
 
 app.post("/api/expansions/purchase", requireAuth, (req, res) => {
-  const ar = req as AuthedRequest;
   const productId = String(req.body?.product_id || "");
   const product = EXPANSION_PRODUCTS.find((p) => p.product_id === productId);
   if (!product) return res.status(404).json({ error: "That expansion doesn't exist." });
-  // NOTE: payment collection (Stripe / Google Play) is not wired yet.
-  // This endpoint grants the entitlement; hook the payment confirmation here
-  // before granting in production.
-  const now = new Date();
-  const expires = new Date(now.getTime() + product.days * 86400000);
-  ar.ud.userEntitlements = ar.ud.userEntitlements || {};
-  ar.ud.userEntitlements[productId] = {
-    unlocked_at: now.toISOString(),
-    expires_at: expires.toISOString(),
-  };
-  saveData(db);
-  res.json({
-    success: true,
-    product_id: productId,
-    title: product.title,
-    unlocked_at: now.toISOString(),
-    expires_at: expires.toISOString(),
+  // Payments are not wired yet (no Stripe / Google Play Billing).
+  // Do NOT grant entitlements here until a purchase token can be verified
+  // server-side. Granting without payment is a revenue hole (found 2026-10-10).
+  return res.status(503).json({
+    error: "Purchases aren't available yet — check back soon.",
+    success: false,
   });
 });
 
@@ -1807,16 +1818,59 @@ function inboxThreads(userId: string) {
 // don't leak them for email accounts either.
 app.get("/api/users/directory", requireAuth, (req, res) => {
   const ar = req as AuthedRequest;
+  const q = String(req.query.q || "").trim().toLowerCase();
+  // Search-only directory (2026-10-10): no query → no results.
+  // Returning the full user list to any authenticated user is a
+  // bulk-enumeration hole. DM discovery now works via search.
+  if (q.length < 2) return res.json([]);
   res.json(
     db.accounts
       .filter((a) => {
         if (a.id === ar.userId || a.id === "legacy") return false;
+        if (!a.username.toLowerCase().includes(q)) return false;
         // Only real, usable accounts: password set, or OAuth/email linked.
         return a.passwordHash !== "" || !!a.googleId || !!a.facebookId || !!a.email;
       })
       .map((a) => ({ id: a.id, username: a.username }))
       .sort((x, y) => x.username.localeCompare(y.username))
+      .slice(0, 20)
   );
+});
+
+app.delete("/api/admin/users/:username", requireAuth, requireAdmin, (req, res) => {
+  const ar = req as AuthedRequest;
+  const target = String(req.params.username || "").toLowerCase();
+  const idx = db.accounts.findIndex((a) => a.username.toLowerCase() === target);
+  if (idx < 0) return res.status(404).json({ error: "No such user." });
+  const victim = db.accounts[idx];
+  if (victim.id === ar.userId) {
+    return res.status(400).json({ error: "You can't delete your own admin account." });
+  }
+  const victimId = victim.id;
+  // Remove the account and its private data blob.
+  db.accounts.splice(idx, 1);
+  delete db.users[victimId];
+  // Kill their sessions.
+  for (const sid of Object.keys(db.sessions)) {
+    if (db.sessions[sid]?.userId === victimId) delete db.sessions[sid];
+  }
+  // Scrub shared collections.
+  db.wallPosts = db.wallPosts.filter((p) => p.userId !== victimId);
+  db.dmMessages = db.dmMessages.filter((m) => m.fromId !== victimId && m.toId !== victimId);
+  delete db.dmRead[victimId];
+  for (const uid of Object.keys(db.dmRead)) delete db.dmRead[uid]?.[victimId];
+  db.notifications = db.notifications.filter((n) => n.userId !== victimId);
+  db.roomMessages = db.roomMessages.filter((m) => m.userId !== victimId);
+  const ownedRoomIds = new Set(db.rooms.filter((r) => r.ownerId === victimId).map((r) => r.id));
+  db.rooms = db.rooms
+    .filter((r) => !ownedRoomIds.has(r.id))
+    .map((r) => ({ ...r, memberIds: r.memberIds.filter((id) => id !== victimId) }));
+  db.roomMessages = db.roomMessages.filter((m) => !ownedRoomIds.has(m.roomId));
+  db.faqQuestions = db.faqQuestions.filter((q) => q.asker_id !== victimId);
+  delete db.fieldPresence[victimId];
+  delete db.fieldGames[victimId];
+  saveData(db);
+  res.json({ success: true, username: victim.username });
 });
 
 app.get("/api/inbox/threads", requireAuth, (req, res) => {
@@ -2076,6 +2130,81 @@ app.post("/api/money-maps", requireAuth, (req, res) => {
   ar.ud.moneyMaps[key] = map;
   saveData(db);
   res.json(map);
+});
+
+// ================= FIELD PRESENCE + NEARBY PLAYERS =================
+// Region-level presence only — exact coordinates never leave the device.
+// Presence heartbeats expire after 15 minutes. While a user has an active
+// Field game session, nearby players are hidden from them.
+
+const FIELD_PRESENCE_TTL_MS = 15 * 60_000;
+
+function pruneFieldPresence(): void {
+  const now = Date.now();
+  let changed = false;
+  for (const [uid, p] of Object.entries(db.fieldPresence)) {
+    if (!p || typeof p.at !== "number" || now - p.at > FIELD_PRESENCE_TTL_MS) {
+      delete db.fieldPresence[uid];
+      changed = true;
+    }
+  }
+  if (changed) saveData(db);
+}
+
+function fieldUsernameFor(userId: string): string {
+  const a = db.accounts.find((x) => x.id === userId);
+  return a ? a.username : "unknown";
+}
+
+app.post("/api/field/presence", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  const regionId = String(req.body?.regionId || "").slice(0, 64);
+  const visible = req.body?.visible !== false;
+  if (!regionId) return res.status(400).json({ error: "regionId required." });
+  db.fieldPresence[userId] = { userId, regionId, at: Date.now(), visible };
+  saveData(db);
+  res.json({ ok: true });
+});
+
+app.get("/api/field/nearby", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  const regionId = String(req.query.regionId || "").slice(0, 64);
+  if (!regionId) return res.status(400).json({ error: "regionId required." });
+  pruneFieldPresence();
+  const now = Date.now();
+  const nearby = Object.values(db.fieldPresence)
+    .filter((p) => p.userId !== userId && p.visible && p.regionId === regionId && now - p.at <= FIELD_PRESENCE_TTL_MS)
+    .map((p) => ({ username: fieldUsernameFor(p.userId), regionId: p.regionId, seenAt: p.at }));
+  res.json({ nearby });
+});
+
+app.delete("/api/field/presence", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  delete db.fieldPresence[userId];
+  saveData(db);
+  res.json({ ok: true });
+});
+
+app.get("/api/field/game/active", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  const g = db.fieldGames[userId];
+  res.json({ active: !!g, game: g ? { gameId: g.gameId, kind: g.kind, startedAt: g.startedAt } : null });
+});
+
+app.post("/api/field/game/start", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  const kind = String(req.body?.kind || "hide-and-seek").slice(0, 32);
+  const gameId = crypto.randomBytes(8).toString("hex");
+  db.fieldGames[userId] = { userId, gameId, kind, startedAt: Date.now() };
+  saveData(db);
+  res.json({ ok: true, gameId, kind });
+});
+
+app.post("/api/field/game/end", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  delete db.fieldGames[userId];
+  saveData(db);
+  res.json({ ok: true });
 });
 
 // ================= MEI-STYLE NLP DIAGNOSTIC ENGINE =================

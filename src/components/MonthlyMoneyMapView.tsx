@@ -12,19 +12,16 @@ export const MonthlyMoneyMapView: React.FC<MonthlyMoneyMapViewProps> = ({
   initialMonth = 1
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<number>(initialMonth);
+  // Start empty (2026-10-10): pre-filled fictional finances read as the
+  // user's own money. The empty state below invites the first real entry.
   const [incomeStreams, setIncomeStreams] = useState([
-    { id: "inc_1", source: "Primary Sovereign Work", amount: 4800 },
-    { id: "inc_2", source: "Unscripted Advisory & Projects", amount: 1200 }
-  ]);
+  ] as { id: string; source: string; amount: number }[]);
   const [fixedExpenses, setFixedExpenses] = useState<MoneyExpense[]>([
-    { id: "exp_1", name: "Sanctuary / Studio Rent", amount: 1600, paid: true },
-    { id: "exp_2", name: "Fuel & Nourishment", amount: 650, paid: true },
-    { id: "exp_3", name: "Digital Tools & Hardware", amount: 120, paid: false }
   ]);
-  const [oneSurprise, setOneSurprise] = useState("A spontaneous client referral paid faster than anticipated.");
-  const [onePattern, setOnePattern] = useState("Notice when the impulse to buy books is actually an impulse to feel productive without working.");
-  const [financialCommitment, setFinancialCommitment] = useState("Keep the $500 monthly Khaos Discretionary Fund strictly guilt-free.");
-  const [noShameRecap, setNoShameRecap] = useState("I spent more on take-out during the high-stress sprint week, and that's okay.");
+  const [oneSurprise, setOneSurprise] = useState("");
+  const [onePattern, setOnePattern] = useState("");
+  const [financialCommitment, setFinancialCommitment] = useState("");
+  const [noShameRecap, setNoShameRecap] = useState("");
   const [isSaved, setIsSaved] = useState(false);
 
   const totalIncome = incomeStreams.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
@@ -159,6 +156,9 @@ export const MonthlyMoneyMapView: React.FC<MonthlyMoneyMapViewProps> = ({
             </div>
 
             <div className="space-y-2 text-xs">
+              {incomeStreams.length === 0 && (
+                <p className="text-stone-400 italic py-2">No income currents yet — add your first one above.</p>
+              )}
               {incomeStreams.map((stream) => (
                 <div key={stream.id} className="flex items-center space-x-2">
                   <input
@@ -211,6 +211,9 @@ export const MonthlyMoneyMapView: React.FC<MonthlyMoneyMapViewProps> = ({
             </div>
 
             <div className="space-y-2 text-xs">
+              {fixedExpenses.length === 0 && (
+                <p className="text-stone-400 italic py-2">No fixed drains yet — add your first one above.</p>
+              )}
               {fixedExpenses.map((expense) => (
                 <div key={expense.id} className="flex items-center space-x-2">
                   <input

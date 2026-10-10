@@ -4,6 +4,7 @@ import { getHolidayForDate } from '../data/holidays';
 import { Sun, Compass, Moon, Sparkles, CheckCircle2, Circle, Flame, AlertCircle, Save, ArrowLeft, ArrowRight, Wand2, Mic, MicOff, Radio, Volume2, Printer, Share2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { MorningMantraGenerator } from './MorningMantraGenerator';
+import { canPrint } from '../lib/exporter';
 
 interface DailyOSViewProps {
   entry: DailyEntry;
@@ -327,6 +328,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
             >
               <ArrowRight className="w-4 h-4" />
             </button>
+            {canPrint() && (
             <button
               type="button"
               id="print-daily-os-btn"
@@ -337,6 +339,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
               <Printer className="w-3.5 h-3.5 text-stone-600" />
               <span>Print / PDF</span>
             </button>
+            )}
             {onOpenShare && (
               <button
                 type="button"
@@ -625,6 +628,10 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
                     </span>
                   </label>
                   <div className="flex items-center space-x-2 print:hidden">
+                    {/* Voice dictation only renders where the Web Speech API
+                        exists. In the native WebView it doesn't, so the button
+                        hides instead of showing a "try Chrome" dead end. */}
+                    {isSpeechSupported && (
                     <button
                       type="button"
                       id="voice-to-text-rant-btn"
@@ -658,6 +665,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
                         </>
                       )}
                     </button>
+                    )}
                     <span className="text-[10px] text-rose-700 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
                       Raw & Uncurated
                     </span>
@@ -801,6 +809,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
           </span>
         </div>
         <div className="flex items-center space-x-3">
+          {canPrint() && (
           <button
             type="button"
             onClick={handlePrint}
@@ -809,6 +818,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
             <Printer className="w-3.5 h-3.5" />
             <span>Print PDF</span>
           </button>
+          )}
           <button
             onClick={handleSave}
             className="text-xs font-bold text-stone-900 underline hover:text-rose-600 whitespace-nowrap"

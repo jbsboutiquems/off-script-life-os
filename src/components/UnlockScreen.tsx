@@ -28,6 +28,13 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlocked }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Camera QR scanning needs BOTH getUserMedia and BarcodeDetector.
+  // The Android WebView has neither combination, so the whole scan
+  // section hides there instead of showing a dead-end button.
+  const canScan = typeof window !== 'undefined' &&
+    Boolean(navigator.mediaDevices?.getUserMedia) &&
+    Boolean((window as any).BarcodeDetector);
+
   const stopCamera = () => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
     frameRef.current = null;
@@ -115,11 +122,15 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlocked }) => {
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.25em] text-rose-700">Content access checkpoint</p>
           <h1 className="font-serif-display text-4xl font-bold text-slate-950">Unlock your Off*Script pack</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-stone-600">
-            Scan the QR code printed with your physical planner. Each code is single-use and becomes permanently associated with this account after redemption.
+            {canScan
+              ? 'Scan the QR code printed with your physical planner. Each code is single-use and becomes permanently associated with this account after redemption.'
+              : 'Enter the token printed with your physical planner. Each code is single-use and becomes permanently associated with this account after redemption.'}
           </p>
         </div>
 
         <section className="rounded-3xl border-2 border-stone-900 bg-white p-5 shadow-xl sm:p-7">
+          {canScan && (
+          <>
           <div className="mb-5 flex items-center gap-3 border-b border-stone-200 pb-4">
             <QrCode className="h-6 w-6 text-rose-600" />
             <div>
@@ -159,6 +170,8 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlocked }) => {
           <div className="my-5 flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-stone-400">
             <span className="h-px flex-1 bg-stone-200" /> Or enter printed token <span className="h-px flex-1 bg-stone-200" />
           </div>
+          </>
+          )}
 
           <form onSubmit={(event) => { event.preventDefault(); void redeem(token); }} className="flex flex-col gap-2 sm:flex-row">
             <label htmlFor="qr-token" className="sr-only">QR token</label>
@@ -173,7 +186,7 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onUnlocked }) => {
           {error && <p role="alert" className="mt-4 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800"><ShieldAlert className="h-4 w-4 shrink-0" />{error}</p>}
         </section>
 
-        <p className="mt-5 text-center text-[11px] leading-5 text-stone-500">Never share a redeemed token. In production, redemption is enforced by an authenticated database transaction.</p>
+        <p className="mt-5 text-center text-[11px] leading-5 text-stone-500">Never share a redeemed token. Every redemption is verified against your account.</p>
       </div>
     </main>
   );

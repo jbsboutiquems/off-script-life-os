@@ -1,14 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Navigation, Check, Clock, Loader2, AlertTriangle } from 'lucide-react';
+import { MapPin, Navigation, Check, Clock, Loader2, AlertTriangle, Users, Eye, EyeOff } from 'lucide-react';
 import { findCandidateRegions, describeDistance, type RegionMatch } from '../game/geoRadius';
 import { getFamiliar, type RegionId } from '../game/regions';
+import { apiUrl } from '../services/api';
 
 interface FieldCheckIn {
   regionId: RegionId;
   at: number;
 }
 
+interface NearbyPlayer {
+  username: string;
+  regionId: string;
+  seenAt: number;
+}
+
 const LOG_KEY = 'field_log_v1';
+const VISIBLE_KEY = 'field_visible_v1';
+const TOKEN_KEY = 'lifeos:auth:token';
+
+/** Best-effort authed fetch — returns null when logged out, offline, or on error. */
+async function fieldApi(path: string, options: RequestInit = {}): Promise<any | null> {
+  try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const res = await fetch(apiUrl(path), {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...((options.headers as Record<string, string>) || {}),
+      },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
 
 function loadLog(): FieldCheckIn[] {
   try {
@@ -44,6 +72,45 @@ export const FieldView: React.FC = () => {
   const [selectedId, setSelectedId] = useState<RegionId | null>(null);
   const [log, setLog] = useState<FieldCheckIn[]>(loadLog);
   const [checkedIn, setCheckedIn] = useState(false);
+  const [visible, setVisible] = useState<boolean>(() => {
+    try { return localStorage.getItem(VISIBLE_KEY) === '1'; } catch { return false; }
+  });
+  const [nearby, setNearby] = useState<NearbyPlayer[] | null>(null);
+  const [inGame, setInGame] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(VISIBLE_KEY, visible ? '1' : '0'); } catch { /* ignore */ }
+    if (!visible) {
+      // Going invisible — clear server presence.
+      fieldApi('/api/field/presence', { method: 'DELETE' });
+      setNearby(null);
+    }
+  }, [visible]);
+
+  // Active game gate: nearby players stay hidden while in a game.
+  useEffect(() => {
+    fieldApi('/api/field/game/active').then((d) => { if (d) setInGame(!!d.active); });
+  }, []);
+
+  // Heartbeat: announce region presence while visible.
+  useEffect(() => {
+    if (visible && selectedId) {
+      fieldApi('/api/field/presence', {
+        method: 'POST',
+        body: JSON.stringify({ regionId: selectedId, visible: true }),
+      });
+    }
+  }, [visible, selectedId]);
+
+  // Nearby players: only when not in an active game.
+  useEffect(() => {
+    if (inGame || !selectedId) { setNearby(null); return; }
+    let cancelled = false;
+    fieldApi(`/api/field/nearby?regionId=${encodeURIComponent(selectedId)}`).then((d) => {
+      if (!cancelled && d) setNearby(Array.isArray(d.nearby) ? d.nearby : []);
+    });
+    return () => { cancelled = true; };
+  }, [inGame, selectedId]);
 
   useEffect(() => {
     try {
@@ -108,6 +175,18 @@ export const FieldView: React.FC = () => {
             <AlertTriangle className="w-4 h-4" /> {error}
           </p>
         )}
+        <button
+          onClick={() => setVisible((v) => !v)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold border-2 border-stone-300 dark:border-white/15 hover:scale-[1.02] transition"
+        >
+          {visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {visible ? 'Visible on the Field' : 'Show me on the Field'}
+        </button>
+        <p className="text-xs text-stone-500 dark:text-stone-400 max-w-sm mx-auto">
+          {visible
+            ? 'Other players in your zone can see your username. Region only — never your exact location. Presence fades after 15 minutes.'
+            : 'Turn this on and nearby players can see you when you check in.'}
+        </p>
       </div>
 
       {candidates && candidates.length === 0 && (
@@ -166,6 +245,25 @@ export const FieldView: React.FC = () => {
               <Check className="w-5 h-5" /> {checkedIn ? 'Claimed!' : 'Check in'}
             </button>
           </div>
+        </div>
+      )}
+
+      {!inGame && nearby && nearby.length > 0 && (
+        <div className="max-w-2xl mx-auto">
+          <h3 className="font-black uppercase tracking-wider text-sm mb-2 flex items-center gap-1.5">
+            <Users className="w-4 h-4" /> Players nearby
+          </h3>
+          <div className="space-y-2">
+            {nearby.map((p) => (
+              <div key={p.username} className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-stone-100 dark:bg-white/5">
+                <span className="font-bold">{p.username}</span>
+                <span className="text-xs font-bold uppercase tracking-wider opacity-60">{relativeTime(p.seenAt)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">
+            Same zone, right now. Say hi — or don't. Khaos is neutral.
+          </p>
         </div>
       )}
 

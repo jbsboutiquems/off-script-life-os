@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { api } from '../services/api';
 import { DueReminder } from '../lib/reminders';
+import { syncNativeReminders } from '../lib/nativeNotifications';
 import { Bell, BellRing, CalendarDays, Sun, RefreshCw, Info } from 'lucide-react';
 
 interface RemindersViewProps {
@@ -13,9 +14,9 @@ interface RemindersViewProps {
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 /**
- * In-app reminder settings. Honest caveat: the app can't tap your shoulder —
- * there's no push notification infrastructure in a self-hosted prototype.
- * Reminders fire as in-app nudges (dashboard bell + this room) when the app is open.
+ * Reminder settings. In-app nudges (dashboard bell + this room) fire while the
+ * app is open; on the installed Android app, daily/weekly reminders also
+ * schedule as on-device notifications via @capacitor/local-notifications.
  */
 export const RemindersView: React.FC<RemindersViewProps> = ({ user, onSaveProfile, onNavigate }) => {
   const [due, setDue] = useState<DueReminder[]>([]);
@@ -50,6 +51,15 @@ export const RemindersView: React.FC<RemindersViewProps> = ({ user, onSaveProfil
     try {
       await onSaveProfile(patch);
       refresh();
+      // Re-schedule on-device notifications from the merged settings.
+      const merged = { ...user, ...patch };
+      void syncNativeReminders({
+        dailyEnabled: !!merged.reminder_daily_enabled,
+        dailyTime: merged.reminder_daily_time || '20:00',
+        weeklyEnabled: !!merged.reminder_weekly_enabled,
+        weeklyDay: typeof merged.reminder_weekly_day === 'number' ? merged.reminder_weekly_day : 0,
+        weeklyTime: merged.reminder_weekly_time || '18:00',
+      });
     } finally {
       setSaving(false);
     }

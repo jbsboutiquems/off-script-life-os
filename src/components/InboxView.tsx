@@ -40,7 +40,30 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
   const [starting, setStarting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dirQuery, setDirQuery] = useState('');
+  const [dirSearching, setDirSearching] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const dirTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchDirectory = (q: string) => {
+    setDirQuery(q);
+    if (dirTimer.current) clearTimeout(dirTimer.current);
+    if (q.trim().length < 2) {
+      setDirectory([]);
+      setDirSearching(false);
+      return;
+    }
+    setDirSearching(true);
+    dirTimer.current = setTimeout(async () => {
+      try {
+        setDirectory(await api.getUserDirectory(q.trim()));
+      } catch {
+        setDirectory([]);
+      } finally {
+        setDirSearching(false);
+      }
+    }, 300);
+  };
 
   const refreshThreads = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -107,7 +130,6 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
 
   useEffect(() => {
     refreshThreads();
-    api.getUserDirectory().then(setDirectory).catch(() => {});
     const id = setInterval(() => {
       refreshThreads(true);
       if (active) api.getThread(active.partnerId).then((r) => setMessages(r.messages)).catch(() => {});
@@ -141,14 +163,14 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
           </h2>
           <div className="flex gap-1">
             <button
-              onClick={() => { refreshThreads(); api.getUserDirectory().then(setDirectory).catch(() => {}); }}
+              onClick={() => { refreshThreads(); setDirectory([]); setDirQuery(''); }}
               className="p-2 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-white/10"
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
-              onClick={() => setStarting(!starting)}
+              onClick={() => { if (starting) { setDirectory([]); setDirQuery(''); } setStarting(!starting); }}
               className="p-2 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-white/10"
               title="Start a new conversation"
             >
@@ -171,8 +193,20 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
           <p className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-stone-500 dark:text-stone-400 mb-2">
             Start a conversation
           </p>
-          {directory.length === 0 && (
-            <p className="text-xs text-stone-400 italic">Nobody else is on this instance yet. Lonely — but peaceful.</p>
+          <input
+            value={dirQuery}
+            onChange={(e) => searchDirectory(e.target.value)}
+            placeholder="Search usernames… (2+ characters)"
+            className="w-full mb-2 px-3 py-2 rounded-xl border border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-white/5 text-sm font-bold text-slate-900 dark:text-cream-canvas placeholder:text-stone-400 placeholder:font-normal"
+          />
+          {dirSearching && (
+            <p className="text-xs text-stone-400 italic mb-1.5">Searching…</p>
+          )}
+          {!dirSearching && dirQuery.trim().length >= 2 && directory.length === 0 && (
+            <p className="text-xs text-stone-400 italic mb-1.5">No matches. Check the spelling.</p>
+          )}
+          {dirQuery.trim().length < 2 && (
+            <p className="text-xs text-stone-400 italic mb-1.5">Type at least 2 characters to search.</p>
           )}
           <div className="flex flex-wrap gap-1.5">
             {directory.map((u) => (
