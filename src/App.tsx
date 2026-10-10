@@ -38,6 +38,7 @@ import { InboxView } from './components/InboxView';
 import { FrontMatterView } from './components/frontmatter';
 import { AiStudioView } from './components/studio/AiStudioView';
 import { studioApi } from './components/studio/studioApi';
+import { AdminView } from './components/AdminView';
 import { syncNativeReminders } from './lib/nativeNotifications';
 import { InstallBanner } from './components/InstallBanner';
 import { UpdateBanner } from './components/UpdateBanner';
@@ -619,6 +620,8 @@ export default function App() {
     { id: 'expansions', label: 'Expansions' },
     { id: 'unlock', label: 'Unlock' },
     { id: 'faq', label: 'FAQ' },
+    // Admin panel: only for admins (server-gated via is_admin).
+    ...(user.is_admin ? [{ id: 'admin', label: 'Admin' }] : []),
   ];
   const menuIds = menuItems.map(m => m.id);
   const activeMenuId = menuIds.includes(activeTab) ? activeTab : null;
@@ -945,6 +948,10 @@ export default function App() {
 
           {activeTab === 'faq' && (
             <FaqView user={user} />
+          )}
+
+          {activeTab === 'admin' && user.is_admin && (
+            <AdminView />
           )}
 
           {activeTab === 'field' && (

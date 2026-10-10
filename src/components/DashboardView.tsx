@@ -12,7 +12,7 @@ export type DashboardTab =
   | 'weekly' | 'money' | 'themes' | 'holidays' | 'points' | 'crew'
   | 'backup' | 'unlock' | 'cover' | 'identity' | 'tourguide'
   | 'wall' | 'inbox' | 'reminders' | 'search'
-  | 'frontmatter' | 'studio' | 'field' | 'expansions' | 'faq';
+  | 'frontmatter' | 'studio' | 'field' | 'expansions' | 'faq' | 'admin';
 
 interface DoorDef {
   id: DashboardTab;
