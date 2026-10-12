@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X, Smartphone, BadgeCheck, Eye, EyeOff } from 'lucide-react';
+import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X, Smartphone, BadgeCheck } from 'lucide-react';
 import { api } from '../services/api';
 import { isDevMode, setDevMode } from '../lib/devmode';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
@@ -10,36 +10,7 @@ interface IdentityProfileViewProps {
   onSaveProfile: (profile: Partial<UserProfile>) => void;
 }
 
-/** Password input with a show/hide eye toggle. */
-const PwInput: React.FC<{
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  className?: string;
-  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-}> = ({ value, onChange, placeholder, className, onKeyDown }) => {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="relative w-full">
-      <input
-        type={show ? 'text' : 'password'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        className={`${className || ''} pr-10`}
-      />
-      <button
-        type="button"
-        onClick={() => setShow(!show)}
-        title={show ? 'Hide password' : 'Show password'}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition-colors"
-      >
-        {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
-    </div>
-  );
-};
+import { PwInput } from './PwInput';
 
 export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   user,

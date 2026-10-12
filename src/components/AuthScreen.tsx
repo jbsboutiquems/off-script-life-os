@@ -3,6 +3,7 @@ import { UserProfile } from '../types';
 import { api, apiUrl } from '../services/api';
 import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail } from 'lucide-react';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
+import { PwInput } from './PwInput';
 
 interface AuthScreenProps {
   onAuthed: (user: UserProfile) => void;
@@ -253,11 +254,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                   <label htmlFor="auth-password" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
                     Password
                   </label>
-                  <input
+                  <PwInput
                     id="auth-password"
-                    type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={setPassword}
                     placeholder="Make it a good one"
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                     required
@@ -399,11 +399,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                     <label htmlFor="recover-new" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
                       New password
                     </label>
-                    <input
+                    <PwInput
                       id="recover-new"
-                      type="password"
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      onChange={setNewPassword}
                       autoComplete="new-password"
                       required
                       minLength={8}
@@ -414,11 +413,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                     <label htmlFor="recover-confirm" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
                       Confirm it
                     </label>
-                    <input
+                    <PwInput
                       id="recover-confirm"
-                      type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={setConfirmPassword}
                       autoComplete="new-password"
                       required
                       minLength={8}
