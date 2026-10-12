@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X } from 'lucide-react';
 import { api } from '../services/api';
+import { isDevMode, setDevMode } from '../lib/devmode';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
 
 interface IdentityProfileViewProps {
@@ -25,6 +26,7 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   const [birthTime, setBirthTime] = useState(user.birth_time || '');
   const [birthplace, setBirthplace] = useState(user.birthplace || '');
   const [isSaved, setIsSaved] = useState(false);
+  const [devMode, setDevModeState] = useState(isDevMode());
   const [observedWord, setObservedWord] = useState<string | null>(null);
   useEffect(() => {
     api.getSnapshots()
@@ -396,6 +398,38 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
             {rotating ? 'Minting…' : 'Get a new recovery code'}
           </button>
         </div>
+
+        {/* Developer: dev-mode login toggle (admin only) */}
+        {user.is_admin && (
+          <div className="bg-[#fffdfa] rounded-2xl border-2 border-slate-300/80 p-6 shadow-xs space-y-3">
+            <h3 className="font-bold text-sm text-slate-900 font-display-punch uppercase flex items-center gap-2">
+              <Flame className="w-4 h-4 text-slate-600" />
+              <span>Developer</span>
+            </h3>
+            <p className="text-xs text-stone-500">
+              Dev mode reveals builder tooling (like the Android packaging guide in the
+              footer). It sticks on this device until you turn it off.
+            </p>
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={devMode}
+                onClick={() => {
+                  const next = !devMode;
+                  setDevMode(next);
+                  setDevModeState(next);
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors ${devMode ? 'bg-teal-600' : 'bg-stone-300'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${devMode ? 'left-[22px]' : 'left-0.5'}`} />
+              </button>
+              <span className="text-xs font-bold text-slate-700 font-mono-code uppercase tracking-wider">
+                Dev mode {devMode ? 'on' : 'off'}
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* Action Button */}
         <div className="flex justify-end">
