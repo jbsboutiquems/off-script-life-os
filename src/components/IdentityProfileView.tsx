@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X } from 'lucide-react';
+import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X, Smartphone, BadgeCheck } from 'lucide-react';
 import { api } from '../services/api';
 import { isDevMode, setDevMode } from '../lib/devmode';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
@@ -27,6 +27,30 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   const [birthplace, setBirthplace] = useState(user.birthplace || '');
   const [isSaved, setIsSaved] = useState(false);
   const [devMode, setDevModeState] = useState(isDevMode());
+  // Phone verification state
+  const [phone, setPhone] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [phoneLoaded, setPhoneLoaded] = useState(false);
+  const [smsLive, setSmsLive] = useState(false);
+  const [phoneCodeSent, setPhoneCodeSent] = useState(false);
+  const [phoneCode, setPhoneCode] = useState('');
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneMsg, setPhoneMsg] = useState<string | null>(null);
+  const [phoneErr, setPhoneErr] = useState<string | null>(null);
+  // Friend discovery state
+  const [findingFriends, setFindingFriends] = useState(false);
+  const [friendMatches, setFriendMatches] = useState<{ id: string; username: string }[] | null>(null);
+  const [friendErr, setFriendErr] = useState<string | null>(null);
+  useEffect(() => {
+    api.phoneStatus()
+      .then((s) => {
+        setPhone(s.phone || '');
+        setPhoneVerified(s.phoneVerified);
+        setSmsLive(s.smsLive);
+        setPhoneLoaded(true);
+      })
+      .catch(() => setPhoneLoaded(true));
+  }, []);
   const [observedWord, setObservedWord] = useState<string | null>(null);
   useEffect(() => {
     api.getSnapshots()
@@ -398,6 +422,156 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
             {rotating ? 'Minting…' : 'Get a new recovery code'}
           </button>
         </div>
+
+        {/* Phone verification + friend discovery */}
+        {phoneLoaded && (
+          <div className="bg-[#fffdfa] rounded-2xl border-2 border-teal-300/80 p-6 shadow-xs space-y-3">
+            <h3 className="font-bold text-sm text-slate-900 font-display-punch uppercase flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-teal-600" />
+              <span>Phone</span>
+              {phoneVerified && (
+                <span className="ml-1 inline-flex items-center gap-1 text-[10px] font-mono-code font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-300 rounded-full px-2 py-0.5">
+                  <BadgeCheck className="w-3 h-3" /> Verified
+                </span>
+              )}
+            </h3>
+            <p className="text-xs text-stone-500">
+              Verify your number for SMS password recovery — and so friends can find you by it.
+              {!smsLive && (
+                <span className="block mt-1 text-amber-700 font-semibold">
+                  Live texting isn't wired up yet — codes are logged on the server for now.
+                </span>
+              )}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setPhoneCodeSent(false); setPhoneMsg(null); setPhoneErr(null); }}
+                placeholder="10-digit mobile number"
+                disabled={phoneVerified}
+                className="flex-1 px-3 py-2 border border-stone-300 rounded-xl bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-60"
+              />
+              {!phoneVerified && (
+                <button
+                  type="button"
+                  disabled={phoneBusy || !phone.trim()}
+                  onClick={async () => {
+                    setPhoneBusy(true); setPhoneErr(null); setPhoneMsg(null);
+                    try {
+                      await api.requestPhoneCode(phone);
+                      setPhoneCodeSent(true);
+                      setPhoneMsg(smsLive ? 'Code sent — check your texts.' : 'Code logged on the server (texting not live yet).');
+                    } catch (e: any) { setPhoneErr(e.message); }
+                    finally { setPhoneBusy(false); }
+                  }}
+                  className="px-4 py-2 bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                >
+                  {phoneBusy ? 'Sending…' : phoneCodeSent ? 'Resend code' : 'Text me a code'}
+                </button>
+              )}
+            </div>
+            {!phoneVerified && phoneCodeSent && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={phoneCode}
+                  onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit code"
+                  className="flex-1 px-3 py-2 border border-stone-300 rounded-xl bg-white text-sm font-mono-code font-bold tracking-[0.3em] text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <button
+                  type="button"
+                  disabled={phoneBusy || phoneCode.length !== 6}
+                  onClick={async () => {
+                    setPhoneBusy(true); setPhoneErr(null); setPhoneMsg(null);
+                    try {
+                      await api.verifyPhoneCode(phoneCode);
+                      setPhoneVerified(true);
+                      setPhoneMsg('Number verified. Welcome to the reachable.');
+                    } catch (e: any) { setPhoneErr(e.message); }
+                    finally { setPhoneBusy(false); }
+                  }}
+                  className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                >
+                  {phoneBusy ? 'Checking…' : 'Verify'}
+                </button>
+              </div>
+            )}
+            {phoneMsg && <p className="text-xs font-semibold text-emerald-700">{phoneMsg}</p>}
+            {phoneErr && <p className="text-xs font-semibold text-rose-700">{phoneErr}</p>}
+
+            <div className="pt-3 border-t border-teal-200/70">
+              <div className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-stone-500 mb-1">
+                Find friends
+              </div>
+              <p className="text-xs text-stone-500 mb-2">
+                Pick contacts from your phone — their numbers are hashed on your device and only
+                the hashes leave it. Anyone already verified here shows up.
+              </p>
+              <button
+                type="button"
+                disabled={findingFriends}
+                onClick={async () => {
+                  setFindingFriends(true); setFriendErr(null); setFriendMatches(null);
+                  try {
+                    const nav = navigator as any;
+                    if (!nav.contacts || !nav.contacts.select) {
+                      throw new Error('Contact picking isn\'t supported in this browser — try Chrome on Android.');
+                    }
+                    const picked = await nav.contacts.select(['tel'], { multiple: true });
+                    const normalize = (raw: string): string | null => {
+                      const d = String(raw || '').replace(/\D/g, '');
+                      if (d.length === 10) return `+1${d}`;
+                      if (d.length === 11 && d.startsWith('1')) return `+${d}`;
+                      if (d.length > 11 && d.length <= 15) return `+${d}`;
+                      return null;
+                    };
+                    const nums = new Set<string>();
+                    for (const c of picked || []) {
+                      for (const t of c.tel || []) {
+                        const n = normalize(t);
+                        if (n) nums.add(n);
+                      }
+                    }
+                    if (nums.size === 0) throw new Error('No usable phone numbers in the contacts you picked.');
+                    const hashes: string[] = [];
+                    for (const n of nums) {
+                      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(n));
+                      hashes.push(Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join(''));
+                    }
+                    const res = await api.discoverFriends(hashes);
+                    setFriendMatches(res.matches);
+                  } catch (e: any) {
+                    if (e?.name === 'NotAllowedError') setFriendErr('Contact access was denied — no worries, nothing left your phone.');
+                    else setFriendErr(e.message || 'Could not look anyone up.');
+                  } finally { setFindingFriends(false); }
+                }}
+                className="px-4 py-2 bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+              >
+                {findingFriends ? 'Scanning…' : 'Choose contacts to find'}
+              </button>
+              {friendErr && <p className="mt-2 text-xs font-semibold text-rose-700">{friendErr}</p>}
+              {friendMatches && (
+                <div className="mt-2">
+                  {friendMatches.length === 0 ? (
+                    <p className="text-xs text-stone-500">No matches — none of those numbers are verified here yet. You're early. Good.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {friendMatches.map((m) => (
+                        <li key={m.id} className="flex items-center justify-between px-3 py-2 bg-teal-50 border border-teal-200 rounded-xl">
+                          <span className="text-sm font-bold text-slate-900 font-mono-code">{m.username}</span>
+                          <span className="text-[10px] font-mono-code uppercase tracking-wider text-teal-700 font-bold">On Off*Script</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Developer: dev-mode login toggle (admin only) */}
         {user.is_admin && (

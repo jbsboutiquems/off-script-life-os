@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { smtpConfigured, baseUrl, sendMail, verificationEmail, resetEmail } from "./email";
+import { smsConfigured, normalizePhone, sendSms, generateSmsCode } from "./sms";
 import { computeDueReminders, type ReminderSettings } from "./src/lib/reminders";
 
 dotenv.config();
@@ -42,6 +43,9 @@ interface AccountUser {
   /** Email auth / OAuth linking. */
   email?: string;
   emailVerified?: boolean;
+  /** Phone auth (E.164) + verification. Powers phone login recovery and friend discovery. */
+  phone?: string;
+  phoneVerified?: boolean;
   googleId?: string;
   facebookId?: string;
   /** ISO timestamps of username changes — 3 lifetime max. */
@@ -54,6 +58,16 @@ interface EmailTokenRecord {
   kind: "verify" | "reset";
   email: string;
   expires_at: string;
+}
+
+interface PhoneCodeRecord {
+  accountId: string;
+  kind: "verify" | "reset";
+  phone: string;
+  /** scrypt hash of the 6-digit code — the plaintext is never stored. */
+  codeHash: string;
+  expires_at: string;
+  attempts: number;
 }
 
 interface SessionRecord {
@@ -231,6 +245,8 @@ interface DataStore {
   dmRead: Record<string, Record<string, string>>;
   /** Email verification / password-reset tokens, keyed by sha256(token). */
   emailTokens: Record<string, EmailTokenRecord>;
+  /** Phone verification / SMS recovery codes, keyed by sha256(phone + kind). */
+  phoneCodes: Record<string, PhoneCodeRecord>;
   /** In-app notifications, newest last. */
   notifications: AppNotification[];
   /** Group rooms (channels). */
@@ -383,6 +399,7 @@ function freshStore(): DataStore {
     dmMessages: [],
     dmRead: {},
     emailTokens: {},
+    phoneCodes: {},
     notifications: [],
     rooms: [],
     roomMessages: [],
@@ -433,6 +450,7 @@ function loadData(): DataStore {
         if (!Array.isArray(store.dmMessages)) store.dmMessages = [];
         if (!store.dmRead || typeof store.dmRead !== "object") store.dmRead = {};
         if (!store.emailTokens || typeof store.emailTokens !== "object") store.emailTokens = {};
+        if (!store.phoneCodes || typeof store.phoneCodes !== "object") store.phoneCodes = {};
         if (!Array.isArray(store.notifications)) store.notifications = [];
         if (!Array.isArray(store.rooms)) store.rooms = [];
         if (!Array.isArray(store.roomMessages)) store.roomMessages = [];
@@ -1152,6 +1170,151 @@ app.post("/api/auth/email/reset", express.urlencoded({ extended: false }), (req,
     "Log in with the new password. Your recovery code was also rotated — grab a fresh one from Identity Base → Account Safety.",
     true
   ));
+});
+
+// ---------- Phone verification + SMS recovery + friend discovery ----------
+
+function phoneCodeKey(phone: string, kind: "verify" | "reset"): string {
+  return crypto.createHash("sha256").update(`${phone}:${kind}`).digest("hex");
+}
+
+function issuePhoneCode(accountId: string, kind: "verify" | "reset", phone: string): string {
+  const code = generateSmsCode();
+  db.phoneCodes[phoneCodeKey(phone, kind)] = {
+    accountId,
+    kind,
+    phone,
+    codeHash: hashPassword(`sms:${code}`),
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    attempts: 0,
+  };
+  saveData(db);
+  return code;
+}
+
+function verifyPhoneCode(phone: string, kind: "verify" | "reset", code: string): PhoneCodeRecord | null {
+  const key = phoneCodeKey(phone, kind);
+  const rec = db.phoneCodes[key];
+  if (!rec) return null;
+  if (Date.now() > Date.parse(rec.expires_at)) {
+    delete db.phoneCodes[key];
+    saveData(db);
+    return null;
+  }
+  rec.attempts++;
+  if (rec.attempts > 5) {
+    delete db.phoneCodes[key];
+    saveData(db);
+    return null;
+  }
+  if (!verifyPassword(`sms:${code.trim()}`, rec.codeHash)) {
+    saveData(db);
+    return null;
+  }
+  delete db.phoneCodes[key];
+  saveData(db);
+  return rec;
+}
+
+/** Phone status for the logged-in account (drives the settings UI). */
+app.get("/api/auth/phone/status", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  res.json({ phone: acct?.phone || null, phoneVerified: !!acct?.phoneVerified, smsLive: smsConfigured() });
+});
+
+/** Attach (or change) the phone number on the logged-in account and text a verification code. */
+app.post("/api/auth/phone/request-code", requireAuth, async (req, res) => {
+  const ar = req as AuthedRequest;
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  if (!acct) return res.status(404).json({ error: "Account not found." });
+  const phone = normalizePhone(String(req.body?.phone || ""));
+  if (!phone) return res.status(400).json({ error: "That doesn't look like a phone number. Try 10 digits." });
+  // One verified number per account; don't let two accounts claim the same number.
+  const taken = db.accounts.find((a) => a.id !== acct.id && a.phone === phone && a.phoneVerified);
+  if (taken) return res.status(409).json({ error: "That number is already verified on another account." });
+  acct.phone = phone;
+  acct.phoneVerified = false;
+  const code = issuePhoneCode(acct.id, "verify", phone);
+  try {
+    await sendSms(phone, `[Off*Script] Your verification code is ${code}. It expires in 10 minutes.`);
+  } catch (e: any) {
+    console.warn("Phone verification SMS failed:", e?.message);
+    return res.status(502).json({ error: "Couldn't send the text. Check the number and try again." });
+  }
+  res.json({ sent: true, smsLive: smsConfigured() });
+});
+
+/** Confirm the 6-digit code; marks the number verified. */
+app.post("/api/auth/phone/verify", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  if (!acct?.phone) return res.status(400).json({ error: "No phone number on this account yet." });
+  const rec = verifyPhoneCode(acct.phone, "verify", String(req.body?.code || ""));
+  if (!rec || rec.accountId !== acct.id) {
+    return res.status(400).json({ error: "Wrong or expired code. Request a fresh one." });
+  }
+  acct.phoneVerified = true;
+  saveData(db);
+  res.json({ verified: true });
+});
+
+/** Start password recovery via SMS. Same generic response either way — numbers can't be probed. */
+app.post("/api/auth/phone/forgot", async (req, res) => {
+  const phone = normalizePhone(String(req.body?.phone || ""));
+  const acct = phone ? db.accounts.find((a) => a.phone === phone && a.phoneVerified) : undefined;
+  if (acct?.phone) {
+    const code = issuePhoneCode(acct.id, "reset", acct.phone);
+    try {
+      await sendSms(acct.phone, `[Off*Script] Password reset code: ${code}. Expires in 10 minutes. Didn't ask? Ignore it.`);
+    } catch (e: any) {
+      console.warn("Phone reset SMS failed:", e?.message);
+    }
+  }
+  res.json({ sent: true, message: "If that number is verified on an account, a reset code is on its way." });
+});
+
+/** Complete password recovery via SMS code. Rotates password + recovery code, kills sessions. */
+app.post("/api/auth/phone/reset", (req, res) => {
+  const phone = normalizePhone(String(req.body?.phone || ""));
+  const code = String(req.body?.code || "");
+  const newPassword = String(req.body?.newPassword || "");
+  if (!phone) return res.status(400).json({ error: "That doesn't look like a phone number." });
+  if (newPassword.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters." });
+  const rec = verifyPhoneCode(phone, "reset", code);
+  if (!rec) return res.status(400).json({ error: "Wrong or expired code." });
+  const acct = db.accounts.find((a) => a.id === rec.accountId);
+  if (!acct) return res.status(400).json({ error: "Account's gone." });
+  acct.passwordHash = hashPassword(newPassword);
+  const newCode = generateRecoveryCode();
+  acct.recoveryHash = hashRecoveryCode(newCode);
+  for (const [tok, s] of Object.entries(db.sessions)) {
+    if (s.userId === acct.id) delete db.sessions[tok];
+  }
+  saveData(db);
+  res.json({ ok: true, message: "Password reset. Log in with the new one — your recovery code was rotated too." });
+});
+
+/**
+ * Friend discovery via phone numbers — privacy-preserving.
+ * Client hashes each contact's normalized E.164 with SHA-256 and sends only
+ * the hashes. The server compares against hashes of verified numbers and
+ * returns matches (id + username). Raw numbers never leave the device.
+ */
+app.post("/api/friends/discover", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const hashes = req.body?.hashes;
+  if (!Array.isArray(hashes) || hashes.length === 0 || hashes.length > 500) {
+    return res.status(400).json({ error: "Send 1–500 contact hashes." });
+  }
+  const wanted = new Set(hashes.filter((h) => typeof h === "string" && /^[0-9a-f]{64}$/i.test(h)).map((h: string) => h.toLowerCase()));
+  const matches: { id: string; username: string }[] = [];
+  for (const a of db.accounts) {
+    if (a.id === ar.userId || !a.phone || !a.phoneVerified) continue;
+    const h = crypto.createHash("sha256").update(a.phone).digest("hex");
+    if (wanted.has(h)) matches.push({ id: a.id, username: a.username });
+  }
+  res.json({ matches });
 });
 
 // ---------- Username changes (logged in) ----------

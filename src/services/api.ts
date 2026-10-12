@@ -321,6 +321,62 @@ export const api = {
     if (!res.ok) throw new Error(body.error || 'Could not resend the verification email.');
   },
 
+  // ---- Phone verification / SMS recovery / friend discovery ----
+  async phoneStatus(): Promise<{ phone: string | null; phoneVerified: boolean; smsLive: boolean }> {
+    const res = await req('/api/auth/phone/status');
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not load phone status.');
+    return body;
+  },
+  async requestPhoneCode(phone: string): Promise<{ sent: boolean; smsLive: boolean }> {
+    const res = await req('/api/auth/phone/request-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not send the code.');
+    return body;
+  },
+  async verifyPhoneCode(code: string): Promise<{ verified: boolean }> {
+    const res = await req('/api/auth/phone/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Code did not check out.');
+    return body;
+  },
+  async phoneForgot(phone: string): Promise<{ sent: boolean; message?: string }> {
+    const res = await fetch(apiUrl('/api/auth/phone/forgot'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    return res.json().catch(() => ({ sent: false } as any));
+  },
+  async phoneReset(phone: string, code: string, newPassword: string): Promise<{ ok: boolean; message?: string }> {
+    const res = await fetch(apiUrl('/api/auth/phone/reset'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, code, newPassword }),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Reset failed.');
+    return body;
+  },
+  async discoverFriends(hashes: string[]): Promise<{ matches: { id: string; username: string }[] }> {
+    const res = await req('/api/friends/discover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hashes }),
+    });
+    const body = await res.json().catch(() => ({ matches: [] } as any));
+    if (!res.ok) throw new Error(body.error || 'Discovery failed.');
+    return body;
+  },
+
   async forgotByEmail(email: string): Promise<{ fallback?: string; message?: string; sent?: boolean }> {
     const res = await fetch(apiUrl('/api/auth/email/forgot'), {
       method: 'POST',
