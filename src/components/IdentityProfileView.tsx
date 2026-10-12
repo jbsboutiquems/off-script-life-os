@@ -323,7 +323,7 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
               Change username
             </div>
             <p className="text-xs text-stone-500 mb-2">
-              This is the name on the Khaos Wall and in inboxes. Limit: 3 changes per 24 hours.
+              This is the name on the Khaos Wall and in inboxes. Limit: 3 changes, ever — choose well.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input

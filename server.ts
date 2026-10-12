@@ -44,7 +44,7 @@ interface AccountUser {
   emailVerified?: boolean;
   googleId?: string;
   facebookId?: string;
-  /** ISO timestamps of username changes — rate-limited (3 per 24h). */
+  /** ISO timestamps of username changes — 3 lifetime max. */
   usernameHistory?: string[];
   created_at: string;
 }
@@ -1160,9 +1160,9 @@ app.post("/api/auth/username", requireAuth, (req, res) => {
   const acct = db.accounts.find((a) => a.id === ar.userId);
   if (!acct) return res.status(404).json({ error: "Account not found." });
   const now = Date.now();
-  const history = (acct.usernameHistory || []).filter((t) => now - Date.parse(t) < 24 * 3600 * 1000);
+  const history = acct.usernameHistory || [];
   if (history.length >= 3) {
-    return res.status(429).json({ error: "Whoa — 3 username changes in 24 hours is the limit. Sit with one for a bit." });
+    return res.status(429).json({ error: "Whoa — 3 username changes is the lifetime limit. That name's permanent now." });
   }
   const err = usernameError(String(req.body?.username || ""), acct.id);
   if (err) return res.status(err.suggestions ? 409 : 400).json(err);
