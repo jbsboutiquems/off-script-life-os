@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X, Smartphone, BadgeCheck } from 'lucide-react';
+import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X, Smartphone, BadgeCheck, Eye, EyeOff } from 'lucide-react';
 import { api } from '../services/api';
 import { isDevMode, setDevMode } from '../lib/devmode';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
@@ -9,6 +9,37 @@ interface IdentityProfileViewProps {
   user: UserProfile;
   onSaveProfile: (profile: Partial<UserProfile>) => void;
 }
+
+/** Password input with a show/hide eye toggle. */
+const PwInput: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  className?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+}> = ({ value, onChange, placeholder, className, onKeyDown }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative w-full">
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        className={`${className || ''} pr-10`}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        title={show ? 'Hide password' : 'Show password'}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition-colors"
+      >
+        {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
+    </div>
+  );
+};
 
 export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   user,
@@ -27,6 +58,20 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   const [birthplace, setBirthplace] = useState(user.birthplace || '');
   const [isSaved, setIsSaved] = useState(false);
   const [devMode, setDevModeState] = useState(isDevMode());
+  // Developer password gate
+  const [devPasswordSet, setDevPasswordSet] = useState<boolean | null>(null);
+  const [devUnlocked, setDevUnlocked] = useState(false);
+  const [devPwInput, setDevPwInput] = useState('');
+  const [devNewPw, setDevNewPw] = useState('');
+  const [devNewPw2, setDevNewPw2] = useState('');
+  const [devBusy, setDevBusy] = useState(false);
+  const [devErr, setDevErr] = useState<string | null>(null);
+  const [devMsg, setDevMsg] = useState<string | null>(null);
+  useEffect(() => {
+    api.devStatus()
+      .then((s) => setDevPasswordSet(s.passwordSet))
+      .catch(() => setDevPasswordSet(false));
+  }, []);
   // Phone verification state
   const [phone, setPhone] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
@@ -573,37 +618,151 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
           </div>
         )}
 
-        {/* Developer: dev-mode login toggle (admin only) */}
-        {user.is_admin && (
-          <div className="bg-[#fffdfa] rounded-2xl border-2 border-slate-300/80 p-6 shadow-xs space-y-3">
-            <h3 className="font-bold text-sm text-slate-900 font-display-punch uppercase flex items-center gap-2">
-              <Flame className="w-4 h-4 text-slate-600" />
-              <span>Developer</span>
-            </h3>
-            <p className="text-xs text-stone-500">
-              Dev mode reveals builder tooling (like the Android packaging guide in the
-              footer). It sticks on this device until you turn it off.
-            </p>
-            <label className="flex items-center gap-3 cursor-pointer select-none">
+        {/* Developer: password-gated dev mode */}
+        <div className="bg-[#fffdfa] rounded-2xl border-2 border-slate-300/80 p-6 shadow-xs space-y-3">
+          <h3 className="font-bold text-sm text-slate-900 font-display-punch uppercase flex items-center gap-2">
+            <Flame className="w-4 h-4 text-slate-600" />
+            <span>Developer</span>
+            {devUnlocked && (
+              <span className="ml-1 text-[10px] font-mono-code font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-300 rounded-full px-2 py-0.5">
+                Unlocked
+              </span>
+            )}
+          </h3>
+          <p className="text-xs text-stone-500">
+            Builder tooling lives behind a password. Know it, you're in — otherwise, move along.
+          </p>
+
+          {devPasswordSet === null && (
+            <p className="text-xs text-stone-400 font-mono-code">Checking the gate…</p>
+          )}
+
+          {devPasswordSet === false && (
+            user.is_admin ? (
+              <div className="space-y-2">
+                <p className="text-xs text-stone-500">No dev password exists yet. Create one — you'll need it to open this section.</p>
+                <PwInput
+                  value={devNewPw}
+                  onChange={setDevNewPw}
+                  placeholder="New dev password (8+ characters)"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                />
+                <PwInput
+                  value={devNewPw2}
+                  onChange={setDevNewPw2}
+                  placeholder="Repeat it"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-xl bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                />
+                <button
+                  type="button"
+                  disabled={devBusy || devNewPw.length < 8 || devNewPw !== devNewPw2}
+                  onClick={async () => {
+                    setDevBusy(true); setDevErr(null); setDevMsg(null);
+                    try {
+                      await api.setDevPassword(devNewPw);
+                      setDevPasswordSet(true);
+                      setDevNewPw(''); setDevNewPw2('');
+                      setDevMsg('Dev password set. The gate is live.');
+                    } catch (e: any) { setDevErr(e.message); }
+                    finally { setDevBusy(false); }
+                  }}
+                  className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                >
+                  {devBusy ? 'Setting…' : 'Set dev password'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-stone-500">No dev password exists yet — an admin needs to create one.</p>
+            )
+          )}
+
+          {devPasswordSet === true && !devUnlocked && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <PwInput
+                value={devPwInput}
+                onChange={(v) => { setDevPwInput(v); setDevErr(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).closest('div')?.querySelector('button')?.click(); }}
+                placeholder="Dev password"
+                className="flex-1 px-3 py-2 border border-stone-300 rounded-xl bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500"
+              />
               <button
                 type="button"
-                role="switch"
-                aria-checked={devMode}
-                onClick={() => {
-                  const next = !devMode;
-                  setDevMode(next);
-                  setDevModeState(next);
+                disabled={devBusy || !devPwInput}
+                onClick={async () => {
+                  setDevBusy(true); setDevErr(null);
+                  try {
+                    await api.unlockDev(devPwInput);
+                    setDevUnlocked(true);
+                    setDevPwInput('');
+                  } catch (e: any) { setDevErr(e.message); }
+                  finally { setDevBusy(false); }
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors ${devMode ? 'bg-teal-600' : 'bg-stone-300'}`}
+                className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
               >
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${devMode ? 'left-[22px]' : 'left-0.5'}`} />
+                {devBusy ? 'Checking…' : 'Unlock'}
               </button>
-              <span className="text-xs font-bold text-slate-700 font-mono-code uppercase tracking-wider">
-                Dev mode {devMode ? 'on' : 'off'}
-              </span>
-            </label>
-          </div>
-        )}
+            </div>
+          )}
+
+          {devPasswordSet === true && devUnlocked && (
+            <div className="space-y-3">
+              <p className="text-xs text-stone-500">
+                Dev mode reveals builder tooling (like the Android packaging guide in the
+                footer). It sticks on this device until you turn it off.
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={devMode}
+                  onClick={() => {
+                    const next = !devMode;
+                    setDevMode(next);
+                    setDevModeState(next);
+                  }}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${devMode ? 'bg-teal-600' : 'bg-stone-300'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${devMode ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+                <span className="text-xs font-bold text-slate-700 font-mono-code uppercase tracking-wider">
+                  Dev mode {devMode ? 'on' : 'off'}
+                </span>
+              </label>
+              {user.is_admin && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-stone-500 font-mono-code uppercase tracking-wider text-[10px] font-bold">Change dev password</summary>
+                  <div className="mt-2 space-y-2">
+                    <PwInput
+                      value={devNewPw}
+                      onChange={setDevNewPw}
+                      placeholder="New dev password (8+ characters)"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-xl bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={devBusy || devNewPw.length < 8}
+                      onClick={async () => {
+                        setDevBusy(true); setDevErr(null); setDevMsg(null);
+                        try {
+                          await api.setDevPassword(devNewPw);
+                          setDevNewPw('');
+                          setDevMsg('Dev password changed.');
+                        } catch (e: any) { setDevErr(e.message); }
+                        finally { setDevBusy(false); }
+                      }}
+                      className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {devBusy ? 'Saving…' : 'Change it'}
+                    </button>
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+
+          {devMsg && <p className="text-xs font-semibold text-emerald-700">{devMsg}</p>}
+          {devErr && <p className="text-xs font-semibold text-rose-700">{devErr}</p>}
+        </div>
 
         {/* Action Button */}
         <div className="flex justify-end">
