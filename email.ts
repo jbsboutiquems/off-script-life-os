@@ -82,7 +82,7 @@ ${cta ? `<p style="margin:24px 0"><a href="${cta.href}" style="display:inline-bl
 export function verificationEmail(to: string, link: string): OutboundEmail {
   return {
     to,
-    subject: "Confirm your email — Off*Script Life OS",
+    subject: "[Off*Script] Confirm your email — Off*Script Life OS",
     html: shell(
       "One click and you're in for real.",
       `<p>You signed up for the Off*Script Life OS with this email. Click below to prove it's actually yours.</p>
@@ -95,7 +95,7 @@ export function verificationEmail(to: string, link: string): OutboundEmail {
 export function resetEmail(to: string, link: string): OutboundEmail {
   return {
     to,
-    subject: "Reset your password — Off*Script Life OS",
+    subject: "[Off*Script] Reset your password — Off*Script Life OS",
     html: shell(
       "Locked out? Let's fix that.",
       `<p>Someone (hopefully you) asked to reset the password on your Off*Script account. Click below to set a new one. The link expires in 1 hour.</p>
