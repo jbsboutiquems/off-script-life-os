@@ -247,6 +247,8 @@ interface DataStore {
   emailTokens: Record<string, EmailTokenRecord>;
   /** Phone verification / SMS recovery codes, keyed by sha256(phone + kind). */
   phoneCodes: Record<string, PhoneCodeRecord>;
+  /** scrypt hash of the developer-mode password (empty = not set). */
+  devPasswordHash?: string;
   /** In-app notifications, newest last. */
   notifications: AppNotification[];
   /** Group rooms (channels). */
@@ -1159,6 +1161,8 @@ app.post("/api/auth/email/reset", express.urlencoded({ extended: false }), (req,
   const acct = db.accounts.find((a) => a.id === rec.accountId);
   if (!acct) return res.status(400).send(authPage("Account's gone.", "The account for that link doesn't exist anymore."));
   acct.passwordHash = hashPassword(newPassword);
+  // Clicking a reset link sent to the account's email proves ownership — verify it.
+  acct.emailVerified = true;
   const newCode = generateRecoveryCode();
   acct.recoveryHash = hashRecoveryCode(newCode);
   for (const [tok, s] of Object.entries(db.sessions)) {
@@ -1170,6 +1174,29 @@ app.post("/api/auth/email/reset", express.urlencoded({ extended: false }), (req,
     "Log in with the new password. Your recovery code was also rotated — grab a fresh one from Identity Base → Account Safety.",
     true
   ));
+});
+
+/**
+ * Public verification-email resend for locked-out users: prove the password,
+ * get a fresh verification link. Unblocks accounts stuck behind the
+ * email-verification gate with no session.
+ */
+app.post("/api/auth/email/request-verification", async (req, res) => {
+  const email = String(req.body?.email || "").trim().toLowerCase();
+  const password = String(req.body?.password || "");
+  const acct = db.accounts.find((a) => (a.email || "").toLowerCase() === email);
+  if (!acct || !verifyPassword(password, acct.passwordHash)) {
+    return res.status(401).json({ error: "Wrong email or password." });
+  }
+  if (acct.emailVerified) return res.json({ already: true });
+  if (!smtpConfigured()) return res.status(503).json({ error: "Email sending isn't configured on this instance." });
+  const token = issueEmailToken(acct.id, "verify", acct.email!, 24 * 3600 * 1000);
+  try {
+    await sendMail(verificationEmail(acct.email!, `${baseUrl()}/api/auth/email/verify?token=${token}`));
+  } catch (e: any) {
+    return res.status(502).json({ error: "Couldn't send the email. Try again in a bit." });
+  }
+  res.json({ sent: true });
 });
 
 // ---------- Phone verification + SMS recovery + friend discovery ----------
@@ -1215,6 +1242,30 @@ function verifyPhoneCode(phone: string, kind: "verify" | "reset", code: string):
   saveData(db);
   return rec;
 }
+
+/** Developer-mode password gate: hash storage lives on the store; only admins may set it. */
+app.get("/api/auth/dev/status", requireAuth, (_req, res) => {
+  res.json({ passwordSet: !!db.devPasswordHash });
+});
+
+/** Set (or change) the developer-mode password. Admin only. */
+app.post("/api/admin/dev-password", requireAuth, requireAdmin, (req, res) => {
+  const password = String(req.body?.password || "");
+  if (password.length < 8) return res.status(400).json({ error: "Dev password must be at least 8 characters." });
+  db.devPasswordHash = hashPassword(`dev:${password}`);
+  saveData(db);
+  res.json({ ok: true });
+});
+
+/** Unlock the developer section. Any logged-in user may try — only the password opens it. */
+app.post("/api/auth/dev-unlock", requireAuth, (req, res) => {
+  const password = String(req.body?.password || "");
+  if (!db.devPasswordHash) return res.status(400).json({ error: "No dev password is set yet — an admin needs to create one." });
+  if (!verifyPassword(`dev:${password}`, db.devPasswordHash)) {
+    return res.status(403).json({ error: "Wrong dev password." });
+  }
+  res.json({ ok: true });
+});
 
 /** Phone status for the logged-in account (drives the settings UI). */
 app.get("/api/auth/phone/status", requireAuth, (req, res) => {
@@ -1286,6 +1337,8 @@ app.post("/api/auth/phone/reset", (req, res) => {
   const acct = db.accounts.find((a) => a.id === rec.accountId);
   if (!acct) return res.status(400).json({ error: "Account's gone." });
   acct.passwordHash = hashPassword(newPassword);
+  // Completing an SMS reset proves phone ownership — verify it.
+  acct.phoneVerified = true;
   const newCode = generateRecoveryCode();
   acct.recoveryHash = hashRecoveryCode(newCode);
   for (const [tok, s] of Object.entries(db.sessions)) {
