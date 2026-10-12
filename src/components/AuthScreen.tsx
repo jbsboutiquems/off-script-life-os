@@ -103,7 +103,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
   // A fresh recovery code must be acknowledged before anything else happens.
   if (freshCode) {
     return (
-      <main className="min-h-screen bg-cream-canvas text-stone-900 flex items-center justify-center px-4 py-10 font-sans">
+      <main className="min-h-screen bg-cream-canvas text-stone-900 flex items-center justify-center px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] font-sans">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-rose-600 to-amber-600 text-white flex items-center justify-center text-2xl font-bold border-2 border-stone-800 shadow-md">
@@ -136,7 +136,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
   const inputCls = "w-full px-3 py-2.5 border border-stone-300 dark:border-white/15 rounded-xl bg-stone-50/50 dark:bg-white/5 text-slate-900 dark:text-cream-canvas font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-rose-500";
 
   return (
-    <main className="min-h-screen bg-cream-canvas text-stone-900 flex items-center justify-center px-4 py-10 font-sans">
+    <main className="min-h-screen bg-cream-canvas text-stone-900 flex items-center justify-center px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] font-sans">
       <div className="w-full max-w-md space-y-6">
         {/* Brand header */}
         <div className="text-center space-y-2">

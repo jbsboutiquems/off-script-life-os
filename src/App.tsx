@@ -627,7 +627,7 @@ export default function App() {
   const activeMenuId = menuIds.includes(activeTab) ? activeTab : null;
 
   return (
-    <div className="min-h-screen bg-cream-canvas text-stone-900 dark:bg-[#000a15] dark:text-cream-canvas flex flex-col font-sans selection:bg-rose-200 selection:text-rose-900">
+    <div className="min-h-screen bg-cream-canvas text-stone-900 dark:bg-[#000a15] dark:text-cream-canvas flex flex-col font-sans selection:bg-rose-200 selection:text-rose-900 pb-[env(safe-area-inset-bottom)]">
 
       <InstallBanner />
       <UpdateBanner />
