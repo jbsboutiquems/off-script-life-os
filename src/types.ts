@@ -161,6 +161,7 @@ export interface PersonalitySnapshot {
   agreeableness: number; // 0-100
   neuroticism: number; // 0-100
   detected_mood: string;
+  observed_word?: string; // The Intent's read: the word their writing actually lives (vs. their aspirational word of the year)
   sub_traits: SubTrait[];
   burnout_risk: 'Low' | 'Moderate' | 'High' | 'Critical';
   self_sabotage_alert: string;

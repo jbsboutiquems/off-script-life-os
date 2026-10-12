@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { ShieldAlert, Save, Sparkles, User, Key, Flame, KeyRound, X } from 'lucide-react';
 import { api } from '../services/api';
@@ -25,6 +25,15 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   const [birthTime, setBirthTime] = useState(user.birth_time || '');
   const [birthplace, setBirthplace] = useState(user.birthplace || '');
   const [isSaved, setIsSaved] = useState(false);
+  const [observedWord, setObservedWord] = useState<string | null>(null);
+  useEffect(() => {
+    api.getSnapshots()
+      .then((snaps) => {
+        const latest = (snaps || []).find((s) => s && s.observed_word);
+        if (latest && latest.observed_word) setObservedWord(latest.observed_word);
+      })
+      .catch(() => {});
+  }, []);
   const [newCode, setNewCode] = useState<string | null>(null);
   const [rotating, setRotating] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
@@ -143,6 +152,13 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50/50 focus:outline-rose-500 font-mono-code uppercase font-bold text-rose-700"
                 required
               />
+              <span className="text-[10px] text-stone-500 mt-1 block font-mono-code">
+                Observed word:{" "}
+                <span className="font-bold text-teal-700 uppercase">
+                  {observedWord || "— run the Intent diagnostic to reveal yours"}
+                </span>
+                <span className="text-stone-400"> — the word your writing actually lives.</span>
+              </span>
             </div>
           </div>
 
