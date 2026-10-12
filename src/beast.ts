@@ -193,13 +193,16 @@ function handleMotion(e: DeviceMotionEvent) {
     const a = e.accelerationIncludingGravity;
     if (!a || a.x == null || a.y == null || a.z == null) return;
     const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-    // Hard shake ≈ sustained high acceleration beyond resting ~9.8
-    if (mag > 24) {
+    // Hard shake ≈ sustained high acceleration beyond resting ~9.8.
+    // Kept deliberately desensitized: needs a real deliberate shake.
+    const SHAKE_MAGNITUDE = 30;
+    const SHAKE_HITS = 3;
+    if (mag > SHAKE_MAGNITUDE) {
       const now = Date.now();
       if (now - lastShakeAt > 1500) shakeHits = 0;
       shakeHits++;
       lastShakeAt = now;
-      if (shakeHits >= 2) {
+      if (shakeHits >= SHAKE_HITS) {
         shakeHits = 0;
         emitWarning({ kind: 'wet', stage: getBeastStage(), message: `You shook ${buddyName()}. It got wet!` });
         advanceBeastStage('wet');
