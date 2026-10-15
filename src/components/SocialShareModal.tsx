@@ -113,7 +113,7 @@ Committed to STOPPING:
       const mirrorQuote = snapshot?.ai_feedback
         ? snapshot.ai_feedback
         : "You crave order, but the minute things are too tidy, you shake the snowglobe.";
-      text = `🪞 MEI SASSY MIRROR DIAGNOSTIC · Life OS 2027
+      text = `🪞 INTENT SASSY MIRROR DIAGNOSTIC · Life OS 2027
 " ${mirrorQuote} "
 
 Detected Mood: ${snapshot?.detected_mood || 'Hyper-Reflective'}

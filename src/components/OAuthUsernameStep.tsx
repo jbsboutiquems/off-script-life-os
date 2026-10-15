@@ -96,6 +96,7 @@ export const OAuthUsernameStep: React.FC<OAuthUsernameStepProps> = ({ pendingKey
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="e.g. feral_operator"
                   autoComplete="username"
+                  aria-label="Choose your username"
                   required
                   autoFocus
                   className="w-full pl-9 pr-3 py-2.5 border border-stone-300 dark:border-white/15 rounded-xl bg-stone-50/50 dark:bg-white/5 text-slate-900 dark:text-cream-canvas font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"

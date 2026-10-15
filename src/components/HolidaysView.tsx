@@ -54,7 +54,7 @@ export const HolidaysView: React.FC = () => {
           The Holiday Vault <PartyPopper className="w-6 h-6 text-amber-500" />
         </h2>
         <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
-          Fourteen made-up holidays with real meaning. Tap "what even is this?" for the explainer — no greeting-card nonsense.
+          Fifteen made-up holidays with real meaning. Tap "what even is this?" for the explainer — no greeting-card nonsense.
         </p>
       </div>
 

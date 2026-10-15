@@ -656,28 +656,6 @@ function validUsername(u: string): boolean {
 }
 
 // ---------- Public auth routes ----------
-app.post("/api/auth/register", (req, res) => {
-  const username = String(req.body?.username || "");
-  const password = String(req.body?.password || "");
-  const uErr = usernameError(username);
-  if (uErr) {
-    const status = uErr.suggestions ? 409 : 400;
-    return res.status(status).json(uErr);
-  }
-  if (password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters. Pick a good one — this guards your khaos." });
-  }
-  const name = username.trim();
-  const key = name.toLowerCase();
-  const id = `user_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`;
-  const now = new Date().toISOString();
-  const recoveryCode = generateRecoveryCode();
-  db.accounts.push({ id, username: name, usernameKey: key, passwordHash: hashPassword(password), recoveryHash: hashRecoveryCode(recoveryCode), created_at: now });
-  db.users[id] = freshUserData(id, name);
-  const token = createSession(id);
-  saveData(db);
-  res.json({ token, user: db.users[id].user, recoveryCode });
-});
 
 app.post("/api/auth/login", (req, res) => {
   const username = String(req.body?.username || "").trim().toLowerCase();
@@ -1037,7 +1015,12 @@ function resetFormPage(token: string): string {
 </form></div></body></html>`;
 }
 
-app.post("/api/auth/email/register", async (req, res) => {
+// Email is mandatory at signup (2026-10-14). The legacy username-only
+// /api/auth/register route runs the same email-required handler as
+// /api/auth/email/register, so old clients get a clear 400 ("That doesn't
+// look like an email address.") instead of a silent 404 or a
+// username-only account. Password recovery goes through email reset.
+async function handleEmailRegister(req: any, res: any) {
   const email = String(req.body?.email || "").trim().toLowerCase();
   const username = String(req.body?.username || "");
   const password = String(req.body?.password || "");
@@ -1080,7 +1063,10 @@ app.post("/api/auth/email/register", async (req, res) => {
   const token = createSession(id);
   saveData(db);
   res.json({ token, user: db.users[id].user, recoveryCode, emailVerified: acct.emailVerified, verificationEmailed: emailed });
-});
+}
+
+app.post("/api/auth/register", handleEmailRegister);
+app.post("/api/auth/email/register", handleEmailRegister);
 
 app.post("/api/auth/email/login", (req, res) => {
   const email = String(req.body?.email || "").trim().toLowerCase();

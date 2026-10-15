@@ -21,7 +21,7 @@ export const TourGuideView: React.FC = () => {
           <figure className="mx-auto w-full max-w-[300px]">
             <div className="rounded-2xl p-2 bg-gradient-to-br from-rose-500 via-amber-400 to-teal-400 shadow-md">
               <img
-                src="/amber-tour-guide-photo.png"
+                src="/amber-tour-guide-photo.webp"
                 alt="Amber, creator of Life OS: Off*Script"
                 className="rounded-xl w-full aspect-[3/4] object-cover object-top bg-stone-900"
               />

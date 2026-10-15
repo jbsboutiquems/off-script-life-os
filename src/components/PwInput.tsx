@@ -9,10 +9,12 @@ export const PwInput: React.FC<{
   className?: string;
   id?: string;
   autoComplete?: string;
+  /** Exposed for automation + screen readers (Appium/UIAutomator). */
+  'aria-label'?: string;
   required?: boolean;
   minLength?: number;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-}> = ({ value, onChange, placeholder, className, id, autoComplete, required, minLength, onKeyDown }) => {
+}> = ({ value, onChange, placeholder, className, id, autoComplete, 'aria-label': ariaLabel, required, minLength, onKeyDown }) => {
   const [show, setShow] = useState(false);
   return (
     <div className="relative w-full">
@@ -24,6 +26,7 @@ export const PwInput: React.FC<{
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        aria-label={ariaLabel}
         required={required}
         minLength={minLength}
         className={`${className || ''} pr-10`}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { KhaosPointEntry, KHAOS_POINT_VALUES, KhaosPointAction } from '../types';
 import { Trophy, Zap, Flame, BookOpen, Ban, Target, Sparkles, Share2, Compass, Check } from 'lucide-react';
 import { computeStreak, streakCopy } from '../lib/streaks';
+import { localDateKey } from '../lib/dates';
 import { api } from '../services/api';
 
 const ACTION_META: Record<KhaosPointAction, { label: string; blurb: string; icon: React.ReactNode }> = {
@@ -26,7 +27,7 @@ export const KhaosPointsView: React.FC<KhaosPointsViewProps> = ({ points, entryD
 
   const rank = total >= 500 ? 'KHAOS ROYALTY' : total >= 250 ? 'CERTIFIED MENACE' : total >= 100 ? 'RISING UNRULY' : total >= 25 ? 'WARMING UP' : 'FRESH OFF THE SCRIPT';
 
-  const streak = computeStreak(entryDates, new Date().toISOString().split('T')[0]);
+  const streak = computeStreak(entryDates, localDateKey());
   const [shared, setShared] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -44,7 +45,7 @@ export const KhaosPointsView: React.FC<KhaosPointsViewProps> = ({ points, entryD
         throw new Error('No share sheet or clipboard available.');
       }
       try {
-        await api.awardPoints('share_fired', `share_fired:${new Date().toISOString().split('T')[0]}`, 'Shared the Khaos');
+        await api.awardPoints('share_fired', `share_fired:${localDateKey()}`, 'Shared the Khaos');
       } catch { /* points are a bonus, not the point */ }
       onRefresh?.();
     } catch (e: any) {

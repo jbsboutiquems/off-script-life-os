@@ -52,9 +52,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
           : await api.login(username.trim(), password);
         onAuthed(result.user);
       } else if (mode === 'register') {
-        const result = emailMode
-          ? await api.emailRegister(email.trim(), username.trim(), password)
-          : await api.register(username.trim(), password);
+        // Email is mandatory at signup (2026-10-14): every account gets an
+        // email for verification + password reset. No username-only path.
+        const result = await api.emailRegister(email.trim(), username.trim(), password);
         // Hold the session: the user only enters the app after saving the code.
         setPendingUser(result.user);
         setFreshCode(result.recoveryCode || null);
@@ -203,20 +203,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                 </button>
               </div>
 
-              {/* Email / username switch */}
-              <button
-                type="button"
-                onClick={() => { setEmailMode(!emailMode); setError(null); setSuggestions([]); }}
-                className="mb-4 w-full text-center text-[11px] font-bold font-mono-code uppercase tracking-wider text-indigo-600 dark:text-indigo-300 hover:underline"
-              >
-                {emailMode ? '← Use username instead' : 'Use email instead →'}
-              </button>
+              {/* Email / username switch (login only — signup always asks for email) */}
+              {mode === 'login' && (
+                <button
+                  type="button"
+                  onClick={() => { setEmailMode(!emailMode); setError(null); setSuggestions([]); }}
+                  className="mb-4 w-full text-center text-[11px] font-bold font-mono-code uppercase tracking-wider text-indigo-600 dark:text-indigo-300 hover:underline"
+                >
+                  {emailMode ? '← Use username instead' : 'Use email instead →'}
+                </button>
+              )}
 
               <form onSubmit={submit} className="space-y-4">
-                {emailMode && (
+                {(emailMode || mode === 'register') && (
                   <div>
                     <label htmlFor="auth-email" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                      Email
+                      Email {mode === 'register' && <span className="font-normal text-stone-400">(required — for verification + password reset)</span>}
                     </label>
                     <input
                       id="auth-email"
@@ -225,6 +227,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       autoComplete="email"
+                      aria-label="Email address"
                       required
                       className={inputCls}
                     />
@@ -242,6 +245,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="e.g. feral_operator"
                       autoComplete="username"
+                      aria-label="Username"
                       required
                       className={inputCls}
                     />
@@ -260,6 +264,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                     onChange={setPassword}
                     placeholder="Make it a good one"
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    aria-label="Password"
                     required
                     className={inputCls}
                   />
@@ -335,10 +340,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                     <Mail className="w-3.5 h-3.5" /> Email me a reset link
                   </div>
                   <input
+                    id="auth-forgot-email"
                     type="email"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="you@example.com"
+                    autoComplete="email"
+                    aria-label="Email address for password reset"
                     required
                     className={inputCls}
                   />
@@ -374,6 +382,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
+                    aria-label="Username"
                     required
                     className={`${inputCls} font-mono-code`}
                   />
@@ -388,7 +397,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                     value={recoveryCode}
                     onChange={(e) => setRecoveryCode(e.target.value)}
                     placeholder="XXXX-XXXX-XXXX-XXXX"
-                    autoComplete="off"
+                    autoComplete="one-time-code"
+                    aria-label="Recovery code"
                     spellCheck={false}
                     required
                     className={`${inputCls} font-mono-code tracking-widest uppercase`}
@@ -404,6 +414,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                       value={newPassword}
                       onChange={setNewPassword}
                       autoComplete="new-password"
+                      aria-label="New password"
                       required
                       minLength={8}
                       className={inputCls}
@@ -418,6 +429,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                       value={confirmPassword}
                       onChange={setConfirmPassword}
                       autoComplete="new-password"
+                      aria-label="Confirm new password"
                       required
                       minLength={8}
                       className={inputCls}

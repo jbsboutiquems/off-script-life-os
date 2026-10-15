@@ -1,12 +1,17 @@
 // First-launch Android runtime permission explainer.
 //
 // Only renders on native Android. Shows ONE friendly card naming the two
-// permissions the app genuinely uses — camera (QR pack scanning in the
-// Unlock screen) and microphone (voice-note transcription in the AI Studio)
-// — then triggers the OS prompt via getUserMedia (Capacitor forwards this to
-// the Android runtime permission flow).
+// permissions the app genuinely uses — camera (scanning the QR code printed
+// with your physical planner in the Unlock screen) and microphone (voice-note
+// transcription in the AI Studio) — then triggers the OS prompt via
+// getUserMedia (Capacitor forwards this to the Android runtime permission
+// flow).
 //
-// Denial or dismissal never blocks the app; we ask exactly once per user.
+// Denial or dismissal never blocks the app; we ask exactly once per device.
+// Dismissal is persisted under BOTH a per-user key and a device-global key:
+// the gate can mount before login (anon) and again after login (user id),
+// and a dismissal under either identity must suppress the other —
+// otherwise the modal reappears after sign-in (fixed 2026-10-14).
 // No other permissions are requested.
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
@@ -17,6 +22,25 @@ interface Props {
 }
 
 const keyFor = (userId?: string | null) => `lifeos:${userId || 'anon'}:android-perms:v1`;
+// Device-global key: a dismissal under ANY identity suppresses the gate.
+const GLOBAL_KEY = 'lifeos:android-perms:v1';
+
+function alreadyAsked(userId?: string | null): boolean {
+  try {
+    return !!localStorage.getItem(keyFor(userId)) || !!localStorage.getItem(GLOBAL_KEY);
+  } catch {
+    return false;
+  }
+}
+
+function markAsked(userId?: string | null): void {
+  try {
+    localStorage.setItem(keyFor(userId), '1');
+    localStorage.setItem(GLOBAL_KEY, '1');
+  } catch {
+    // ignore
+  }
+}
 
 function isNativeAndroid(): boolean {
   try {
@@ -31,22 +55,14 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
 
   useEffect(() => {
     if (!isNativeAndroid()) return;
-    try {
-      if (localStorage.getItem(keyFor(userId))) return; // already asked once
-    } catch {
-      // ignore — storage unavailable, still ask once per mount
-    }
+    if (alreadyAsked(userId)) return; // asked once — never reappear
     // Let first paint land before we ask for anything.
     const t = setTimeout(() => setShow(true), 1200);
     return () => clearTimeout(t);
   }, [userId]);
 
   const dismiss = () => {
-    try {
-      localStorage.setItem(keyFor(userId), '1');
-    } catch {
-      // ignore
-    }
+    markAsked(userId);
     setShow(false);
   };
 
@@ -96,8 +112,8 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
               <Camera size={18} />
             </span>
             <span className="text-sm text-slate-600 dark:text-stone-300">
-              <strong className="text-slate-900 dark:text-stone-100">Camera</strong> — scans QR codes
-              to unlock content packs.
+              <strong className="text-slate-900 dark:text-stone-100">Camera</strong> — scans the
+              QR code printed with your physical planner to unlock your pack.
             </span>
           </li>
           <li className="flex items-start gap-3">

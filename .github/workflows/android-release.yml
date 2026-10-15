@@ -60,7 +60,11 @@ jobs:
         run: npm ci
 
       - name: Build web app
+        # The APK is static assets — the API lives on Railway (build-time
+        # VITE_API_URL; there is no runtime server override).
         run: npm run build
+        env:
+          VITE_API_URL: https://off-script-life-os-production.up.railway.app
 
       - name: Sync web assets into Android shell
         run: npx cap sync android

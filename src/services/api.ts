@@ -70,32 +70,106 @@ function lsSet(key: string, val: unknown) {
   }
 }
 
-// ================= API base URL =================
-// Every /api/* call goes through apiUrl(). In local dev the server is the
-// same origin; in the Capacitor APK or on static hosting (GitHub Pages) the
-// server lives elsewhere. Priority: manual override (Backup > Server URL)
-// -> VITE_API_URL baked in at build time -> '' (same-origin fallback).
-const API_BASE_OVERRIDE_KEY = 'lifeos:api:base_override';
+// ================= Mutation outbox (offline write queue) =================
+// When a mutation fails because the network is unreachable (TypeError), the
+// api layer still saves locally AND enqueues the write here. flushOutbox()
+// replays entries FIFO on reconnect (window 'online' + at the start of
+// App.loadAll). Only personal-content writes are queued — social writes
+// (wall, DMs, rooms, FAQ) fail loudly instead: silently replaying a wall
+// post or DM risks duplicates the user never intended.
+// Entries are per-user (ns()) and capped; 4xx rejections are dropped
+// (permanent), 5xx/network failures stop the flush for a later retry.
+export interface OutboxEntry {
+  id: string;
+  method: 'POST' | 'PATCH' | 'DELETE';
+  path: string;
+  body?: unknown;
+  ts: number;
+}
 
+const OUTBOX_KEY = 'outbox';
+const OUTBOX_CAP = 100;
+
+function getOutbox(): OutboxEntry[] {
+  return lsGet<OutboxEntry[]>(OUTBOX_KEY) || [];
+}
+
+function setOutbox(entries: OutboxEntry[]) {
+  lsSet(OUTBOX_KEY, entries.slice(0, OUTBOX_CAP));
+}
+
+export function enqueueOutbox(method: OutboxEntry['method'], path: string, body?: unknown) {
+  const entries = getOutbox();
+  entries.push({
+    id: `out_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    method,
+    path,
+    body,
+    ts: Date.now(),
+  });
+  setOutbox(entries);
+}
+
+/** Replay queued writes, oldest first. Stops at the first retryable failure.
+ *  Concurrent callers share one run — two flushes racing could replay the
+ *  same create twice (e.g. two goals from one offline tap). */
+let flushInflight: Promise<{ flushed: number; remaining: number }> | null = null;
+
+export function flushOutbox(): Promise<{ flushed: number; remaining: number }> {
+  if (flushInflight) return flushInflight;
+  flushInflight = (async (): Promise<{ flushed: number; remaining: number }> => {
+    if (!getToken()) return { flushed: 0, remaining: getOutbox().length };
+    let queue = getOutbox();
+    let flushed = 0;
+    while (queue.length > 0) {
+      const entry = queue[0];
+      try {
+        const res = await req(entry.path, {
+          method: entry.method,
+          body: entry.body !== undefined ? JSON.stringify(entry.body) : undefined,
+        });
+        if (res.ok) {
+          queue = queue.slice(1);
+          setOutbox(queue);
+          flushed++;
+          continue;
+        }
+        if (res.status >= 400 && res.status < 500) {
+          // Permanent rejection — drop it rather than retrying forever.
+          console.warn('Outbox entry rejected by server, dropping', entry.method, entry.path, res.status);
+          queue = queue.slice(1);
+          setOutbox(queue);
+          continue;
+        }
+        break; // 5xx: stop, retry later
+      } catch (e) {
+        if (e instanceof AuthError) break; // session gone; queue waits for next login
+        break; // network still down (TypeError) or anything else: retry later
+      }
+    }
+    return { flushed, remaining: queue.length };
+  })();
+  return flushInflight.finally(() => { flushInflight = null; });
+}
+
+// ================= API base URL =================
+// Every /api/* call goes through apiUrl(). The base comes ONLY from
+// VITE_API_URL baked in at build time — there is no runtime override.
+//
+// Canonical backend per build type:
+//   - APK (build:mobile) + GitHub Pages: VITE_API_URL =
+//     https://off-script-life-os-production.up.railway.app (set by the
+//     build script / CI workflow — never by the user).
+//   - Server-served web build (`npm run build` + node dist/server.cjs):
+//     VITE_API_URL unset -> '' (same origin).
+//
+// A user-editable server URL was REMOVED (2026-10-14): it let anyone
+// redirect the app — and its credentials/data — to a malicious server.
+// Old localStorage overrides (`lifeos:api:base_override`) are ignored.
 export function getApiBase(): string {
-  try {
-    const override = localStorage.getItem(API_BASE_OVERRIDE_KEY);
-    if (override && override.trim()) return override.trim().replace(/\/+$/, '');
-  } catch {
-    // ignore
-  }
   const envBase = (import.meta as any).env?.VITE_API_URL as string | undefined;
   if (envBase && envBase.trim()) return envBase.trim().replace(/\/+$/, '');
   return '';
-}
-
-export function setApiBase(url: string): void {
-  try {
-    if (url && url.trim()) localStorage.setItem(API_BASE_OVERRIDE_KEY, url.trim().replace(/\/+$/, ''));
-    else localStorage.removeItem(API_BASE_OVERRIDE_KEY);
-  } catch {
-    // ignore
-  }
 }
 
 export function apiUrl(path: string): string {
@@ -194,10 +268,13 @@ let interpersonalCacheAt = 0;
 let interpersonalInflight: Promise<InterpersonalInsight[]> | null = null;
 
 export const api = {
-  // ---- Server connection ----
+  // ---- Server connection (build-time only — no runtime override) ----
   getApiBase,
-  setApiBase,
   apiUrl,
+
+  // ---- Offline: mutation outbox (replay queued writes on reconnect) ----
+  enqueueOutbox,
+  flushOutbox,
 
   // ---- Auth ----
   getToken,
@@ -208,24 +285,9 @@ export const api = {
     authFailureHandler = handler;
   },
 
-  async register(username: string, password: string): Promise<AuthResult> {
-    const res = await fetch(apiUrl('/api/auth/register'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const body = await res.json().catch(() => ({} as any));
-    if (!res.ok) {
-      const err = new Error(body.error || 'Registration failed.') as any;
-      err.suggestions = body.suggestions;
-      throw err;
-    }
-    setToken(body.token);
-    cachedUserId = body.user?.id || null;
-    setActiveUserId(cachedUserId);
-    return body as AuthResult;
-  },
-
+  // NOTE: username-only signup is closed (email mandatory, 2026-10-14).
+  // Signups go through emailRegister() -> /api/auth/email/register.
+  // The old /api/auth/register endpoint now rejects without an email.
   async login(username: string, password: string): Promise<AuthResult> {
     const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
@@ -375,6 +437,31 @@ export const api = {
     const body = await res.json().catch(() => ({ matches: [] } as any));
     if (!res.ok) throw new Error(body.error || 'Discovery failed.');
     return body;
+  },
+  // ---- Developer-mode password gate ----
+  async devStatus(): Promise<{ passwordSet: boolean }> {
+    const res = await req('/api/auth/dev/status');
+    const body = await res.json().catch(() => ({ passwordSet: false } as any));
+    if (!res.ok) throw new Error(body.error || 'Could not check dev status.');
+    return body;
+  },
+  async setDevPassword(password: string): Promise<void> {
+    const res = await req('/api/admin/dev-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not set the dev password.');
+  },
+  async unlockDev(password: string): Promise<void> {
+    const res = await req('/api/auth/dev-unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Wrong dev password.');
   },
 
   async forgotByEmail(email: string): Promise<{ fallback?: string; message?: string; sent?: boolean }> {
@@ -580,7 +667,11 @@ export const api = {
   async getEntitlements(): Promise<UserEntitlement[]> {
     try {
       const res = await req('/api/entitlements');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        lsSet('entitlements', list);
+        return list;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API unavailable, reading local entitlements', e);
@@ -639,7 +730,11 @@ export const api = {
   async getUser(): Promise<UserProfile> {
     try {
       const res = await req('/api/user');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const user = await res.json();
+        lsSet('user', user);
+        return user;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API unavailable, reading local user', e);
@@ -672,7 +767,11 @@ export const api = {
   async getGoals(): Promise<Goal[]> {
     try {
       const res = await req('/api/goals');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        lsSet('goals', list);
+        return list;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading local goals', e);
@@ -708,11 +807,13 @@ export const api = {
       };
       const updated = [...goals, newGoal];
       lsSet('goals', updated);
+      enqueueOutbox('POST', '/api/goals', goalData);
       return newGoal;
     }
   },
 
   async updateGoal(id: string, updates: Partial<Goal>): Promise<Goal> {
+    let networkFailed = false;
     try {
       const res = await req(`/api/goals/${id}`, {
         method: 'PATCH',
@@ -724,6 +825,7 @@ export const api = {
     } catch (e) {
       if (e instanceof AuthError) throw e;
       if (!(e instanceof TypeError)) throw e;
+      networkFailed = true;
       console.warn('API unreachable, updating local goal', e);
     }
     const goals = await this.getGoals();
@@ -731,26 +833,34 @@ export const api = {
     if (!found) throw new Error("Goal not found");
     const updated = goals.map(g => g.id === id ? { ...g, ...updates } : g);
     lsSet('goals', updated);
+    if (networkFailed) enqueueOutbox('PATCH', `/api/goals/${id}`, updates);
     return updated.find(g => g.id === id) as Goal;
   },
 
   async deleteGoal(id: string): Promise<void> {
+    let networkFailed = false;
     try {
       await req(`/api/goals/${id}`, { method: 'DELETE' });
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, deleting local goal', e);
     }
     const goals = await this.getGoals();
     const filtered = goals.filter(g => g.id !== id);
     lsSet('goals', filtered);
+    if (networkFailed) enqueueOutbox('DELETE', `/api/goals/${id}`);
   },
 
   // ---- Anti-goals ----
   async getAntiGoals(): Promise<AntiGoal[]> {
     try {
       const res = await req('/api/anti-goals');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        lsSet('antigoals', list);
+        return list;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading local anti-goals', e);
@@ -760,6 +870,7 @@ export const api = {
 
   async createAntiGoal(antiGoalData: Omit<AntiGoal, 'id' | 'created_at' | 'is_completed'> & { is_completed?: boolean }): Promise<AntiGoal> {
     noteSaveAction();
+    let networkFailed = false;
     try {
       const res = await req('/api/anti-goals', {
         method: 'POST',
@@ -768,6 +879,7 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, saving local anti-goal', e);
     }
     const antiGoals = await this.getAntiGoals();
@@ -779,10 +891,12 @@ export const api = {
     };
     const updated = [...antiGoals, newAntiGoal];
     lsSet('antigoals', updated);
+    if (networkFailed) enqueueOutbox('POST', '/api/anti-goals', antiGoalData);
     return newAntiGoal;
   },
 
   async updateAntiGoal(id: string, updates: Partial<AntiGoal>): Promise<AntiGoal> {
+    let networkFailed = false;
     try {
       const res = await req(`/api/anti-goals/${id}`, {
         method: 'PATCH',
@@ -791,31 +905,40 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, updating local anti-goal', e);
     }
     const antiGoals = await this.getAntiGoals();
     const updated = antiGoals.map(ag => ag.id === id ? { ...ag, ...updates } : ag);
     lsSet('antigoals', updated);
+    if (networkFailed) enqueueOutbox('PATCH', `/api/anti-goals/${id}`, updates);
     return updated.find(ag => ag.id === id)!;
   },
 
   async deleteAntiGoal(id: string): Promise<void> {
+    let networkFailed = false;
     try {
       await req(`/api/anti-goals/${id}`, { method: 'DELETE' });
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, deleting local anti-goal', e);
     }
     const antiGoals = await this.getAntiGoals();
     const filtered = antiGoals.filter(ag => ag.id !== id);
     lsSet('antigoals', filtered);
+    if (networkFailed) enqueueOutbox('DELETE', `/api/anti-goals/${id}`);
   },
 
   // ---- Daily entries ----
   async getAllDailyEntries(): Promise<DailyEntry[]> {
     try {
       const res = await req('/api/entries');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        lsSet('entries_all', list);
+        return list;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading all entries', e);
@@ -826,7 +949,11 @@ export const api = {
   async getDailyEntry(dateStr: string): Promise<DailyEntry | null> {
     try {
       const res = await req(`/api/entries/${dateStr}`);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const entry = await res.json();
+        lsSet(`entry_${dateStr}`, entry);
+        return entry;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading local entry', e);
@@ -836,6 +963,7 @@ export const api = {
 
   async saveDailyEntry(entry: Partial<DailyEntry> & { entry_date: string }): Promise<DailyEntry> {
     noteSaveAction();
+    let networkFailed = false;
     try {
       const res = await req('/api/entries', {
         method: 'POST',
@@ -848,6 +976,7 @@ export const api = {
       }
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, saving local entry', e);
     }
     const existing = (await this.getDailyEntry(entry.entry_date).catch(() => null)) || {
@@ -865,6 +994,14 @@ export const api = {
     };
     const saved = { ...existing, ...entry, updated_at: new Date().toISOString() };
     lsSet(`entry_${entry.entry_date}`, saved);
+    // Keep the cached entries list in sync so the history views see this
+    // entry offline instead of waiting for a successful server round-trip.
+    const all = lsGet<DailyEntry[]>('entries_all') || [];
+    const idx = all.findIndex(e => e.entry_date === entry.entry_date);
+    if (idx >= 0) all[idx] = saved as DailyEntry;
+    else all.unshift(saved as DailyEntry);
+    lsSet('entries_all', all);
+    if (networkFailed) enqueueOutbox('POST', '/api/entries', entry);
     return saved as DailyEntry;
   },
 
@@ -938,7 +1075,11 @@ export const api = {
   async getSnapshots(): Promise<PersonalitySnapshot[]> {
     try {
       const res = await req('/api/snapshots');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        lsSet('snapshots', list);
+        return list;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading local snapshots', e);
@@ -997,6 +1138,7 @@ export const api = {
 
   async saveWeeklyDebrief(debrief: WeeklyFlightDebrief): Promise<WeeklyFlightDebrief> {
     noteSaveAction();
+    let networkFailed = false;
     try {
       const res = await req('/api/flight-debriefs', {
         method: 'POST',
@@ -1005,9 +1147,17 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, saving local debrief', e);
     }
     lsSet(`debrief_${debrief.week_number}`, debrief);
+    // Keep the cached debrief list in sync so loadAll can restore it offline.
+    const list = lsGet<WeeklyFlightDebrief[]>('debriefs_all') || [];
+    const idx = list.findIndex(d => d.week_number === debrief.week_number);
+    if (idx >= 0) list[idx] = debrief;
+    else list.unshift(debrief);
+    lsSet('debriefs_all', list);
+    if (networkFailed) enqueueOutbox('POST', '/api/flight-debriefs', debrief);
     return debrief;
   },
 
@@ -1030,27 +1180,36 @@ export const api = {
   async getAllMoneyMaps(): Promise<MonthlyMoneyMap[]> {
     try {
       const res = await req('/api/money-maps/all');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        lsSet('moneymaps_all', list);
+        return list;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading money maps', e);
     }
-    return [];
+    return lsGet<MonthlyMoneyMap[]>('moneymaps_all') || [];
   },
 
   async getAllDebriefs(): Promise<WeeklyFlightDebrief[]> {
     try {
       const res = await req('/api/flight-debriefs');
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const list = await res.json();
+        lsSet('debriefs_all', list);
+        return list;
+      }
     } catch (e) {
       if (e instanceof AuthError) throw e;
       console.warn('API error, reading debriefs', e);
     }
-    return [];
+    return lsGet<WeeklyFlightDebrief[]>('debriefs_all') || [];
   },
 
   async saveMoneyMap(map: MonthlyMoneyMap): Promise<MonthlyMoneyMap> {
     const key = `${map.year}-${String(map.month).padStart(2, '0')}`;
+    let networkFailed = false;
     try {
       const res = await req('/api/money-maps', {
         method: 'POST',
@@ -1059,9 +1218,17 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, saving local money map', e);
     }
     lsSet(`moneymap_${key}`, map);
+    // Keep the cached money-map list in sync so loadAll can restore it offline.
+    const list = lsGet<MonthlyMoneyMap[]>('moneymaps_all') || [];
+    const idx = list.findIndex(m => m.year === map.year && m.month === map.month);
+    if (idx >= 0) list[idx] = map;
+    else list.unshift(map);
+    lsSet('moneymaps_all', list);
+    if (networkFailed) enqueueOutbox('POST', '/api/money-maps', map);
     return map;
   },
 
@@ -1087,6 +1254,7 @@ export const api = {
 
   async awardPoints(action: KhaosPointAction, ref: string, label?: string): Promise<{ entry: KhaosPointEntry; total: number; duplicate: boolean }> {
     const points = KHAOS_POINT_VALUES[action];
+    let networkFailed = false;
     try {
       const res = await req('/api/points/award', {
         method: 'POST',
@@ -1099,6 +1267,7 @@ export const api = {
       }
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, awarding local points', e);
     }
     // Local fallback with the same dedupe rule
@@ -1117,6 +1286,10 @@ export const api = {
     };
     const updated = [entry, ...list];
     lsSet('points', updated);
+    // Safe to replay: the server dedupes awards by (action, ref), so a
+    // replayed award can never double-credit. Already-awarded (duplicate)
+    // entries are NOT enqueued.
+    if (networkFailed) enqueueOutbox('POST', '/api/points/award', { action, ref, label: label || action });
     return { entry, total: this.getPointsTotal(updated), duplicate: false };
   },
 
@@ -1137,6 +1310,7 @@ export const api = {
   },
 
   async createFlightCrewContact(data: Omit<FlightCrewContact, 'id' | 'created_at'>): Promise<FlightCrewContact> {
+    let networkFailed = false;
     try {
       const res = await req('/api/flight-crew', {
         method: 'POST',
@@ -1145,16 +1319,19 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, saving local contact', e);
     }
     const list = await this.getFlightCrew().catch(() => [] as FlightCrewContact[]);
     const contact: FlightCrewContact = { ...data, id: `crew_${Date.now()}`, created_at: new Date().toISOString() };
     const updated = [...list, contact];
     lsSet('flightcrew', updated);
+    if (networkFailed) enqueueOutbox('POST', '/api/flight-crew', data);
     return contact;
   },
 
   async updateFlightCrewContact(id: string, updates: Partial<FlightCrewContact>): Promise<FlightCrewContact> {
+    let networkFailed = false;
     try {
       const res = await req(`/api/flight-crew/${id}`, {
         method: 'PATCH',
@@ -1163,23 +1340,28 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, updating local contact', e);
     }
     const list = await this.getFlightCrew().catch(() => [] as FlightCrewContact[]);
     const updated = list.map(c => c.id === id ? { ...c, ...updates } : c);
     lsSet('flightcrew', updated);
+    if (networkFailed) enqueueOutbox('PATCH', `/api/flight-crew/${id}`, updates);
     return updated.find(c => c.id === id)!;
   },
 
   async deleteFlightCrewContact(id: string): Promise<void> {
+    let networkFailed = false;
     try {
       await req(`/api/flight-crew/${id}`, { method: 'DELETE' });
     } catch (e) {
       if (e instanceof AuthError) throw e;
+      if (e instanceof TypeError) networkFailed = true;
       console.warn('API error, deleting local contact', e);
     }
     const list = await this.getFlightCrew().catch(() => [] as FlightCrewContact[]);
     lsSet('flightcrew', list.filter(c => c.id !== id));
+    if (networkFailed) enqueueOutbox('DELETE', `/api/flight-crew/${id}`);
   },
 
   // ---- Community FAQ board ----

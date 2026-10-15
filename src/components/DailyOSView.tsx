@@ -5,6 +5,7 @@ import { Sun, Compass, Moon, Sparkles, CheckCircle2, Circle, Flame, AlertCircle,
 import confetti from 'canvas-confetti';
 import { MorningMantraGenerator } from './MorningMantraGenerator';
 import { canPrint } from '../lib/exporter';
+import { localDateKey } from '../lib/dates';
 
 interface DailyOSViewProps {
   entry: DailyEntry;
@@ -219,7 +220,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
   const shiftDate = (days: number) => {
     const d = new Date(currentDate);
     d.setDate(d.getDate() + days);
-    onDateChange(d.toISOString().split('T')[0]);
+    onDateChange(localDateKey(d));
   };
 
   const wordCount = eveningNotes.trim().split(/\s+/).filter(Boolean).length;
@@ -301,7 +302,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
                 className="text-[11px] font-mono-code font-bold text-sky-700 hover:text-sky-900 underline underline-offset-2 print:hidden"
                 title="What does this holiday mean?"
               >
-                {showHolidayMeaning ? 'hide explainer ▲' : 'what even is this? ▼'}
+                {showHolidayMeaning ? 'Hide details ▲' : 'what even is this? ▼'}
               </button>
             </div>
             {showHolidayMeaning && (
@@ -597,10 +598,10 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
           </div>
         </div>
 
-        {/* 3. LANDING (EVENING FIELD NOTES / RANT BOX -> MEI ENGINE FEEDER) */}
+        {/* 3. LANDING (EVENING FIELD NOTES / RANT BOX -> INTENT ENGINE FEEDER) */}
         <div className="bg-[#fffdf9] rounded-2xl border-2 border-rose-300 p-5 shadow-xs flex flex-col justify-between relative">
           <div className="absolute top-0 right-0 bg-rose-600 text-white font-mono-code text-[10px] tracking-widest px-3 py-1 font-bold rounded-bl-xl uppercase">
-            MEI ENGINE INPUT
+            INTENT ENGINE INPUT
           </div>
 
           <div>

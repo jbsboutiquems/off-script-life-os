@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DailyEntry } from '../types';
+import { localDateKey } from '../lib/dates';
 import { useTheme } from '../hooks/useDarkMode';
 import {
   ResponsiveContainer,
@@ -100,7 +101,7 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
     for (let i = 29; i >= 0; i--) {
       const d = new Date(baseDate);
       d.setDate(baseDate.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = localDateKey(d);
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       const displayDate = `${monthNames[d.getMonth()]} ${d.getDate()}`;
@@ -472,7 +473,7 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
         <div className="bg-[#faf5eb] border border-amber-300 rounded-2xl p-4 shadow-2xs space-y-2">
           <div className="flex items-center space-x-2">
             <span className="bg-amber-800 text-white font-mono-code text-[10px] font-bold px-2 py-0.5 rounded uppercase">
-              MEI PATTERN RADAR
+              INTENT PATTERN RADAR
             </span>
             <span className="font-bold text-slate-900 font-display-punch">The Rhythm of Your Khaos</span>
           </div>

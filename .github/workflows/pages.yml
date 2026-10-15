@@ -24,7 +24,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Pages is static hosting — the API lives on Railway (build-time
+      # VITE_API_URL; there is no runtime server override).
       - run: npm run build
+        env:
+          VITE_API_URL: https://off-script-life-os-production.up.railway.app
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

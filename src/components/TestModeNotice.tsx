@@ -1,15 +1,20 @@
 // One-time test-mode notice. A dismissible banner (not a modal) shown while
 // the app is in test mode — it never blocks other UI, so it can't stack
 // under/over dialogs like the buddy creator (fixed 2026-10-10).
-// Flip TEST_MODE to false at public launch and it disappears everywhere.
+//
+// TEST_MODE is a BUILD flag, not a code toggle: it is on only when
+// VITE_TEST_MODE=true is set at build time. Store/release builds never set
+// it, so the banner can never ship to the store by forgetting to flip a
+// constant. The banner also pads for the device safe area so the status
+// bar / recording indicator never clips it (fixed 2026-10-14).
 //
 // Mount once near the top of the authenticated app layout:
 //   <TestModeNotice />
 import React, { useState, useEffect } from 'react';
 import { FlaskConical, X } from 'lucide-react';
 
-// <-- SET TO false AT PUBLIC LAUNCH
-export const TEST_MODE = true;
+// Build flag: `VITE_TEST_MODE=true vite build` / `npm run build:test`.
+export const TEST_MODE = (import.meta as any).env?.VITE_TEST_MODE === 'true';
 
 const SEEN_KEY = 'offscript_testmode_seen_v1';
 
@@ -37,7 +42,10 @@ export const TestModeNotice: React.FC = () => {
   if (!TEST_MODE || !visible) return null;
 
   return (
-    <div className="print:hidden bg-gradient-to-r from-[#ea4798] to-[#2da2ee] text-white">
+    <div
+      className="print:hidden bg-gradient-to-r from-[#ea4798] to-[#2da2ee] text-white"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
         <FlaskConical size={16} className="shrink-0" />
         <p className="flex-1 text-xs font-bold">

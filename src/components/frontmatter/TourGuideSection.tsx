@@ -12,7 +12,7 @@ export const TourGuideSection: React.FC = () => (
       <div className="w-full md:w-56 rounded-2xl border-2 border-stone-800 dark:border-amber-400/40 bg-gradient-to-br from-[#ea4798] via-[#b13a8e] to-[#2da2ee] p-1 flex-shrink-0 shadow-md">
         <div className="w-full h-full bg-slate-900/90 rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
           <img
-            src="/amber-tour-guide-photo.png"
+            src="/amber-tour-guide-photo.webp"
             alt="Amber, creator of Life OS: Off*Script"
             className="w-24 h-24 rounded-full object-cover object-top border-2 border-white"
           />

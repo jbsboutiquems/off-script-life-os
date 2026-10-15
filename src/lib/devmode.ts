@@ -1,14 +1,22 @@
+import { Capacitor } from '@capacitor/core';
+
 /**
  * Dev-mode flag for scaffolding that must never ship to customers.
  * Enabled via `?dev=1` in the URL, when running on localhost, or via the
  * persisted toggle in Identity Base → Developer (admin-gated).
  * Build instructions, dev-server notes, and other shop talk hide behind this.
+ *
+ * Native builds (Capacitor APK/IPA) are NEVER dev mode by hostname: the
+ * WebView serves from `localhost`, so the localhost check would leak
+ * developer-only UI (e.g. the Package App button) into the installed app.
+ * On native, only the explicit persisted toggle counts.
  */
 const DEV_MODE_KEY = 'offscript_dev_mode';
 
 export function isDevMode(): boolean {
   try {
     if (localStorage.getItem(DEV_MODE_KEY) === '1') return true;
+    if (Capacitor.isNativePlatform()) return false;
     const params = new URLSearchParams(window.location.search);
     if (params.get("dev") === "1") return true;
     const host = window.location.hostname;

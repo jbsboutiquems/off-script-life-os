@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { HardDrive, Upload, Download, KeyRound, CheckCircle, AlertTriangle, Loader2, LogOut, FileJson, FileSpreadsheet } from 'lucide-react';
-import { api, apiUrl, getApiBase, setApiBase } from '../services/api';
+import { api, apiUrl } from '../services/api';
 import { downloadFile, entriesToCsv } from '../lib/exporter';
+import { localDateKey } from '../lib/dates';
 import { DailyEntry } from '../types';
 
 declare global {
@@ -53,8 +54,6 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
   const [lastBackup, setLastBackup] = useState<string | null>(() => localStorage.getItem('lifeos_last_drive_backup'));
-  const [serverUrl, setServerUrl] = useState<string>(() => getApiBase());
-  const [serverSaved, setServerSaved] = useState<boolean>(false);
 
   const saveSettings = (s: DriveSettings) => {
     setSettings(s);
@@ -119,7 +118,7 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
       });
       if (!res.ok) throw new Error('Export failed on the server.');
       const payload = await res.json();
-      const fileName = `off-script-life-os-backup-${new Date().toISOString().split('T')[0]}.json`;
+      const fileName = `off-script-life-os-backup-${localDateKey()}.json`;
       const metadata = { name: fileName, mimeType: 'application/json' };
       const boundary = `-------314159265358979323846_${Date.now()}`;
       const body =
@@ -223,37 +222,6 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
 
   return (
     <div className="space-y-6">
-      {/* Server connection — where /api/* lives. Empty = same origin (local dev). */}
-      <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-3xl p-6 shadow-xs">
-        <div className="flex items-center space-x-3 mb-1">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-500 to-indigo-600 text-white flex items-center justify-center border border-stone-800">
-            <HardDrive className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold font-serif-display text-lg text-slate-900 dark:text-cream-canvas">Server connection</h3>
-            <p className="text-xs text-stone-500 dark:text-stone-400">Where the app's brain lives. The installed app needs this.</p>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-col sm:flex-row gap-2">
-          <input
-            value={serverUrl}
-            onChange={(e) => { setServerUrl(e.target.value); setServerSaved(false); }}
-            placeholder="https://your-server.example"
-            inputMode="url"
-            className="flex-1 px-4 py-3 rounded-2xl border-2 border-stone-300 dark:border-white/20 bg-white dark:bg-white/5 text-sm text-slate-900 dark:text-cream-canvas placeholder:text-stone-400"
-          />
-          <button
-            onClick={() => { setApiBase(serverUrl); setServerSaved(true); setMessage({ kind: 'ok', text: serverUrl.trim() ? 'Server saved. Sign in again to connect.' : 'Cleared — using same-origin server.' }); }}
-            className="px-5 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-500 hover:to-indigo-500 text-white text-sm font-bold rounded-2xl transition-all"
-          >
-            Save
-          </button>
-        </div>
-        <p className="mt-3 text-[11px] text-stone-500 dark:text-stone-400 italic font-serif-display">
-          {serverSaved ? 'Saved. ' : ''}Leave empty to use the default connection. Only change this if you were given a custom server URL.
-        </p>
-      </div>
-
       {/* One-tap exports — your data, your files, no Drive round trip needed */}
       <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-3xl p-6 shadow-xs">
         <div className="flex items-center space-x-3 mb-1">
@@ -275,7 +243,7 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
               if (!res.ok) throw new Error('Export failed.');
               const payload = await res.json();
               downloadFile(
-                `off-script-life-os-backup-${new Date().toISOString().split('T')[0]}.json`,
+                `off-script-life-os-backup-${localDateKey()}.json`,
                 'application/json',
                 JSON.stringify(payload, null, 2)
               );
@@ -292,7 +260,7 @@ export const DriveBackupView: React.FC<DriveBackupViewProps> = ({ onRestored, en
                 return;
               }
               downloadFile(
-                `off-script-flight-logs-${new Date().toISOString().split('T')[0]}.csv`,
+                `off-script-flight-logs-${localDateKey()}.csv`,
                 'text/csv',
                 entriesToCsv(sortedEntries)
               );

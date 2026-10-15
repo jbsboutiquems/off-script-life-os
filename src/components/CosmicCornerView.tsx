@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { SunSign, SUN_SIGNS, sunSignFromBirthday, getDailyHoroscope, forFunPlacements, ROMAN_HOUSES } from '../data/cosmic';
+import { localDateKey } from '../lib/dates';
 import { Sparkles, Moon, Sunrise, Cake } from 'lucide-react';
 
 interface CosmicCornerViewProps {
@@ -114,7 +115,7 @@ function ChartWheel({ sun, moon, rising, birthplace }: { sun: SunSign; moon: Sun
 
 export const CosmicCornerView: React.FC<CosmicCornerViewProps> = ({ user, onEditProfile, onSaveProfile }) => {
   const [tab, setTab] = useState<'horoscope' | 'chart'>('horoscope');
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateKey();
 
   const birthday = user.birthday || '';
   const sign = sunSignFromBirthday(birthday);

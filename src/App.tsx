@@ -48,6 +48,7 @@ import { AndroidPermissionGate } from './components/AndroidPermissionGate';
 import { TestModeNotice } from './components/TestModeNotice';
 import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
+import { localDateKey } from './lib/dates';
 import { getBuddy, saveBuddy, type BuddyProfile } from './buddy';
 import { BuddyCreator } from './components/BuddyCreator';
 import { BeastHost } from './components/BeastHost';
@@ -82,7 +83,7 @@ export default function App() {
   const [buddy, setBuddy] = useState<BuddyProfile | null>(null);
   const [buddyCreatorOpen, setBuddyCreatorOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
+    return localDateKey();
   });
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [stickersModalOpen, setStickersModalOpen] = useState(false);
@@ -92,7 +93,7 @@ export default function App() {
   const [allEntries, setAllEntries] = useState<DailyEntry[]>([]);
 
   // Core data states
-  const [dailyEntry, setDailyEntry] = useState<DailyEntry>(() => blankDailyEntry(new Date().toISOString().split('T')[0]));
+  const [dailyEntry, setDailyEntry] = useState<DailyEntry>(() => blankDailyEntry(localDateKey()));
   const [latestSnapshot, setLatestSnapshot] = useState<PersonalitySnapshot | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [antiGoals, setAntiGoals] = useState<AntiGoal[]>([]);
@@ -167,33 +168,52 @@ export default function App() {
     if (!silent) showToast('Logged out. Khaos contained.');
   };
 
-  // Full data load after authentication
+  // Full data load after authentication.
+  // Offline-first: flush any queued writes first, then load — each getter
+  // falls back to its last-known local copy, so a failed network still
+  // restores the bundle. allSettled so one failing getter can't wipe the
+  // rest (a 401 still logs out via the api auth-failure handler).
   const loadAll = async () => {
     try {
-      const [e, snaps, g, ags, allE, pts, crew, debs, mms] = await Promise.all([
-        api.getDailyEntry(currentDate),
-        api.getSnapshots(),
-        api.getGoals(),
-        api.getAntiGoals(),
-        api.getAllDailyEntries(),
-        api.getPoints(),
-        api.getFlightCrew(),
-        api.getAllDebriefs(),
-        api.getAllMoneyMaps()
-      ]);
-
-      if (e) setDailyEntry(e);
-      if (snaps && snaps.length > 0) setLatestSnapshot(snaps[0]);
-      if (g) setGoals(g);
-      if (ags) setAntiGoals(ags);
-      if (allE) setAllEntries(allE);
-      if (pts) setPoints(pts);
-      if (crew) setFlightCrew(crew);
-      if (debs) setDebriefs(debs);
-      if (mms) setMoneyMaps(mms);
-    } catch (err) {
-      if (!(err instanceof AuthError)) console.warn('Data load issue', err);
+      await api.flushOutbox();
+    } catch {
+      // Flush failures are non-fatal; the queue retries on the next reconnect.
     }
+    const settled = await Promise.allSettled([
+      api.getDailyEntry(currentDate),
+      api.getSnapshots(),
+      api.getGoals(),
+      api.getAntiGoals(),
+      api.getAllDailyEntries(),
+      api.getPoints(),
+      api.getFlightCrew(),
+      api.getAllDebriefs(),
+      api.getAllMoneyMaps()
+    ]);
+    const val = <T,>(i: number): T | null => {
+      const r = settled[i];
+      return r.status === 'fulfilled' ? (r.value as T | null) : null;
+    };
+
+    const e = val<any>(0);
+    const snaps = val<any[]>(1);
+    const g = val<any[]>(2);
+    const ags = val<any[]>(3);
+    const allE = val<any[]>(4);
+    const pts = val<any[]>(5);
+    const crew = val<any[]>(6);
+    const debs = val<any[]>(7);
+    const mms = val<any[]>(8);
+
+    if (e) setDailyEntry(e);
+    if (snaps && snaps.length > 0) setLatestSnapshot(snaps[0]);
+    if (g) setGoals(g);
+    if (ags) setAntiGoals(ags);
+    if (allE) setAllEntries(allE);
+    if (pts) setPoints(pts);
+    if (crew) setFlightCrew(crew);
+    if (debs) setDebriefs(debs);
+    if (mms) setMoneyMaps(mms);
     refreshBadgeCounts();
   };
 
@@ -309,6 +329,16 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Reconnect: replay queued offline writes (loadAll flushes first) and
+  // refresh from the server so replayed writes appear immediately.
+  useEffect(() => {
+    if (!user) return;
+    const onOnline = () => { loadAll(); };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, currentDate]);
+
   const handleFinishOnboarding = async (dontShowAgain: boolean) => {
     setTourDismissed(true);
     if (dontShowAgain && user) {
@@ -331,7 +361,7 @@ export default function App() {
     else if (door === 'holidays') setActiveTab('holidays');
   };
 
-  const streak = computeStreak(allEntries.map((e) => e.entry_date), new Date().toISOString().split('T')[0]);
+  const streak = computeStreak(allEntries.map((e) => e.entry_date), localDateKey());
 
   // Reload the day's entry when the date changes (authenticated only).
   useEffect(() => {
@@ -612,7 +642,7 @@ export default function App() {
   const menuItems = [
     { id: 'crew', label: 'Flight Crew' },
     { id: 'reminders', label: 'Reminders' },
-    { id: 'search', label: 'Search' },
+    // Search is NOT in the menu — the header search icon covers it.
     { id: 'backup', label: 'Backup' },
     { id: 'frontmatter', label: 'FrontMatter' },
     // AI Studio only appears when the server has it configured.

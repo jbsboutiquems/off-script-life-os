@@ -1,4 +1,5 @@
 import { userGet, userSet } from './storage';
+import { localDateKey } from './lib/dates';
 import { getBuddy } from './buddy';
 import { getTheme, applyTheme } from './theme';
 
@@ -173,7 +174,7 @@ export function noteSaveAction(when: Date = new Date()) {
 /** Once per evening: the "getting sleepy" beat at 23:55. */
 export function checkSleepyWarning(when: Date = new Date()) {
   try {
-    const day = when.toISOString().slice(0, 10);
+    const day = localDateKey(when);
     const meta = getMeta();
     if (when.getHours() === 23 && when.getMinutes() >= 55 && meta.sleepyWarnedDay !== day) {
       setMeta({ sleepyWarnedDay: day });

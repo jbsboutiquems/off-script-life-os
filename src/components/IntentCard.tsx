@@ -279,7 +279,7 @@ export const IntentCard: React.FC<IntentCardProps> = ({
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
               <span className="text-[11px] font-mono-code tracking-widest text-rose-300 uppercase font-bold">
-                MEI-STYLE DIAGNOSTIC ENGINE · ACTIVE
+                INTENT DIAGNOSTIC ENGINE · ACTIVE
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold font-serif-display mt-1 text-cream-canvas">
