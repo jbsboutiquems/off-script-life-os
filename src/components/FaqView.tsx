@@ -66,6 +66,22 @@ const CURATED_ENTRIES: FaqEntry[] = [
     ),
   },
   {
+    q: 'What stays on my phone, and what gets sent somewhere?',
+    a: (
+      <div className="space-y-2">
+        <p>
+          <strong>Stays on your phone:</strong> your frontmatter journaling and reminder schedules — those live on the device.
+        </p>
+        <p>
+          <strong>Sent to the Off*Script service:</strong> your account, DMs, Wall posts, and anything you create in the AI Studio — that is what makes sync and community features work.
+        </p>
+        <p>
+          <strong>Sent to Google:</strong> only the Gemini-powered features — AI Studio generations and transcription, and The Intent fallback — and only after you accept the Gemini consent in the app. Declining never blocks the app.
+        </p>
+      </div>
+    ),
+  },
+  {
     q: 'The app says it is in test mode. What does that mean?',
     a: (
       <p>

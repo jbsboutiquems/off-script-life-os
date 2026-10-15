@@ -673,7 +673,8 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
                   </div>
                 </div>
                 <p className="text-[11px] text-stone-500 italic mb-2">
-                  Write, draw, spiral, rant, dream, map. Where the armor comes off. Feeds directly into the personality diagnostic engine.
+                  Write, rant, dream. Where the armor comes off. Feeds directly into the personality diagnostic engine.
+                  Want to draw, spiral, or map it? That&apos;s what the book&apos;s right page is for.
                 </p>
 
                 {/* Real-time Voice Transcription Banner */}

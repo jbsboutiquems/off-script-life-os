@@ -103,7 +103,7 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
         </div>
 
         <p className="text-sm text-slate-600 dark:text-stone-300 mb-4">
-          Off*Script only asks for what it actually uses — nothing else, ever:
+          Off*Script only asks for what it actually uses. This card covers two of them:
         </p>
 
         <ul className="space-y-3 mb-5">
@@ -126,6 +126,10 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
             </span>
           </li>
         </ul>
+
+        <p className="text-xs text-slate-500 dark:text-stone-400 mb-5">
+          The app also uses location (Field map) and notifications + alarms (reminders) — those ask when you use those features, not here.
+        </p>
 
         <div className="flex gap-2">
           <button
