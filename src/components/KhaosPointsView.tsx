@@ -33,10 +33,11 @@ export const KhaosPointsView: React.FC<KhaosPointsViewProps> = ({ points, entryD
 
   const shareKhaos = async () => {
     setShareError(null);
-    const text = `I'm at ${total} Khaos Points (${rank}) on the Off*Script Life OS with a ${streak}-day streak. Structure without the cage. ⚡`;
+    const appUrl = 'https://jbsboutiquems.github.io/off-script-life-os/';
+    const text = `I'm at ${total} Khaos Points (${rank}) on the Off*Script Life OS with a ${streak}-day streak. Structure without the cage. ⚡\n\nGet the app: ${appUrl}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'My Khaos Points', text });
+        await navigator.share({ title: 'My Khaos Points', text, url: appUrl });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(text);
         setShared(true);
