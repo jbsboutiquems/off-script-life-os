@@ -7,6 +7,11 @@ import { getVoiceProfile } from '../tone';
 
 // ================= Auth + session =================
 
+// OS-006: the auth token used to live in localStorage, where it persisted
+// indefinitely and was readable by any script on the page. It now lives in
+// sessionStorage (cleared when the tab/app session ends). One-time
+// migration: a pre-OS-006 localStorage token is moved over on first read
+// so existing sessions aren't force-logged-out by the upgrade.
 const TOKEN_KEY = 'lifeos:auth:token';
 let cachedUserId: string | null = null;
 let authFailureHandler: (() => void) | null = null;
@@ -19,9 +24,26 @@ export class AuthError extends Error {
   }
 }
 
+/** Thrown when the server answers 403 with code EMAIL_UNVERIFIED (OS-002). */
+export class EmailUnverifiedError extends Error {
+  code = 'EMAIL_UNVERIFIED';
+  constructor(message: string) {
+    super(message);
+    this.name = 'EmailUnverifiedError';
+  }
+}
+
 function getToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const t = sessionStorage.getItem(TOKEN_KEY);
+    if (t) return t;
+    const legacy = localStorage.getItem(TOKEN_KEY);
+    if (legacy) {
+      try { sessionStorage.setItem(TOKEN_KEY, legacy); } catch { /* ignore */ }
+      try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+      return legacy;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -29,7 +51,13 @@ function getToken(): string | null {
 
 function setToken(token: string) {
   try {
-    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // ignore
+  }
+  // Never leave a copy in localStorage.
+  try {
+    localStorage.removeItem(TOKEN_KEY);
   } catch {
     // ignore
   }
@@ -38,6 +66,11 @@ function setToken(token: string) {
 }
 
 function clearToken() {
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // ignore
+  }
   try {
     localStorage.removeItem(TOKEN_KEY);
   } catch {
@@ -198,6 +231,16 @@ async function req(path: string, options: RequestInit = {}): Promise<Response> {
     const body = await res.json().catch(() => ({} as any));
     throw new AuthError(body.error || 'Session expired. Please log in again.');
   }
+  // OS-002: the email-verification gate answers 403 + code
+  // EMAIL_UNVERIFIED. Previously this fell through to generic errors and
+  // the UI had no branch for it. The session is still valid, so the
+  // token is NOT cleared here.
+  if (res.status === 403) {
+    const body = await res.json().catch(() => ({} as any));
+    if (body.code === 'EMAIL_UNVERIFIED') {
+      throw new EmailUnverifiedError(body.error || 'Verify your email first — check your inbox for the link.');
+    }
+  }
   return res;
 }
 
@@ -285,16 +328,19 @@ export const api = {
     authFailureHandler = handler;
   },
 
-  // NOTE: username-only signup is closed (email mandatory, 2026-10-14).
-  // Signups go through emailRegister() -> /api/auth/email/register.
-  // The old /api/auth/register endpoint now rejects without an email.
-  async login(username: string, password: string): Promise<AuthResult> {
+  // NOTE: sign-in is EMAIL-ONLY (2026-10-17). Username is the account's
+  // display name, never a login credential. Signups go through
+  // emailRegister() -> /api/auth/email/register.
+  async login(email: string, password: string): Promise<AuthResult> {
     const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ email, password })
     });
     const body = await res.json().catch(() => ({} as any));
+    if (res.status === 403 && body.code === 'EMAIL_UNVERIFIED') {
+      throw new EmailUnverifiedError(body.error || 'Verify your email first — check your inbox for the link.');
+    }
     if (!res.ok) throw new Error(body.error || 'Login failed.');
     setToken(body.token);
     cachedUserId = body.user?.id || null;
@@ -317,11 +363,11 @@ export const api = {
     clearToken();
   },
 
-  async recoverAccount(username: string, recoveryCode: string, newPassword: string): Promise<{ success: boolean; recoveryCode: string }> {
+  async recoverAccount(email: string, recoveryCode: string, newPassword: string): Promise<{ success: boolean; recoveryCode: string }> {
     const res = await fetch(apiUrl('/api/auth/recover'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, recoveryCode, newPassword })
+      body: JSON.stringify({ email, recoveryCode, newPassword })
     });
     const body = await res.json().catch(() => ({} as any));
     if (!res.ok) throw new Error(body.error || 'Recovery failed.');
@@ -363,18 +409,21 @@ export const api = {
     return body;
   },
 
-  async emailLogin(email: string, password: string): Promise<AuthResult> {
-    const res = await fetch(apiUrl('/api/auth/email/login'), {
+  // (emailLogin removed 2026-10-17 — identical to login() now that sign-in
+  // is email-only. One canonical path: login() -> /api/auth/login.)
+  /**
+   * OS-002: public resend for locked-out users — prove the password, get a
+   * fresh verification link. Used by the login screen's "Resend
+   * verification email" button (no session needed, unlike resendVerification).
+   */
+  async requestVerification(email: string, password: string): Promise<void> {
+    const res = await fetch(apiUrl('/api/auth/email/request-verification'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
     const body = await res.json().catch(() => ({} as any));
-    if (!res.ok) throw new Error(body.error || 'Login failed.');
-    setToken(body.token);
-    cachedUserId = body.user?.id || null;
-    setActiveUserId(cachedUserId);
-    return body;
+    if (!res.ok) throw new Error(body.error || 'Could not resend the verification email.');
   },
 
   async resendVerification(): Promise<void> {
@@ -436,6 +485,57 @@ export const api = {
     });
     const body = await res.json().catch(() => ({ matches: [] } as any));
     if (!res.ok) throw new Error(body.error || 'Discovery failed.');
+    return body;
+  },
+  // ---- Friends: requests + list ----
+  async sendFriendRequest(toId: string): Promise<{ request?: any; alreadyFriends?: boolean; duplicate?: boolean }> {
+    const res = await req('/api/friends/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toId }),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not send that friend request.');
+    return body;
+  },
+  async sendFriendRequestToAmber(): Promise<{ request?: any; alreadyFriends?: boolean; duplicate?: boolean }> {
+    const res = await req('/api/friends/requests/amber', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not send that friend request.');
+    return body;
+  },
+  async listFriends(): Promise<{ id: string; username: string }[]> {
+    const res = await req('/api/friends');
+    if (!res.ok) throw new Error('Could not load your friends.');
+    return res.json();
+  },
+  async listFriendRequests(): Promise<{ incoming: any[]; outgoing: any[] }> {
+    const res = await req('/api/friends/requests');
+    if (!res.ok) throw new Error('Could not load friend requests.');
+    return res.json();
+  },
+  async acceptFriendRequest(id: string): Promise<{ request: any }> {
+    const res = await req(`/api/friends/requests/${id}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not accept that request.');
+    return body;
+  },
+  async declineFriendRequest(id: string): Promise<{ request: any }> {
+    const res = await req(`/api/friends/requests/${id}/decline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not decline that request.');
     return body;
   },
   // ---- Developer-mode password gate ----

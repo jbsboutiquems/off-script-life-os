@@ -64,7 +64,16 @@ export async function sendMail(email: OutboundEmail): Promise<void> {
     secure: cfg.secure,
     auth: cfg.user ? { user: cfg.user, pass: cfg.pass } : undefined,
   });
-  await transporter.sendMail({ from: cfg.from, to: email.to, subject: email.subject, html: email.html });
+  // OS-001: never hang forever on SMTP — a stuck connection used to hang
+  // signup (and any other await sendMail) indefinitely. 20s cap; callers
+  // that must not block (signup) fire-and-forget on top of this.
+  const timeout = new Promise<never>((_resolve, reject) =>
+    setTimeout(() => reject(new Error("SMTP send timed out after 20s.")), 20000)
+  );
+  await Promise.race([
+    transporter.sendMail({ from: cfg.from, to: email.to, subject: email.subject, html: email.html }),
+    timeout,
+  ]);
 }
 
 function shell(title: string, body: string, cta: { label: string; href: string } | null): string {

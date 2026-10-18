@@ -13,7 +13,6 @@ type Mode = 'login' | 'register' | 'forgot';
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
   const [mode, setMode] = useState<Mode>('login');
-  const [emailMode, setEmailMode] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,9 +46,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
     setBusy(true);
     try {
       if (mode === 'login') {
-        const result = emailMode
-          ? await api.emailLogin(email.trim(), password)
-          : await api.login(username.trim(), password);
+        // Sign-in is email-only: username is the display name, never a credential.
+        const result = await api.login(email.trim(), password);
         onAuthed(result.user);
       } else if (mode === 'register') {
         // Email is mandatory at signup (2026-10-14): every account gets an
@@ -61,7 +59,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
         setFreshCodeContext('register');
       } else {
         if (newPassword !== confirmPassword) throw new Error('The two passwords are not matching. Try again.');
-        const result = await api.recoverAccount(username.trim(), recoveryCode, newPassword);
+        const result = await api.recoverAccount(email.trim(), recoveryCode, newPassword);
         setFreshCode(result.recoveryCode);
         setFreshCodeContext('recover');
       }
@@ -203,37 +201,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                 </button>
               </div>
 
-              {/* Email / username switch (login only — signup always asks for email) */}
-              {mode === 'login' && (
-                <button
-                  type="button"
-                  onClick={() => { setEmailMode(!emailMode); setError(null); setSuggestions([]); }}
-                  className="mb-4 w-full text-center text-[11px] font-bold font-mono-code uppercase tracking-wider text-indigo-600 dark:text-indigo-300 hover:underline"
-                >
-                  {emailMode ? '← Use username instead' : 'Use email instead →'}
-                </button>
-              )}
-
               <form onSubmit={submit} className="space-y-4">
-                {(emailMode || mode === 'register') && (
-                  <div>
-                    <label htmlFor="auth-email" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                      Email {mode === 'register' && <span className="font-normal text-stone-400">(required — for verification + password reset)</span>}
-                    </label>
-                    <input
-                      id="auth-email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      autoComplete="email"
-                      aria-label="Email address"
-                      required
-                      className={inputCls}
-                    />
-                  </div>
-                )}
-                {(!emailMode || mode === 'register') && (
+                <div>
+                  <label htmlFor="auth-email" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    Email {mode === 'register' && <span className="font-normal text-stone-400">(required — for verification + password reset)</span>}
+                  </label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    aria-label="Email address"
+                    required
+                    className={inputCls}
+                  />
+                </div>
+                {mode === 'register' && (
                   <div>
                     <label htmlFor="auth-username" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
                       Username {mode === 'register' && <span className="font-normal text-stone-400">(required — this is your name everywhere)</span>}
@@ -373,16 +358,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                   <KeyRound className="w-3.5 h-3.5" /> Use my recovery code
                 </div>
                 <div>
-                  <label htmlFor="recover-username" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                    Username
+                  <label htmlFor="recover-email" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    Email
                   </label>
                   <input
-                    id="recover-username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
-                    aria-label="Username"
+                    id="recover-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    aria-label="Email address"
                     required
                     className={`${inputCls} font-mono-code`}
                   />

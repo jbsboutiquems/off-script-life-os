@@ -57,6 +57,42 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
   const [findingFriends, setFindingFriends] = useState(false);
   const [friendMatches, setFriendMatches] = useState<{ id: string; username: string }[] | null>(null);
   const [friendErr, setFriendErr] = useState<string | null>(null);
+  // Friend request state (send side) + recipient side (incoming requests
+  // and friends list, with accept/decline)
+  const [amberReqBusy, setAmberReqBusy] = useState(false);
+  const [amberReqMsg, setAmberReqMsg] = useState<string | null>(null);
+  const [amberReqErr, setAmberReqErr] = useState<string | null>(null);
+  const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
+  // Incoming pending requests + current friends (recipient side)
+  type FriendRequestItem = { id: string; fromId: string; fromUsername: string; toId: string; status: string; created_at: string };
+  type FriendItem = { id: string; username: string };
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequestItem[] | null>(null);
+  const [friends, setFriends] = useState<FriendItem[] | null>(null);
+  const [friendsErr, setFriendsErr] = useState<string | null>(null);
+  const [actingOnId, setActingOnId] = useState<string | null>(null);
+  const loadFriendLists = async () => {
+    setFriendsErr(null);
+    try {
+      const [reqs, fr] = await Promise.all([api.listFriendRequests(), api.listFriends()]);
+      setIncomingRequests(reqs.incoming);
+      setFriends(fr);
+    } catch (e: any) {
+      setFriendsErr(e.message || 'Could not load friend requests.');
+    }
+  };
+  useEffect(() => { loadFriendLists(); }, []);
+  const answerRequest = async (id: string, accept: boolean) => {
+    setActingOnId(id); setFriendsErr(null);
+    try {
+      if (accept) await api.acceptFriendRequest(id);
+      else await api.declineFriendRequest(id);
+      await loadFriendLists();
+    } catch (e: any) {
+      setFriendsErr(e.message || 'Could not answer that request.');
+    } finally {
+      setActingOnId(null);
+    }
+  };
   useEffect(() => {
     api.phoneStatus()
       .then((s) => {
@@ -569,6 +605,27 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
                 {findingFriends ? 'Scanning…' : 'Choose contacts to find'}
               </button>
               {friendErr && <p className="mt-2 text-xs font-semibold text-rose-700">{friendErr}</p>}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={amberReqBusy}
+                  onClick={async () => {
+                    setAmberReqBusy(true); setAmberReqErr(null); setAmberReqMsg(null);
+                    try {
+                      const out = await api.sendFriendRequestToAmber();
+                      if (out.alreadyFriends) setAmberReqMsg("You're already friends with Amber. She's your first friend here.");
+                      else if (out.duplicate) setAmberReqMsg('Request already sent — sitting in her pending list.');
+                      else setAmberReqMsg('Friend request sent to Amber.');
+                    } catch (e: any) { setAmberReqErr(e.message || 'Could not send that request.'); }
+                    finally { setAmberReqBusy(false); }
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                >
+                  {amberReqBusy ? 'Sending…' : 'Add Amber as a friend'}
+                </button>
+                {amberReqMsg && <span className="text-xs font-semibold text-emerald-700">{amberReqMsg}</span>}
+                {amberReqErr && <span className="text-xs font-semibold text-rose-700">{amberReqErr}</span>}
+              </div>
               {friendMatches && (
                 <div className="mt-2">
                   {friendMatches.length === 0 ? (
@@ -576,15 +633,93 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
                   ) : (
                     <ul className="space-y-1.5">
                       {friendMatches.map((m) => (
-                        <li key={m.id} className="flex items-center justify-between px-3 py-2 bg-teal-50 border border-teal-200 rounded-xl">
+                        <li key={m.id} className="flex items-center justify-between gap-2 px-3 py-2 bg-teal-50 border border-teal-200 rounded-xl">
                           <span className="text-sm font-bold text-slate-900 font-mono-code">{m.username}</span>
-                          <span className="text-[10px] font-mono-code uppercase tracking-wider text-teal-700 font-bold">On Off*Script</span>
+                          <button
+                            type="button"
+                            disabled={requestedIds.has(m.id)}
+                            onClick={async () => {
+                              try {
+                                await api.sendFriendRequest(m.id);
+                                setRequestedIds((s) => new Set(s).add(m.id));
+                              } catch { /* keep the button enabled so they can retry */ }
+                            }}
+                            className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 text-white text-[11px] font-bold rounded-lg transition-all disabled:opacity-50"
+                          >
+                            {requestedIds.has(m.id) ? 'Request sent' : 'Add friend'}
+                          </button>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
               )}
+
+              <div className="pt-3 mt-3 border-t border-teal-200/70">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-stone-500">
+                    Friend requests
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadFriendLists()}
+                    className="text-[11px] font-bold text-teal-700 hover:text-teal-600"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                {friendsErr && <p className="mt-1 text-xs font-semibold text-rose-700">{friendsErr}</p>}
+                {incomingRequests === null ? (
+                  <p className="mt-1 text-xs text-stone-400 font-mono-code">Loading…</p>
+                ) : incomingRequests.length === 0 ? (
+                  <p className="mt-1 text-xs text-stone-500">No pending friend requests.</p>
+                ) : (
+                  <ul className="mt-1 space-y-1.5">
+                    {incomingRequests.map((r) => (
+                      <li key={r.id} className="flex items-center justify-between gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl">
+                        <span className="text-sm font-bold text-slate-900 font-mono-code">{r.fromUsername}</span>
+                        <span className="flex gap-1.5">
+                          <button
+                            type="button"
+                            disabled={actingOnId === r.id}
+                            onClick={() => answerRequest(r.id, true)}
+                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-lg transition-all disabled:opacity-50"
+                          >
+                            {actingOnId === r.id ? '…' : 'Accept'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actingOnId === r.id}
+                            onClick={() => answerRequest(r.id, false)}
+                            className="px-3 py-1.5 bg-white hover:bg-stone-100 text-slate-700 border border-stone-300 text-[11px] font-bold rounded-lg transition-all disabled:opacity-50"
+                          >
+                            {actingOnId === r.id ? '…' : 'Decline'}
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="pt-3 mt-3 border-t border-teal-200/70">
+                <div className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-stone-500">
+                  Friends
+                </div>
+                {friends === null ? (
+                  <p className="mt-1 text-xs text-stone-400 font-mono-code">Loading…</p>
+                ) : friends.length === 0 ? (
+                  <p className="mt-1 text-xs text-stone-500">No friends yet — send a request or let someone find you.</p>
+                ) : (
+                  <ul className="mt-1 space-y-1.5">
+                    {friends.map((f) => (
+                      <li key={f.id} className="px-3 py-2 bg-teal-50 border border-teal-200 rounded-xl">
+                        <span className="text-sm font-bold text-slate-900 font-mono-code">{f.username}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         )}

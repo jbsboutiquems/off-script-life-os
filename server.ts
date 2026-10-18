@@ -195,7 +195,7 @@ interface AppNotification {
   id: string;
   userId: string;
   actorId: string;
-  kind: "reply" | "reaction" | "dm" | "room";
+  kind: "reply" | "reaction" | "dm" | "room" | "friend_request";
   text: string;
   refId: string | null;
   created_at: string;
@@ -230,6 +230,27 @@ interface RoomMessage {
   created_at: string;
 }
 
+/** A mutual friend connection. Stored as two rows (a→b and b→a) so
+ *  "list my friends" is a single filter. IDs only — usernames resolve
+ *  from accounts at read time, so renames never go stale. */
+interface Friendship {
+  userId: string;
+  friendId: string;
+  created_at: string;
+}
+
+/** A pending friend request. Status moves pending → accepted | declined.
+ *  fromUsername is denormalized (like wall/DM copies) so the pending list
+ *  renders without a join; the username-change handler keeps it in sync. */
+interface FriendRequest {
+  id: string;
+  fromId: string;
+  fromUsername: string;
+  toId: string;
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+}
+
 interface DataStore {
   version: 2;
   accounts: AccountUser[];
@@ -255,6 +276,10 @@ interface DataStore {
   rooms: Room[];
   /** Room messages across all rooms. */
   roomMessages: RoomMessage[];
+  /** Mutual friend connections (two rows per friendship, one each way). */
+  friendships: Friendship[];
+  /** Friend requests, pending + decided. */
+  friendRequests: FriendRequest[];
   /** Community FAQ board — users ask, admins answer. */
   faqQuestions: FaqQuestion[];
   /** Field presence: userId -> last region heartbeat (region-level only, never coordinates). */
@@ -405,6 +430,8 @@ function freshStore(): DataStore {
     notifications: [],
     rooms: [],
     roomMessages: [],
+    friendships: [],
+    friendRequests: [],
     faqQuestions: []
   };
 }
@@ -456,6 +483,8 @@ function loadData(): DataStore {
         if (!Array.isArray(store.notifications)) store.notifications = [];
         if (!Array.isArray(store.rooms)) store.rooms = [];
         if (!Array.isArray(store.roomMessages)) store.roomMessages = [];
+        if (!Array.isArray((store as any).friendships)) (store as any).friendships = [];
+        if (!Array.isArray((store as any).friendRequests)) (store as any).friendRequests = [];
         if (!Array.isArray(store.faqQuestions)) store.faqQuestions = [];
         if (!store.fieldPresence || typeof store.fieldPresence !== "object") store.fieldPresence = {};
         if (!store.fieldGames || typeof store.fieldGames !== "object") store.fieldGames = {};
@@ -544,13 +573,13 @@ function verifyRecoveryCode(code: string, stored: string): boolean {
   return verifyPassword(`recovery:${normalizeRecoveryCode(code)}`, stored);
 }
 
-// Blunt-force throttle: 10 recovery attempts per username per 15 minutes.
+// Blunt-force throttle: 10 recovery attempts per email per 15 minutes.
 const recoveryAttempts = new Map<string, { count: number; windowStart: number }>();
-function recoveryAllowed(usernameKey: string): boolean {
+function recoveryAllowed(emailKey: string): boolean {
   const now = Date.now();
-  const rec = recoveryAttempts.get(usernameKey);
+  const rec = recoveryAttempts.get(emailKey);
   if (!rec || now - rec.windowStart > 15 * 60 * 1000) {
-    recoveryAttempts.set(usernameKey, { count: 1, windowStart: now });
+    recoveryAttempts.set(emailKey, { count: 1, windowStart: now });
     return true;
   }
   if (rec.count >= 10) return false;
@@ -656,20 +685,33 @@ function validUsername(u: string): boolean {
 }
 
 // ---------- Public auth routes ----------
-
-app.post("/api/auth/login", (req, res) => {
-  const username = String(req.body?.username || "").trim().toLowerCase();
+// Sign-in is EMAIL-ONLY (2026-10-17): username is the account's display name,
+// never a login credential. /api/auth/login is kept as an alias of
+// /api/auth/email/login so old debug clients calling the old route get the
+// same email-only behavior instead of a 404; clients still sending a
+// username get a clear 400 telling them to use their email.
+function handleEmailLogin(req: any, res: any) {
+  const email = String(req.body?.email || "").trim().toLowerCase();
   const password = String(req.body?.password || "");
-  const acct = db.accounts.find((a) => a.usernameKey === username);
-  // One generic message: never reveal whether the username exists.
+  if (!email) {
+    return res.status(400).json({ error: "Log in with your email address — username login is gone." });
+  }
+  const acct = db.accounts.find((a) => (a.email || "").toLowerCase() === email);
+  // One generic message: never reveal whether the email exists.
   if (!acct || !verifyPassword(password, acct.passwordHash)) {
-    return res.status(401).json({ error: "Wrong username or password." });
+    return res.status(401).json({ error: "Wrong email or password." });
+  }
+  if (!acct.emailVerified) {
+    return res.status(403).json({ error: "Verify your email first — check your inbox for the link.", code: "EMAIL_UNVERIFIED" });
   }
   if (!db.users[acct.id]) db.users[acct.id] = freshUserData(acct.id, acct.username);
   const token = createSession(acct.id);
   saveData(db);
   res.json({ token, user: db.users[acct.id].user });
-});
+}
+
+app.post("/api/auth/login", handleEmailLogin);
+app.post("/api/auth/email/login", handleEmailLogin);
 
 app.post("/api/auth/logout", requireAuth, (req, res) => {
   const header = String(req.headers.authorization || "");
@@ -681,18 +723,19 @@ app.post("/api/auth/logout", requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-// Password recovery: username + recovery code -> set a new password, rotate the code.
-// Rate-limited per username; responses stay generic so usernames can't be probed.
+// Password recovery: email + recovery code -> set a new password, rotate the code.
+// Rate-limited per email; responses stay generic so emails can't be probed.
+// (Email reset links are the primary recovery path; this is the fallback.)
 app.post("/api/auth/recover", (req, res) => {
-  const usernameKey = String(req.body?.username || "").trim().toLowerCase();
+  const emailKey = String(req.body?.email || "").trim().toLowerCase();
   const code = String(req.body?.recoveryCode || "");
   const newPassword = String(req.body?.newPassword || "");
-  if (!recoveryAllowed(usernameKey || "blank")) {
+  if (!recoveryAllowed(emailKey || "blank")) {
     return res.status(429).json({ error: "Too many attempts. Cool off for a bit and try again." });
   }
-  const acct = db.accounts.find((a) => a.usernameKey === usernameKey);
+  const acct = db.accounts.find((a) => (a.email || "").toLowerCase() === emailKey);
   if (!acct || !verifyRecoveryCode(code, acct.recoveryHash)) {
-    return res.status(401).json({ error: "That didn't verify. Check the username and recovery code and try again." });
+    return res.status(401).json({ error: "That didn't verify. Check the email and recovery code and try again." });
   }
   if (newPassword.length < 8) {
     return res.status(400).json({ error: "New password must be at least 8 characters. Pick a good one." });
@@ -704,7 +747,7 @@ app.post("/api/auth/recover", (req, res) => {
   for (const [tok, s] of Object.entries(db.sessions)) {
     if (s.userId === acct.id) delete db.sessions[tok];
   }
-  recoveryAttempts.delete(usernameKey);
+  recoveryAttempts.delete(emailKey);
   saveData(db);
   res.json({ success: true, recoveryCode: newCode });
 });
@@ -721,7 +764,7 @@ app.post("/api/auth/recovery-code/rotate", requireAuth, (req, res) => {
 });
 
 // ================= OAUTH (Google / Facebook) + EMAIL AUTH =================
-// Local username/password + recovery codes keep working regardless.
+// Local email/password + recovery codes keep working regardless.
 // Linking rule: an OAuth login whose verified email matches an existing
 // email account links to that account; otherwise a new account is created
 // (after the mandatory choose-your-username step).
@@ -959,6 +1002,7 @@ app.post("/api/auth/oauth/complete", (req, res) => {
   else acct.facebookId = pend.providerId;
   db.accounts.push(acct);
   db.users[id] = freshUserData(id, username);
+  befriendAmberOnSignup(id); // Amber is every new user's first friend.
   saveData(db);
   const token = createSession(id);
   res.json({ token, user: db.users[id].user, recoveryCode });
@@ -1048,15 +1092,19 @@ async function handleEmailRegister(req: any, res: any) {
   };
   db.accounts.push(acct);
   db.users[id] = freshUserData(id, name);
+  befriendAmberOnSignup(id); // Amber is every new user's first friend.
+  // OS-001: fire-and-forget. Signup must never block on SMTP — the old
+  // `await sendMail(...)` hung the whole request when the mail server
+  // stalled. The verification token is issued first, so the email still
+  // goes out; failures are logged only. `emailed` means "queued", not
+  // "confirmed delivered" (no UI reads it today).
   let emailed = false;
   if (smtp) {
-    try {
-      const token = issueEmailToken(id, "verify", email, 24 * 3600 * 1000);
-      await sendMail(verificationEmail(email, `${baseUrl()}/api/auth/email/verify?token=${token}`));
-      emailed = true;
-    } catch (e: any) {
+    const token = issueEmailToken(id, "verify", email, 24 * 3600 * 1000);
+    sendMail(verificationEmail(email, `${baseUrl()}/api/auth/email/verify?token=${token}`)).catch((e: any) => {
       console.warn("Verification email failed to send:", e?.message);
-    }
+    });
+    emailed = true;
   } else {
     console.warn(`[auth] SMTP unconfigured — email verification skipped for ${email} (auto-verified).`);
   }
@@ -1068,21 +1116,8 @@ async function handleEmailRegister(req: any, res: any) {
 app.post("/api/auth/register", handleEmailRegister);
 app.post("/api/auth/email/register", handleEmailRegister);
 
-app.post("/api/auth/email/login", (req, res) => {
-  const email = String(req.body?.email || "").trim().toLowerCase();
-  const password = String(req.body?.password || "");
-  const acct = db.accounts.find((a) => (a.email || "").toLowerCase() === email);
-  if (!acct || !verifyPassword(password, acct.passwordHash)) {
-    return res.status(401).json({ error: "Wrong email or password." });
-  }
-  if (!acct.emailVerified) {
-    return res.status(403).json({ error: "Verify your email first — check your inbox for the link.", code: "EMAIL_UNVERIFIED" });
-  }
-  if (!db.users[acct.id]) db.users[acct.id] = freshUserData(acct.id, acct.username);
-  const token = createSession(acct.id);
-  saveData(db);
-  res.json({ token, user: db.users[acct.id].user });
-});
+// (Email login lives in handleEmailLogin, registered above for both
+// /api/auth/login and /api/auth/email/login.)
 
 app.get("/api/auth/email/verify", (req, res) => {
   const rec = consumeEmailToken(String(req.query.token || ""), "verify");
@@ -1335,6 +1370,125 @@ app.post("/api/auth/phone/reset", (req, res) => {
 });
 
 /**
+ * Friends: friendships + requests.
+ *
+ * Amber's account is resolved server-side only, from env — never hardcoded,
+ * never sent to the client. Precedence: AMBER_USER_ID wins, then
+ * AMBER_EMAIL, then AMBER_USERNAME (case-insensitive, same pattern as
+ * ADMIN_USERNAMES). If none is set, the Amber features are inert: no
+ * auto-add, and requests to Amber answer 503. Set exactly one of them in
+ * the deploy env.
+ *
+ * AMBER_EMAIL matches by VERIFIED email only — never an unverified
+ * account. Otherwise anyone could squat the identity post-wipe by
+ * registering with her email before she does.
+ *
+ * Deployment (Amber, Oct 17): use AMBER_EMAIL=snoopsmommy420@gmail.com,
+ * set POST-WIPE only — after the wipe she recreates her account, then
+ * the env value goes in. Nothing is set or assumed before the wipe.
+ */
+function resolveAmberAccountId(): string | null {
+  const byId = (process.env.AMBER_USER_ID || "").trim();
+  if (byId) {
+    const acct = db.accounts.find((a) => a.id === byId);
+    if (acct) return acct.id;
+  }
+  const byEmail = (process.env.AMBER_EMAIL || "").trim().toLowerCase();
+  if (byEmail) {
+    // Verified email only — see the comment above.
+    const acct = db.accounts.find(
+      (a) => (a.email || "").toLowerCase() === byEmail && a.emailVerified === true
+    );
+    if (acct) return acct.id;
+  }
+  const byName = (process.env.AMBER_USERNAME || "").trim().toLowerCase();
+  if (byName) {
+    const acct = db.accounts.find((a) => a.usernameKey === byName);
+    if (acct) return acct.id;
+  }
+  return null;
+}
+
+function areFriends(a: string, b: string): boolean {
+  return (db.friendships || []).some((f) => f.userId === a && f.friendId === b);
+}
+
+/** Idempotent: creates both-direction rows if neither exists yet. */
+function addFriendship(a: string, b: string): void {
+  if (a === b || areFriends(a, b)) return;
+  const now = new Date().toISOString();
+  db.friendships.push(
+    { userId: a, friendId: b, created_at: now },
+    { userId: b, friendId: a, created_at: now }
+  );
+}
+
+const AMBER_WELCOME_DM =
+  "Welcome to the Khaos Krew! I'm Amber — your first friend here. Say hi anytime. 💫";
+
+/** Seeds the new user's DM list with Amber: a welcome DM from her, in the
+ *  same shape as a normal DM, plus the bell notification a DM carries.
+ *  This only creates an outbound message from Amber — it does not change
+ *  how inbound DMs work (DMs have no accept step in this app). */
+function sendAmberWelcomeDm(userId: string, amberId: string): void {
+  const amber = db.accounts.find((a) => a.id === amberId);
+  if (!amber) return;
+  const existing = (db.dmMessages || []).some(
+    (m) => (m.fromId === amberId && m.toId === userId) || (m.fromId === userId && m.toId === amberId)
+  );
+  if (existing) return;
+  const msg: DmMessage = {
+    id: `dm_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    fromId: amberId,
+    fromUsername: amber.username,
+    toId: userId,
+    toUsername: db.accounts.find((a) => a.id === userId)?.username || "unknown",
+    text: AMBER_WELCOME_DM,
+    created_at: new Date().toISOString(),
+  };
+  db.dmMessages.push(msg);
+  notifyUser(userId, amberId, "dm", `${amber.username} sent you a DM.`, msg.id);
+}
+
+/** Auto-add: every brand-new account gets Amber as its first friend.
+ *  Never throws — a missing/unresolvable Amber account must not break signup. */
+function befriendAmberOnSignup(newUserId: string): void {
+  try {
+    const amberId = resolveAmberAccountId();
+    if (!amberId || amberId === newUserId) return;
+    addFriendship(newUserId, amberId);
+    sendAmberWelcomeDm(newUserId, amberId);
+  } catch (e: any) {
+    console.warn("[friends] auto-add failed:", e?.message);
+  }
+}
+
+/** Shared request-creation guardrails: duplicates return the existing
+ *  pending request, already-friends returns the friendship instead. */
+function createFriendRequest(fromId: string, toId: string):
+  | { kind: "created"; request: FriendRequest }
+  | { kind: "duplicate"; request: FriendRequest }
+  | { kind: "already_friends" } {
+  if (areFriends(fromId, toId)) return { kind: "already_friends" };
+  const existing = (db.friendRequests || []).find(
+    (r) => r.fromId === fromId && r.toId === toId && r.status === "pending"
+  );
+  if (existing) return { kind: "duplicate", request: existing };
+  const from = db.accounts.find((a) => a.id === fromId);
+  const request: FriendRequest = {
+    id: `fr_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    fromId,
+    fromUsername: from?.username || "unknown",
+    toId,
+    status: "pending",
+    created_at: new Date().toISOString(),
+  };
+  db.friendRequests.push(request);
+  notifyUser(toId, fromId, "friend_request", `${request.fromUsername} sent you a friend request.`, request.id);
+  return { kind: "created", request };
+}
+
+/**
  * Friend discovery via phone numbers — privacy-preserving.
  * Client hashes each contact's normalized E.164 with SHA-256 and sends only
  * the hashes. The server compares against hashes of verified numbers and
@@ -1354,6 +1508,85 @@ app.post("/api/friends/discover", requireAuth, (req, res) => {
     if (wanted.has(h)) matches.push({ id: a.id, username: a.username });
   }
   res.json({ matches });
+});
+
+// ---------- Friends: requests + list ----------
+
+app.post("/api/friends/requests", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const toId = String(req.body?.toId || "");
+  if (!toId) return res.status(400).json({ error: "Say who the request is for." });
+  if (toId === ar.userId) return res.status(400).json({ error: "You're already your own best friend." });
+  const target = db.accounts.find((a) => a.id === toId && a.id !== "legacy");
+  if (!target) return res.status(404).json({ error: "That user doesn't exist." });
+  const out = createFriendRequest(ar.userId, toId);
+  if (out.kind === "already_friends") return res.json({ alreadyFriends: true });
+  if (out.kind === "duplicate") return res.json({ request: out.request, duplicate: true });
+  saveData(db);
+  res.status(201).json({ request: out.request });
+});
+
+// Send a friend request to Amber — no ID or discovery needed. The request
+// lands in her pending list; it is never auto-accepted.
+app.post("/api/friends/requests/amber", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const amberId = resolveAmberAccountId();
+  if (!amberId) {
+    return res.status(503).json({ error: "Amber's friend requests aren't set up on this server yet." });
+  }
+  if (amberId === ar.userId) return res.status(400).json({ error: "You're already your own best friend." });
+  const out = createFriendRequest(ar.userId, amberId);
+  if (out.kind === "already_friends") return res.json({ alreadyFriends: true });
+  if (out.kind === "duplicate") return res.json({ request: out.request, duplicate: true });
+  saveData(db);
+  res.status(201).json({ request: out.request });
+});
+
+app.get("/api/friends/requests", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const all = db.friendRequests || [];
+  res.json({
+    incoming: all.filter((r) => r.toId === ar.userId && r.status === "pending"),
+    outgoing: all.filter((r) => r.fromId === ar.userId && r.status === "pending"),
+  });
+});
+
+app.post("/api/friends/requests/:id/accept", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const r = (db.friendRequests || []).find((x) => x.id === req.params.id);
+  if (!r) return res.status(404).json({ error: "No such friend request." });
+  if (r.toId !== ar.userId) return res.status(403).json({ error: "That request isn't yours to answer." });
+  if (r.status !== "pending") return res.status(409).json({ error: `That request is already ${r.status}.` });
+  r.status = "accepted";
+  addFriendship(r.fromId, r.toId);
+  const accepter = db.accounts.find((a) => a.id === ar.userId);
+  notifyUser(r.fromId, ar.userId, "friend_request", `${accepter?.username || "Someone"} accepted your friend request.`, r.id);
+  saveData(db);
+  res.json({ request: r });
+});
+
+app.post("/api/friends/requests/:id/decline", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const r = (db.friendRequests || []).find((x) => x.id === req.params.id);
+  if (!r) return res.status(404).json({ error: "No such friend request." });
+  if (r.toId !== ar.userId) return res.status(403).json({ error: "That request isn't yours to answer." });
+  if (r.status !== "pending") return res.status(409).json({ error: `That request is already ${r.status}.` });
+  r.status = "declined";
+  saveData(db);
+  res.json({ request: r });
+});
+
+app.get("/api/friends", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  const ids = (db.friendships || []).filter((f) => f.userId === ar.userId).map((f) => f.friendId);
+  res.json(
+    ids
+      .map((id) => {
+        const a = db.accounts.find((x) => x.id === id);
+        return { id, username: a?.username || "unknown" };
+      })
+      .sort((x, y) => x.username.localeCompare(y.username))
+  );
 });
 
 // ---------- Username changes (logged in) ----------
@@ -1379,6 +1612,7 @@ app.post("/api/auth/username", requireAuth, (req, res) => {
     if (m.fromId === acct.id) m.fromUsername = username;
     if (m.toId === acct.id) m.toUsername = username;
   }
+  for (const r of db.friendRequests || []) if (r.fromId === acct.id) r.fromUsername = username;
   // If the profile display name was still the old username (or blank), follow the rename
   // so the header/profile show the new name immediately. A custom display name is left alone.
   const profile = db.users[acct.id]?.user;
@@ -1409,11 +1643,12 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 });
 
 // ---- App self-update check (sideloaded APKs) ----
-// Bump this every time a new APK is published to the GitHub release.
-// The native app compares its installed versionCode against this and
-// shows an "update available" banner when the server is newer.
-const LATEST_APK_VERSION_CODE = 5;
+// OS-003: was a hardcoded constant pointing at an old debug APK. Now
+// overridable via env so a release never ships stale pointers:
+// LATEST_APK_VERSION_CODE / LATEST_APK_URL. Fallbacks keep today's behavior.
+const LATEST_APK_VERSION_CODE = Number(process.env.LATEST_APK_VERSION_CODE || "5");
 const LATEST_APK_URL =
+  process.env.LATEST_APK_URL ||
   "https://github.com/jbsboutiquems/off-script-life-os/releases/download/apk-test-build-2026-10-07/OffScript-LifeOS-app-debug-latest.apk";
 
 app.get("/api/app-version", (_req, res) => {
@@ -2080,6 +2315,8 @@ app.delete("/api/admin/users/:username", requireAuth, requireAdmin, (req, res) =
     .map((r) => ({ ...r, memberIds: r.memberIds.filter((id) => id !== victimId) }));
   db.roomMessages = db.roomMessages.filter((m) => !ownedRoomIds.has(m.roomId));
   db.faqQuestions = db.faqQuestions.filter((q) => q.asker_id !== victimId);
+  db.friendships = (db.friendships || []).filter((f) => f.userId !== victimId && f.friendId !== victimId);
+  db.friendRequests = (db.friendRequests || []).filter((r) => r.fromId !== victimId && r.toId !== victimId);
   delete db.fieldPresence[victimId];
   delete db.fieldGames[victimId];
   saveData(db);

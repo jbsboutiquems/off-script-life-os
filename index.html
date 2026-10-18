@@ -26,9 +26,16 @@
     <div id="root"></div>
     <script>
       // Apply saved theme before first paint (Cream Canvas / Midnight Khaos).
+      // OS-011: the app stores 'dark' (theme.ts), but this only checked
+      // 'midnight' — dark-mode users flashed light on every cold start.
+      // Beast ('beast'/'gremlin') gets the same pre-paint treatment.
       try {
-        if (localStorage.getItem('lifeos_theme') === 'midnight') {
+        const saved = localStorage.getItem('lifeos_theme');
+        if (saved === 'midnight' || saved === 'dark') {
           document.documentElement.classList.add('dark');
+        }
+        if (saved === 'beast' || saved === 'gremlin') {
+          document.documentElement.classList.add('beast');
         }
       } catch (e) {}
     </script>
