@@ -4,7 +4,7 @@
 
 # Off*Script Life OS — accounts + cosmic dashboard + tour guide build (2026-09-19)
 
-The 2027 Life OS web app with real multi-user accounts, a shared Chaos Wall, an inbox,
+The 2027 Life OS web app with real multi-user accounts, a shared Khaos Wall, an inbox,
 in-app reminders, global search, an onboarding tour, and the RUDE/NICE Cosmic Corner.
 
 ## What's in this build
@@ -17,7 +17,7 @@ in-app reminders, global search, an onboarding tour, and the RUDE/NICE Cosmic Co
 - **Email verification + password reset** via SMTP (Nodemailer). Without SMTP configured, email still works
   but accounts are auto-verified and reset falls back to the recovery code. Every account also gets a
   one-time recovery code (shown once at signup) that resets the password when email is unavailable.
-- **The Chaos Wall** — a shared, per-deployment shout board. Post (500 chars max), see everyone's posts,
+- **The Khaos Wall** — a shared, per-deployment shout board. Post (500 chars max), see everyone's posts,
   delete only your own. No moderation queue: best for a private/friends deployment, not a public instance.
 - **Inbox** — a user directory (usernames only) plus private 1:1 DMs with unread badges. Senders can delete
   their own messages. Polls; no WebSockets.
@@ -28,10 +28,10 @@ in-app reminders, global search, an onboarding tour, and the RUDE/NICE Cosmic Co
 - **Onboarding tour** — a first-run guided tour of the dashboard doors.
 - **Cosmic Corner** — daily horoscope generator with a persistent **NICE / RUDE** tone toggle. Deterministic
   per sign + date + tone; 24-day uniqueness per sign/tone. Written by the app, not the stars.
-- **Chaos Points & Sharing** — earn points for daily saves, micro-dares, weekly debriefs, completed goals,
+- **Khaos Points & Sharing** — earn points for daily saves, micro-dares, weekly debriefs, completed goals,
   quashed anti-goals, diagnostics, and sharing. One award per action per day (server-side dedup).
 - **Streaks** — consecutive-day logging streak with yesterday-grace; back-filling a missed day restores it.
-- **Cream Canvas / Midnight Chaos** theme switcher (header toggle; saved locally). Print always renders Cream Canvas.
+- **Cream Canvas / Midnight Khaos** theme switcher (header toggle; saved locally). Print always renders Cream Canvas.
 - **Flight Crew** — an in-app contacts directory (manual entries, not device contacts).
 - **Drive Backup** — export/import a JSON backup to Google Drive (deployer-supplied Google Cloud credentials,
   stored only in browser local storage). Also: direct JSON download and daily-entry CSV download.
@@ -83,7 +83,7 @@ and `<BASE_URL>/api/auth/oauth/facebook/callback`.
   database and transactional writes before any public deployment.
 - OAuth links accounts by **verified email**; a matching email on an existing account gets linked, not duplicated.
 - If a user loses both their password and their recovery code (and has no verified email), there is no recovery.
-- The Chaos Wall has **no moderation queue** — suitable for a private/friends deployment, not a public instance.
+- The Khaos Wall has **no moderation queue** — suitable for a private/friends deployment, not a public instance.
 - The inbox polls the server; there is no WebSocket layer anywhere in this codebase.
 - Reminders are in-app nudges with badges, not push notifications. Due times use server time.
 - QR camera scanning needs a device camera and a browser with `BarcodeDetector` support.
