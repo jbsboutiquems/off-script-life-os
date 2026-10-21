@@ -328,14 +328,14 @@ export const api = {
     authFailureHandler = handler;
   },
 
-  // NOTE: sign-in is EMAIL-ONLY (2026-10-17). Username is the account's
-  // display name, never a login credential. Signups go through
-  // emailRegister() -> /api/auth/email/register.
-  async login(email: string, password: string): Promise<AuthResult> {
+  // Sign-in takes an email OR a username (2026-10-21 — username sign-in
+  // re-added; usernames are unique, chosen at signup). Signups still require
+  // an email and go through emailRegister() -> /api/auth/email/register.
+  async login(identifier: string, password: string): Promise<AuthResult> {
     const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ identifier, password })
     });
     const body = await res.json().catch(() => ({} as any));
     if (res.status === 403 && body.code === 'EMAIL_UNVERIFIED') {
@@ -409,8 +409,8 @@ export const api = {
     return body;
   },
 
-  // (emailLogin removed 2026-10-17 — identical to login() now that sign-in
-  // is email-only. One canonical path: login() -> /api/auth/login.)
+  // (emailLogin removed 2026-10-17. One canonical path: login() ->
+  // /api/auth/login, which accepts an email or a username.)
   /**
    * OS-002: public resend for locked-out users — prove the password, get a
    * fresh verification link. Used by the login screen's "Resend

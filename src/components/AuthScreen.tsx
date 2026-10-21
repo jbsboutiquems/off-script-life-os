@@ -46,7 +46,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
     setBusy(true);
     try {
       if (mode === 'login') {
-        // Sign-in is email-only: username is the display name, never a credential.
+        // Sign-in accepts an email or a username — whichever they typed.
         const result = await api.login(email.trim(), password);
         onAuthed(result.user);
       } else if (mode === 'register') {
@@ -204,16 +204,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
               <form onSubmit={submit} className="space-y-4">
                 <div>
                   <label htmlFor="auth-email" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                    Email {mode === 'register' && <span className="font-normal text-stone-400">(required — for verification + password reset)</span>}
+                    {mode === 'login' ? 'Email or username' : 'Email'} {mode === 'register' && <span className="font-normal text-stone-400">(required — for verification + password reset)</span>}
                   </label>
                   <input
                     id="auth-email"
-                    type="email"
+                    type={mode === 'login' ? 'text' : 'email'}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    aria-label="Email address"
+                    placeholder={mode === 'login' ? 'Email or username' : 'you@example.com'}
+                    autoComplete={mode === 'login' ? 'username' : 'email'}
+                    aria-label={mode === 'login' ? 'Email or username' : 'Email address'}
                     required
                     className={inputCls}
                   />

@@ -685,33 +685,72 @@ function validUsername(u: string): boolean {
 }
 
 // ---------- Public auth routes ----------
-// Sign-in is EMAIL-ONLY (2026-10-17): username is the account's display name,
-// never a login credential. /api/auth/login is kept as an alias of
-// /api/auth/email/login so old debug clients calling the old route get the
-// same email-only behavior instead of a 404; clients still sending a
-// username get a clear 400 telling them to use their email.
-function handleEmailLogin(req: any, res: any) {
-  const email = String(req.body?.email || "").trim().toLowerCase();
-  const password = String(req.body?.password || "");
-  if (!email) {
-    return res.status(400).json({ error: "Log in with your email address — username login is gone." });
+// Sign-in takes an email OR a username (2026-10-21 — username sign-in
+// re-added, reversing the 2026-10-17 email-only change). The identifier is
+// matched against account emails first, then against usernameKey; usernames
+// are unique at signup, so they're safe login identifiers. Both
+// /api/auth/login and /api/auth/email/login share this handler. Signup is
+// unchanged: an email is still required (verification + recovery depend on
+// it) and the username is chosen there.
+//
+// Failed-login throttle, mirroring the recovery-code throttle above: max 10
+// FAILED attempts per (identifier + IP) per 15 minutes, then 429. Successful
+// logins never count, and a success clears the identifier's failure record.
+const loginAttempts = new Map<string, { count: number; windowStart: number }>();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 10;
+
+function loginThrottleKey(identifier: string, req: any): string {
+  const ip = String(req.ip || req.socket?.remoteAddress || "");
+  return `${identifier}|${ip}`;
+}
+
+function loginThrottled(identifier: string, req: any): boolean {
+  const rec = loginAttempts.get(loginThrottleKey(identifier, req));
+  if (!rec || Date.now() - rec.windowStart > LOGIN_WINDOW_MS) return false;
+  return rec.count >= LOGIN_MAX_FAILURES;
+}
+
+function recordLoginFailure(identifier: string, req: any) {
+  const key = loginThrottleKey(identifier, req);
+  const now = Date.now();
+  const rec = loginAttempts.get(key);
+  if (!rec || now - rec.windowStart > LOGIN_WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, windowStart: now });
+  } else {
+    rec.count += 1;
   }
-  const acct = db.accounts.find((a) => (a.email || "").toLowerCase() === email);
-  // One generic message: never reveal whether the email exists.
+}
+
+function handleLogin(req: any, res: any) {
+  const identifier = String(req.body?.identifier || req.body?.email || "").trim().toLowerCase();
+  const password = String(req.body?.password || "");
+  if (!identifier) {
+    return res.status(400).json({ error: "Enter your email or username." });
+  }
+  if (loginThrottled(identifier, req)) {
+    return res.status(429).json({ error: "Too many attempts — try again later." });
+  }
+  const acct =
+    db.accounts.find((a) => (a.email || "").toLowerCase() === identifier) ||
+    db.accounts.find((a) => a.usernameKey === identifier);
+  // One generic message: never reveal whether the account exists.
   if (!acct || !verifyPassword(password, acct.passwordHash)) {
+    recordLoginFailure(identifier, req);
     return res.status(401).json({ error: "Wrong email or password." });
   }
   if (!acct.emailVerified) {
     return res.status(403).json({ error: "Verify your email first — check your inbox for the link.", code: "EMAIL_UNVERIFIED" });
   }
+  loginAttempts.delete(loginThrottleKey(identifier, req));
   if (!db.users[acct.id]) db.users[acct.id] = freshUserData(acct.id, acct.username);
   const token = createSession(acct.id);
   saveData(db);
   res.json({ token, user: db.users[acct.id].user });
 }
 
-app.post("/api/auth/login", handleEmailLogin);
-app.post("/api/auth/email/login", handleEmailLogin);
+app.post("/api/auth/login", handleLogin);
+app.post("/api/auth/email/login", handleLogin);
 
 app.post("/api/auth/logout", requireAuth, (req, res) => {
   const header = String(req.headers.authorization || "");
@@ -1116,7 +1155,7 @@ async function handleEmailRegister(req: any, res: any) {
 app.post("/api/auth/register", handleEmailRegister);
 app.post("/api/auth/email/register", handleEmailRegister);
 
-// (Email login lives in handleEmailLogin, registered above for both
+// (Login lives in handleLogin, registered above for both
 // /api/auth/login and /api/auth/email/login.)
 
 app.get("/api/auth/email/verify", (req, res) => {
