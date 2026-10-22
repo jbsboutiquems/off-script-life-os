@@ -365,27 +365,38 @@ export default function App() {
 
   const streak = computeStreak(allEntries.map((e) => e.entry_date), localDateKey());
 
-  // Android hardware back (OS-012): with no listener, the WebView has no
-  // history to pop, so the back button killed the app from every screen.
-  // Now it closes the topmost overlay first, then steps back to the
-  // dashboard, and only exits the app from the dashboard itself. The ref
-  // keeps the once-registered listener reading live state.
+  // Android hardware back (OS-012, amended by Amber 2026-10-22): single
+  // presses navigate — close the topmost overlay first, then step back to
+  // the dashboard. The app itself closes only on a TRIPLE tap of back:
+  // three presses inside two seconds, from anywhere. A lone press on the
+  // dashboard shows the hint instead of exiting. The refs keep the
+  // once-registered listener reading live state.
   const backStateRef = useRef({ activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen });
   useEffect(() => {
     backStateRef.current = { activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen };
   }, [activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen]);
 
+  const backPressesRef = useRef<number[]>([]);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     let handle: { remove: () => void } | undefined;
     CapApp.addListener('backButton', () => {
+      const now = Date.now();
+      backPressesRef.current = [...backPressesRef.current.filter((t) => now - t < 2000), now];
+      if (backPressesRef.current.length >= 3) {
+        backPressesRef.current = [];
+        CapApp.exitApp();
+        return;
+      }
       const s = backStateRef.current;
       if (s.stickersModalOpen) { setStickersModalOpen(false); return; }
       if (s.shareModalOpen) { setShareModalOpen(false); return; }
       if (s.packageModalOpen) { setPackageModalOpen(false); return; }
       if (s.buddyCreatorOpen) { setBuddyCreatorOpen(false); return; }
       if (s.activeTab !== 'dashboard') { setActiveTab('dashboard'); return; }
-      CapApp.exitApp();
+      setToastMessage('Tap back 3 times to close the app');
+      setTimeout(() => setToastMessage(null), 2000);
     }).then((h) => { handle = h; }).catch(() => { /* back handling is best-effort */ });
     return () => { handle?.remove(); };
   }, []);
@@ -1114,9 +1125,9 @@ export default function App() {
       <footer className="border-t border-stone-300 dark:border-white/10 bg-[#faf7f0] dark:bg-[#000a15] py-6 px-4 text-center text-xs text-stone-500 dark:text-stone-400 font-mono-code mt-auto print:hidden">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
-            <span className="font-bold text-slate-800 dark:text-stone-200">Life OS: Off*Script 2027.</span>
+            <span className="font-bold text-slate-800 dark:text-stone-200">Life OS: Off*Script.</span>
             <span>·</span>
-            <span>Khaos Year Edition</span>
+            <span>Boredom=Death</span>
           </div>
           <div className="text-stone-400 dark:text-stone-500">
             The Intent · Natural Language Personality Engine · No Toxic Positivity
