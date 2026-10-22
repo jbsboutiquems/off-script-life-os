@@ -722,6 +722,29 @@ function recordLoginFailure(identifier: string, req: any) {
   }
 }
 
+// Generic per-IP attempt throttle for the public auth endpoints that create
+// accounts or send email (register / forgot-password / resend-verification).
+// Same window shape as the login throttle — max N attempts per (path + IP)
+// per 15 minutes, then 429. The abuse here is volume from one source
+// (signup spam, reset-email bombing), not credential guessing against one
+// account, so every attempt counts rather than only failures.
+const ipAttempts = new Map<string, { count: number; windowStart: number }>();
+const IP_WINDOW_MS = 15 * 60 * 1000;
+
+function ipThrottled(req: any, max: number): boolean {
+  const ip = String(req.ip || req.socket?.remoteAddress || "");
+  const key = `${req.path}|${ip}`;
+  const now = Date.now();
+  const rec = ipAttempts.get(key);
+  if (!rec || now - rec.windowStart > IP_WINDOW_MS) {
+    ipAttempts.set(key, { count: 1, windowStart: now });
+    return false;
+  }
+  if (rec.count >= max) return true;
+  rec.count += 1;
+  return false;
+}
+
 function handleLogin(req: any, res: any) {
   const identifier = String(req.body?.identifier || req.body?.email || "").trim().toLowerCase();
   const password = String(req.body?.password || "");
@@ -1104,6 +1127,10 @@ function resetFormPage(token: string): string {
 // look like an email address.") instead of a silent 404 or a
 // username-only account. Password recovery goes through email reset.
 async function handleEmailRegister(req: any, res: any) {
+  // Signup-spam throttle: max 10 registration attempts per IP per 15 min.
+  if (ipThrottled(req, 10)) {
+    return res.status(429).json({ error: "Too many attempts — try again later." });
+  }
   const email = String(req.body?.email || "").trim().toLowerCase();
   const username = String(req.body?.username || "");
   const password = String(req.body?.password || "");
@@ -1171,6 +1198,10 @@ app.get("/api/auth/email/verify", (req, res) => {
 });
 
 app.post("/api/auth/email/resend-verification", requireAuth, async (req, res) => {
+  // Verification-email throttle: max 5 resends per IP per 15 min.
+  if (ipThrottled(req, 5)) {
+    return res.status(429).json({ error: "Too many attempts — try again later." });
+  }
   const ar = req as AuthedRequest;
   const acct = db.accounts.find((a) => a.id === ar.userId);
   if (!acct?.email) return res.status(400).json({ error: "No email on this account." });
@@ -1182,6 +1213,11 @@ app.post("/api/auth/email/resend-verification", requireAuth, async (req, res) =>
 });
 
 app.post("/api/auth/email/forgot", async (req, res) => {
+  // Reset-email throttle: max 5 requests per IP per 15 min, so the flow
+  // can't be used to bomb an inbox. Response stays generic either way.
+  if (ipThrottled(req, 5)) {
+    return res.status(429).json({ error: "Too many attempts — try again later." });
+  }
   const email = String(req.body?.email || "").trim().toLowerCase();
   if (!smtpConfigured()) {
     return res.json({
@@ -1314,6 +1350,40 @@ app.post("/api/admin/dev-password", requireAuth, requireAdmin, (req, res) => {
   if (password.length < 8) return res.status(400).json({ error: "Dev password must be at least 8 characters." });
   db.devPasswordHash = hashPassword(`dev:${password}`);
   saveData(db);
+  res.json({ ok: true });
+});
+
+/**
+ * NUCLEAR OPTION — wipe every account and all user-generated data,
+ * returning the store to a fresh-install state. Admin only, and it
+ * requires the literal body { confirm: "WIPE" } so it can never fire
+ * from a stray or forged request shape. Catalog config (content packs,
+ * QR tokens, dev password) is NOT user data and is left untouched.
+ * Every session dies with the accounts — including the admin's own.
+ */
+app.post("/api/admin/wipe-all", requireAuth, requireAdmin, (req, res) => {
+  if (String(req.body?.confirm || "") !== "WIPE") {
+    return res.status(400).json({ error: "Wipe requires { confirm: \"WIPE\" } in the request body. Nothing was deleted." });
+  }
+  const accountCount = db.accounts.length;
+  db.accounts = [];
+  db.sessions = {};
+  db.users = {};
+  db.wallPosts = [];
+  db.dmMessages = [];
+  db.dmRead = {};
+  db.emailTokens = {};
+  db.phoneCodes = {};
+  db.notifications = [];
+  db.rooms = [];
+  db.roomMessages = [];
+  db.friendships = [];
+  db.friendRequests = [];
+  db.faqQuestions = [];
+  db.fieldPresence = {};
+  db.fieldGames = {};
+  saveData(db);
+  console.log(`[admin] WIPE-ALL executed: ${accountCount} account(s) and all user-generated data deleted at ${new Date().toISOString()}.`);
   res.json({ ok: true });
 });
 

@@ -4,6 +4,7 @@ import { api, apiUrl } from '../services/api';
 import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail } from 'lucide-react';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
 import { PwInput } from './PwInput';
+import { BrandLockup } from './BrandLockup';
 
 interface AuthScreenProps {
   onAuthed: (user: UserProfile) => void;
@@ -107,9 +108,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
             <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-rose-600 to-amber-600 text-white flex items-center justify-center text-2xl font-bold border-2 border-stone-800 shadow-md">
               ⚡
             </div>
-            <h1 className="text-2xl font-bold font-display-punch tracking-tight text-slate-900 dark:text-cream-canvas">
-              2027 Life OS <span className="text-rose-600 italic font-serif-display font-normal">Off*Script</span>
-            </h1>
+            <BrandLockup />
           </div>
           <RecoveryCodeReveal
             code={freshCode}
@@ -141,9 +140,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
           <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-rose-600 to-amber-600 text-white flex items-center justify-center text-2xl font-bold border-2 border-stone-800 shadow-md">
             ⚡
           </div>
-          <h1 className="text-2xl font-bold font-display-punch tracking-tight text-slate-900 dark:text-cream-canvas">
-            2027 Life OS <span className="text-rose-600 italic font-serif-display font-normal">Off*Script</span>
-          </h1>
+          <BrandLockup />
           <p className="text-xs text-stone-500 dark:text-stone-400 font-mono-code uppercase tracking-widest">
             Khaos Year Edition · Members Only (kinda)
           </p>

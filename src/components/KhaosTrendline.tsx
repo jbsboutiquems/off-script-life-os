@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DailyEntry } from '../types';
-import { localDateKey } from '../lib/dates';
+import { localDateKey, parseDateKey } from '../lib/dates';
 import { useTheme } from '../hooks/useDarkMode';
 import {
   ResponsiveContainer,
@@ -80,7 +80,10 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
       if (e.entry_date) entriesMap.set(e.entry_date, e);
     });
 
-    const baseDate = new Date(currentDate);
+    // Local-midnight parse — `new Date(key)` is UTC midnight and shifted
+    // the whole 30-day window (and every tappable date) a day early west
+    // of UTC (OS-012).
+    const baseDate = parseDateKey(currentDate);
 
     // Realistic baseline pattern seed for days without explicit entries
     const sampleVariations = [

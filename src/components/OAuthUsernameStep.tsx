@@ -3,6 +3,7 @@ import { UserProfile } from '../types';
 import { api } from '../services/api';
 import { AtSign, Zap } from 'lucide-react';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
+import { BrandLockup } from './BrandLockup';
 
 interface OAuthUsernameStepProps {
   pendingKey: string;
@@ -50,9 +51,7 @@ export const OAuthUsernameStep: React.FC<OAuthUsernameStepProps> = ({ pendingKey
             <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-rose-600 to-amber-600 text-white flex items-center justify-center text-2xl font-bold border-2 border-stone-800 shadow-md">
               ⚡
             </div>
-            <h1 className="text-2xl font-bold font-display-punch tracking-tight text-slate-900 dark:text-cream-canvas">
-              2027 Life OS <span className="text-rose-600 italic font-serif-display font-normal">Off*Script</span>
-            </h1>
+            <BrandLockup />
           </div>
           <RecoveryCodeReveal
             code={freshCode}

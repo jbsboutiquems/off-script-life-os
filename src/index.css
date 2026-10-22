@@ -434,6 +434,51 @@
 }
 .animate-fade-in { animation: fade-in 0.25s ease-out; }
 
+/* Brand lockup (logo refresh 2026-10-15): "Life OS" over the "Off*Script"
+   hero — shiny glint sweeping the hero line, a gem colon, a sparkle
+   asterisk, and "Sparklets": little star glints twinkling around the
+   wordmark. No year in the lockup; editions change, the name doesn't. */
+.brand-lockup { position: relative; display: inline-block; }
+.brand-lockup-hero {
+  background: linear-gradient(100deg, #ea4798 25%, #f77fb8 42%, #fff0f7 50%, #f77fb8 58%, #ea4798 75%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: brand-glint 3.6s linear infinite;
+}
+@keyframes brand-glint {
+  from { background-position: 110% center; }
+  to { background-position: -110% center; }
+}
+.brand-gem {
+  background: linear-gradient(135deg, #a5f3fc 0%, #2da2ee 55%, #0369a1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.brand-sparkle-star {
+  display: inline-block;
+  background: linear-gradient(180deg, #fff7cc 0%, #fbbf24 70%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sparklet-twinkle 2.4s ease-in-out infinite;
+}
+.sparklet {
+  position: absolute;
+  pointer-events: none;
+  line-height: 1;
+  animation: sparklet-twinkle 2.4s ease-in-out infinite;
+}
+.sparklet-1 { top: -6px; right: -14px; font-size: 15px; color: #f59e0b; }
+.sparklet-2 { bottom: 10px; left: -15px; font-size: 11px; color: #2da2ee; animation-delay: 0.8s; }
+.sparklet-3 { top: 38%; right: -19px; font-size: 10px; color: #ea4798; animation-delay: 1.5s; }
+@keyframes sparklet-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.7) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
+}
+
 .stamp-border {
   border: 2px dashed var(--pink);
 }

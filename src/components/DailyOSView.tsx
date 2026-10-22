@@ -5,7 +5,7 @@ import { Sun, Compass, Moon, Sparkles, CheckCircle2, Circle, Flame, AlertCircle,
 import confetti from 'canvas-confetti';
 import { MorningMantraGenerator } from './MorningMantraGenerator';
 import { canPrint } from '../lib/exporter';
-import { localDateKey } from '../lib/dates';
+import { localDateKey, parseDateKey } from '../lib/dates';
 
 interface DailyOSViewProps {
   entry: DailyEntry;
@@ -187,6 +187,18 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
 
   const holiday: KhaosHoliday = getHolidayForDate(currentDate);
 
+  // Day counter = DAY-OF-YEAR of the displayed date (Amber's call, OS-013):
+  // Jan 1 is Day 1 in every year, and the total is 365 or 366 (leap).
+  // Computed on UTC-normalized date parts so DST can never skew the count.
+  const viewedDate = parseDateKey(currentDate);
+  const viewedYear = viewedDate.getFullYear();
+  const dayOfYear = Math.round(
+    (Date.UTC(viewedYear, viewedDate.getMonth(), viewedDate.getDate()) - Date.UTC(viewedYear, 0, 0)) / 86400000
+  );
+  const daysInYear = Math.round(
+    (Date.UTC(viewedYear, 11, 31) - Date.UTC(viewedYear, 0, 0)) / 86400000
+  );
+
   const handleSave = () => {
     onSaveEntry({
       morning_intention: morningIntention,
@@ -218,7 +230,11 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
   };
 
   const shiftDate = (days: number) => {
-    const d = new Date(currentDate);
+    // Parse the key as LOCAL midnight (parseDateKey). `new Date(key)` parses
+    // as UTC midnight, so west of UTC the local getters see the previous
+    // day: "next" landed back on the same date and "previous" jumped two
+    // days (OS-012).
+    const d = parseDateKey(currentDate);
     d.setDate(d.getDate() + days);
     onDateChange(localDateKey(d));
   };
@@ -278,9 +294,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
                 SLOGAN: "{user.slogan || 'Boredom=Death'}"
               </span>
               <span className="text-xs text-stone-500 font-mono-code">
-                Day {(new Date(currentDate).getTime() - new Date("2027-01-01").getTime()) / (1000 * 3600 * 24) + 1 > 0
-                  ? Math.floor((new Date(currentDate).getTime() - new Date("2027-01-01").getTime()) / (1000 * 3600 * 24) + 1)
-                  : 1} of 365
+                Day {dayOfYear} of {daysInYear}
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 mt-1">

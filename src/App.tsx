@@ -49,6 +49,8 @@ import { TestModeNotice } from './components/TestModeNotice';
 import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
 import { localDateKey } from './lib/dates';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { getBuddy, saveBuddy, type BuddyProfile } from './buddy';
 import { BuddyCreator } from './components/BuddyCreator';
 import { BeastHost } from './components/BeastHost';
@@ -362,6 +364,31 @@ export default function App() {
   };
 
   const streak = computeStreak(allEntries.map((e) => e.entry_date), localDateKey());
+
+  // Android hardware back (OS-012): with no listener, the WebView has no
+  // history to pop, so the back button killed the app from every screen.
+  // Now it closes the topmost overlay first, then steps back to the
+  // dashboard, and only exits the app from the dashboard itself. The ref
+  // keeps the once-registered listener reading live state.
+  const backStateRef = useRef({ activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen });
+  useEffect(() => {
+    backStateRef.current = { activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen };
+  }, [activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let handle: { remove: () => void } | undefined;
+    CapApp.addListener('backButton', () => {
+      const s = backStateRef.current;
+      if (s.stickersModalOpen) { setStickersModalOpen(false); return; }
+      if (s.shareModalOpen) { setShareModalOpen(false); return; }
+      if (s.packageModalOpen) { setPackageModalOpen(false); return; }
+      if (s.buddyCreatorOpen) { setBuddyCreatorOpen(false); return; }
+      if (s.activeTab !== 'dashboard') { setActiveTab('dashboard'); return; }
+      CapApp.exitApp();
+    }).then((h) => { handle = h; }).catch(() => { /* back handling is best-effort */ });
+    return () => { handle?.remove(); };
+  }, []);
 
   // Reload the day's entry when the date changes (authenticated only).
   useEffect(() => {

@@ -82,7 +82,7 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
 
   return (
     <div className="border-b-2 border-stone-200 dark:border-white/10 bg-cream-canvas/80 dark:bg-transparent print:hidden">
-      <div className="relative">
+      <div className="relative" ref={menuRef}>
       <div className="max-w-7xl mx-auto px-2 sm:px-6 flex items-end gap-1 pt-2 overflow-x-auto scroll-smooth scroll-px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {FOLDERS.map(({ id, label, icon: Icon }) => {
           const active = activeSection === id;
@@ -107,7 +107,7 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
             </button>
           );
         })}
-        <div className="relative ml-auto pb-1.5 flex shrink-0 items-center gap-1" ref={menuRef}>
+        <div className="ml-auto pb-1.5 flex shrink-0 items-center gap-1">
           {rightSlot}
           <button
             onClick={() => setMenuOpen(o => !o)}
@@ -118,8 +118,15 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 mt-1 w-60 max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-stone-200 dark:border-white/10 bg-white dark:bg-[#0e1c30] shadow-2xl z-50">
+        </div>
+      </div>
+      {/* The dropdown renders OUTSIDE the overflow-x-auto tab strip: inside
+          it, the strip clipped the menu to its own ~50px height (OS-014).
+          It anchors below the strip, right-aligned to the same container. */}
+      {menuOpen && (
+        <div className="absolute inset-x-0 top-full z-50">
+          <div className="max-w-7xl mx-auto px-2 sm:px-6 flex justify-end">
+            <div className="mt-1 w-60 max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-stone-200 dark:border-white/10 bg-white dark:bg-[#0e1c30] shadow-2xl">
               {MENU_SECTIONS.map((section) => {
                 const items = section.ids
                   .map((id) => menuItems.find((m) => m.id === id))
@@ -143,9 +150,9 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
       {/* Fade cue: the strip scrolls on narrow phones — this signals there's more */}
       <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-cream-canvas dark:from-[#000a15] to-transparent" />
       </div>
