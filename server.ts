@@ -3618,6 +3618,12 @@ async function setupViteAndListen() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
+    // The web bundle is built with Vite base '/off-script-life-os/'
+    // (GitHub Pages), so its asset URLs live under that prefix. Serve the
+    // same dist under the prefix too — otherwise asset requests fall
+    // through to the SPA fallback below, get index.html back instead of
+    // JS/CSS, and the page renders blank.
+    app.use("/off-script-life-os", express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
