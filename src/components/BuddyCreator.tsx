@@ -175,8 +175,8 @@ export const BuddyCreator: React.FC<BuddyCreatorProps> = ({ open, onClose, initi
           )}
         </div>
 
-        {/* Footer nav */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-stone-200 dark:border-white/10">
+        {/* Footer nav — safe-area padding so Later/Next are not hidden under Android's system nav bar (viewport-fit=cover is edge-to-edge). */}
+        <div className="flex items-center justify-between px-5 pt-4 border-t border-stone-200 dark:border-white/10" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
           <button
             onClick={() => (step === 0 ? onClose() : setStep(step - 1))}
             className="inline-flex items-center gap-1 px-4 py-2 rounded-xl font-bold text-sm bg-stone-200 dark:bg-white/10 hover:bg-stone-300 dark:hover:bg-white/20"

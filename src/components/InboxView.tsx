@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
 import { api } from '../services/api';
+import { TRIAL_DEMO, promptAppDownload, sampleInboxThreads, sampleThreadMessages } from '../lib/trialDemo';
 import { Inbox, Send, Plus, Trash2, ArrowLeft, RefreshCw } from 'lucide-react';
 
 interface ThreadSummary {
@@ -66,6 +67,14 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
   };
 
   const refreshThreads = async (silent = false) => {
+    if (TRIAL_DEMO) {
+      // Demo: the inbox is a read-only sample. Seed once; the 30s poll
+      // then leaves local state untouched.
+      setThreads((prev) => (prev.length ? prev : sampleInboxThreads()));
+      onUnreadChange?.(0);
+      setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
     try {
       const t = await api.getInboxThreads();
@@ -82,6 +91,10 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
 
   const openThread = async (summary: ThreadSummary) => {
     setActive(summary);
+    if (TRIAL_DEMO) {
+      setMessages(sampleThreadMessages(summary.partnerId));
+      return;
+    }
     try {
       const res = await api.getThread(summary.partnerId);
       setMessages(res.messages);
@@ -106,6 +119,12 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!active || !draft.trim()) return;
+    if (TRIAL_DEMO) {
+      // Words are gated in the demo: sending prompts the download and
+      // the draft stays put — nothing is sent anywhere.
+      promptAppDownload();
+      return;
+    }
     const text = draft.trim();
     setDraft('');
     try {
@@ -170,7 +189,15 @@ export const InboxView: React.FC<InboxViewProps> = ({ myUserId, onUnreadChange }
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
-              onClick={() => { if (starting) { setDirectory([]); setDirQuery(''); } setStarting(!starting); }}
+              onClick={() => {
+                if (TRIAL_DEMO) {
+                  // Starting a conversation is a DM door — in the demo
+                  // it prompts the download instead.
+                  promptAppDownload();
+                  return;
+                }
+                if (starting) { setDirectory([]); setDirQuery(''); } setStarting(!starting);
+              }}
               className="p-2 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-white/10"
               title="Start a new conversation"
             >

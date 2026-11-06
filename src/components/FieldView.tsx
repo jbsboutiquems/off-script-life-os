@@ -3,6 +3,8 @@ import { MapPin, Navigation, Check, Clock, Loader2, AlertTriangle, Users, Eye, E
 import { findCandidateRegions, describeDistance, type RegionMatch } from '../game/geoRadius';
 import { getFamiliar, type RegionId } from '../game/regions';
 import { apiUrl } from '../services/api';
+import { NearbyPlayersLayer } from './NearbyPlayersLayer';
+import { FIELD_NEARBY_FIXTURES_ENABLED } from '../lib/fieldStaging';
 
 interface FieldCheckIn {
   regionId: RegionId;
@@ -93,8 +95,9 @@ export const FieldView: React.FC = () => {
   }, []);
 
   // Heartbeat: announce region presence while visible.
+  // (Suppressed in the staged fixtures build — nothing is sent anywhere.)
   useEffect(() => {
-    if (visible && selectedId) {
+    if (!FIELD_NEARBY_FIXTURES_ENABLED && visible && selectedId) {
       fieldApi('/api/field/presence', {
         method: 'POST',
         body: JSON.stringify({ regionId: selectedId, visible: true }),
@@ -103,8 +106,10 @@ export const FieldView: React.FC = () => {
   }, [visible, selectedId]);
 
   // Nearby players: only when not in an active game.
+  // (In the staged fixtures build the NearbyPlayersLayer below replaces
+  // this server-backed list entirely — no fetch is made.)
   useEffect(() => {
-    if (inGame || !selectedId) { setNearby(null); return; }
+    if (FIELD_NEARBY_FIXTURES_ENABLED || inGame || !selectedId) { setNearby(null); return; }
     let cancelled = false;
     fieldApi(`/api/field/nearby?regionId=${encodeURIComponent(selectedId)}`).then((d) => {
       if (!cancelled && d) setNearby(Array.isArray(d.nearby) ? d.nearby : []);
@@ -175,18 +180,22 @@ export const FieldView: React.FC = () => {
             <AlertTriangle className="w-4 h-4" /> {error}
           </p>
         )}
-        <button
-          onClick={() => setVisible((v) => !v)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold border-2 border-stone-300 dark:border-white/15 hover:scale-[1.02] transition"
-        >
-          {visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          {visible ? 'Visible on the Field' : 'Show me on the Field'}
-        </button>
-        <p className="text-xs text-stone-500 dark:text-stone-400 max-w-sm mx-auto">
-          {visible
-            ? 'Other players in your zone can see your username. Region only — never your exact location. Presence fades after 15 minutes.'
-            : 'Turn this on and nearby players can see you when you check in.'}
-        </p>
+        {!FIELD_NEARBY_FIXTURES_ENABLED && (
+          <>
+            <button
+              onClick={() => setVisible((v) => !v)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold border-2 border-stone-300 dark:border-white/15 hover:scale-[1.02] transition"
+            >
+              {visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              {visible ? 'Visible on the Field' : 'Show me on the Field'}
+            </button>
+            <p className="text-xs text-stone-500 dark:text-stone-400 max-w-sm mx-auto">
+              {visible
+                ? 'Other players in your zone can see your username. Region only — never your exact location. Presence fades after 15 minutes.'
+                : 'Turn this on and nearby players can see you when you check in.'}
+            </p>
+          </>
+        )}
       </div>
 
       {candidates && candidates.length === 0 && (
@@ -246,6 +255,10 @@ export const FieldView: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {FIELD_NEARBY_FIXTURES_ENABLED && (
+        <NearbyPlayersLayer region={selected?.region ?? null} />
       )}
 
       {!inGame && nearby && nearby.length > 0 && (

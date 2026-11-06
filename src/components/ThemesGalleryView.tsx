@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
 import { KHAOS_THEMES, KhaosMonthTheme } from '../data/themes';
+import { getYearScheme } from '../lib/yearScheme';
 import { Award, Compass, Sparkles, ChevronRight } from 'lucide-react';
 
 export const ThemesGalleryView: React.FC = () => {
+  // Year-aware (2026-11-01): the month-theme cards below are the 2027
+  // flagship set and must not be presented as 2026's. Selecting 2026 shows
+  // the Q4 scheme (hunter/pink/yellow) with Think/Imagine/Do; 2028 shows
+  // its navy/gold/cosmic scheme with monthly themes still to be defined.
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const scheme = getYearScheme(selectedYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(1);
   const activeTheme: KhaosMonthTheme = KHAOS_THEMES.find(t => t.month === selectedMonth) || KHAOS_THEMES[0];
 
@@ -17,11 +24,48 @@ export const ThemesGalleryView: React.FC = () => {
           <span className="text-xs text-stone-500 font-mono-code">12 MONTHLY KHAOS THEMES</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 mt-1">
-          12 Arc Themes of 2027
+          {selectedYear === 2027 ? '12 Arc Themes of 2027' : `${scheme.label} — year scheme`}
         </h2>
         <p className="text-xs sm:text-sm text-stone-600 mt-1">
-          Each month shifts the focal lens from structural reset to feral emergence, sovereign craft, and winter hibernation.
+          {selectedYear === 2027
+            ? 'Each month shifts the focal lens from structural reset to feral emergence, sovereign craft, and winter hibernation.'
+            : 'Month themes follow the year, not just the month. October 2026 is not 2027 October — it is Q4 Think, in hunter/pink/yellow.'}
         </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {[2026, 2027, 2028].map((y) => (
+            <button
+              key={y}
+              onClick={() => setSelectedYear(y)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold ${selectedYear === y ? 'bg-slate-900 text-white' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}
+            >
+              {y}
+            </button>
+          ))}
+          <span className="ml-1 inline-flex items-center gap-2 text-xs font-bold text-stone-700">
+            <span className="inline-flex gap-1">
+              <span className="w-4 h-4 rounded-full border border-black/10 inline-block" style={{ background: scheme.colors.primary }} />
+              <span className="w-4 h-4 rounded-full border border-black/10 inline-block" style={{ background: scheme.colors.secondary }} />
+              <span className="w-4 h-4 rounded-full border border-black/10 inline-block" style={{ background: scheme.colors.accent }} />
+            </span>
+            {scheme.label} · {scheme.paletteLabel}
+          </span>
+        </div>
+        {scheme.months && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {scheme.months.map((m) => (
+              <div key={m.month} className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+                <div className="text-[10px] font-mono-code font-bold uppercase text-stone-500">{m.name}</div>
+                <div className="text-sm font-bold font-serif-display">{m.themeTitle} <span className="text-xs text-stone-500 font-mono-code">· {m.keyword}</span></div>
+              </div>
+            ))}
+          </div>
+        )}
+        {scheme.note && <p className="text-xs text-stone-500 italic mt-2">{scheme.note}</p>}
+        {selectedYear !== 2027 && (
+          <p className="text-xs text-stone-500 mt-2">
+            The 12 month cards below are the 2027 flagship set, shown for reference — they are not {selectedYear}'s themes.
+          </p>
+        )}
       </div>
 
       {/* Month Selector Carousel / Grid */}

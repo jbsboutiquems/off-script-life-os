@@ -5,6 +5,7 @@ import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail } from 'lucide-react';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
 import { PwInput } from './PwInput';
 import { BrandLockup } from './BrandLockup';
+import { isAdult } from './AdultConsent';
 
 interface AuthScreenProps {
   onAuthed: (user: UserProfile) => void;
@@ -17,6 +18,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [birthday, setBirthday] = useState('');
+  const [adultConsent, setAdultConsent] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,6 +54,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
         const result = await api.login(email.trim(), password);
         onAuthed(result.user);
       } else if (mode === 'register') {
+        // 18+ gate (2026-11-03, Amber's call): birthday is REQUIRED at
+        // signup and the user must be 18+, plus consent to explicit music/
+        // language. Front-end validation only for now — the server must
+        // store/verify birthday before this goes live (see AdultConsent.tsx).
+        if (!birthday) throw new Error('Birthday is required at signup — this app is 18+ only.');
+        if (!isAdult(birthday)) throw new Error('You must be 18 or older to create an account.');
+        if (!adultConsent) throw new Error('Tick the 18+ explicit-content consent box to sign up.');
         // Email is mandatory at signup (2026-10-14): every account gets an
         // email for verification + password reset. No username-only path.
         const result = await api.emailRegister(email.trim(), username.trim(), password);
@@ -257,6 +267,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                   )}
                 </div>
 
+                {mode === 'register' && (
+                  <>
+                    <div>
+                      <label htmlFor="auth-birthday" className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                        Birthday <span className="font-normal text-stone-400">(required — 18+ only)</span>
+                      </label>
+                      <input
+                        id="auth-birthday"
+                        type="date"
+                        value={birthday}
+                        onChange={(e) => setBirthday(e.target.value)}
+                        autoComplete="bday"
+                        aria-label="Birthday"
+                        required
+                        className={inputCls}
+                      />
+                    </div>
+                    <label className="flex items-start gap-2 text-xs font-bold text-stone-700 dark:text-stone-300">
+                      <input type="checkbox" checked={adultConsent} onChange={(e) => setAdultConsent(e.target.checked)} required className="mt-0.5" />
+                      <span>I am 18 years or older and I consent to explicit music and language in Off*Script. Our music is explicit.</span>
+                    </label>
+                  </>
+                )}
+
                 {error && (
                   <div className="text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800/60 rounded-xl px-3 py-2.5">
                     {error}
@@ -441,6 +475,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
 
         <p className="text-center text-[11px] text-stone-400 dark:text-stone-500 italic font-serif-display">
           Your data lives in your own lane. Nobody else can see your mess — that is the whole point.
+        </p>
+        <p className="text-center text-[11px] font-bold text-rose-700 dark:text-rose-300">
+          18+ ONLY — Off*Script contains explicit music and language.
         </p>
       </div>
     </main>

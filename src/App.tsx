@@ -3,6 +3,7 @@ import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFli
 import { api, AuthError } from './services/api';
 import { initTheme, getTheme, cycleTheme, type KhaosTheme } from './theme';
 import { isDevMode } from './lib/devmode';
+import { TRIAL_DEMO, DEMO_USER, APK_DOWNLOAD_URL, promptAppDownload } from './lib/trialDemo';
 import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
@@ -13,6 +14,8 @@ import { FaqView } from './components/FaqView';
 import { AuthScreen } from './components/AuthScreen';
 import { OAuthUsernameStep } from './components/OAuthUsernameStep';
 import { DashboardView, type DashboardTab } from './components/DashboardView';
+import { WorldView } from './components/WorldView';
+import { TorqueWorldView } from './components/TorqueWorldView';
 import { CosmicCornerView } from './components/CosmicCornerView';
 import { HolidaysView } from './components/HolidaysView';
 import { TourGuideView } from './components/TourGuideView';
@@ -20,6 +23,8 @@ import { DailyOSView } from './components/DailyOSView';
 import { IntentCard } from './components/IntentCard';
 import { Big6GoalsTracker } from './components/Big6GoalsTracker';
 import { IdentityProfileView } from './components/IdentityProfileView';
+import { ProfileView } from './components/ProfileView';
+import { SettingsView } from './components/SettingsView';
 import { WeeklyDebriefView } from './components/WeeklyDebriefView';
 import { MonthlyMoneyMapView } from './components/MonthlyMoneyMapView';
 import { ThemesGalleryView } from './components/ThemesGalleryView';
@@ -46,6 +51,8 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { AiConsentGate } from './components/AiConsentGate';
 import { AndroidPermissionGate } from './components/AndroidPermissionGate';
 import { TestModeNotice } from './components/TestModeNotice';
+import LaunchDarklyBanner from './components/LaunchDarklyBanner';
+import { TrialDownloadPrompt } from './components/TrialDownloadPrompt';
 import { PackageAppModal } from './components/PackageAppModal';
 import { computeStreak } from './lib/streaks';
 import { localDateKey } from './lib/dates';
@@ -147,6 +154,13 @@ export default function App() {
   };
 
   const handleLogout = async (silent = false) => {
+    if (TRIAL_DEMO) {
+      // The demo visitor has no account to log out of. The header's
+      // logout door is an auth door, and auth doors in the demo prompt
+      // the app download instead (owner rule, 2026-10-23).
+      if (!silent) promptAppDownload();
+      return;
+    }
     try {
       await api.logout();
     } catch {
@@ -238,10 +252,23 @@ export default function App() {
   // #oauth_pending=<key>&provider=<p> (must choose a username first).
   useEffect(() => {
     let isActive = true;
-    api.onAuthFailure(() => {
+    // Trial demo: no session exists, so a 401 must never "log out" the
+    // visitor back to an auth form — the demo has no auth form.
+    api.onAuthFailure(TRIAL_DEMO ? () => {} : () => {
       if (isActive) handleLogout(true);
     });
     (async () => {
+      if (TRIAL_DEMO) {
+        // Demo build: walk in as the visitor. No token, no sign-in
+        // wall — browsing is the whole point, and anything that writes
+        // words routes to the download prompt instead.
+        if (isActive) {
+          setUser(DEMO_USER);
+          await loadAll();
+          setAuthLoading(false);
+        }
+        return;
+      }
       const hash = window.location.hash || '';
       const oauthToken = /#oauth=([a-f0-9]+)/.exec(hash)?.[1];
       const pendingMatch = /#oauth_pending=([a-f0-9]+)&provider=(google|facebook)/.exec(hash);
@@ -300,7 +327,9 @@ export default function App() {
     const resolved = existing || fromProfile || null;
     setBuddy(resolved);
     try {
-      if (!resolved && !localStorage.getItem('offscript_buddy_onboarded')) {
+      // Trial demo: never auto-open the buddy creator over the browsing —
+      // a demo visitor who wants a buddy gets one in the app.
+      if (!resolved && !TRIAL_DEMO && !localStorage.getItem('offscript_buddy_onboarded')) {
         setBuddyCreatorOpen(true);
       }
     } catch { /* ignore */ }
@@ -646,6 +675,28 @@ export default function App() {
   }
 
   if (!user) {
+    if (TRIAL_DEMO) {
+      // Unreachable in practice — the demo always walks in as the
+      // visitor — but the demo must never render an auth form. The
+      // only door here is the download.
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-cream-canvas text-stone-700 dark:bg-[#000a15] dark:text-stone-200 px-4">
+          <div className="text-center max-w-sm">
+            <p className="font-display-punch text-2xl font-black text-slate-900 dark:text-cream-canvas">Life OS: Off*Script</p>
+            <p className="mt-2 text-sm">
+              This demo browses without an account. The full app — accounts,
+              posting, your people — is a free download.
+            </p>
+            <a
+              href={APK_DOWNLOAD_URL}
+              className="mt-5 inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-600 text-white text-sm font-black shadow-md"
+            >
+              Download the free app
+            </a>
+          </div>
+        </main>
+      );
+    }
     return (
       <AuthScreen
         onAuthed={(authedUser) => {
@@ -665,6 +716,7 @@ export default function App() {
     : activeTab === 'inbox' ? 'dms'
     : activeTab === 'diagnostic' ? 'mei'
     : activeTab === 'field' ? 'field'
+    : activeTab === 'torqueworld' ? 'world'
     : 'daily';
 
   const handleSelectSection = (s: FolderSection) => {
@@ -673,20 +725,25 @@ export default function App() {
       : s === 'dms' ? 'inbox'
       : s === 'mei' ? 'diagnostic'
       : s === 'field' ? 'field'
+      : s === 'world' ? 'torqueworld'
       : 'dashboard',
     );
   };
 
   const menuItems = [
-    { id: 'crew', label: 'Flight Crew' },
-    { id: 'reminders', label: 'Reminders' },
-    // Search is NOT in the menu — the header search icon covers it.
-    { id: 'backup', label: 'Backup' },
+    // 2026-11-01 red-X cleanup: Flight Crew, Reminders, Drive Backup and
+    // Unlock Packs are removed from the menu as well as the Dashboard grid.
+    // Header shortcuts for Search / Inbox / Reminders and the FolderTabs
+    // sections still exist — removing those is a separate, flagged decision.
+    { id: 'profile', label: 'Profile' },
+    { id: 'settings', label: 'Settings' },
+    // 2026-11-01 staged doorway (ungrouped → lands in the menu's MORE
+    // section): the Inbetween playtest world. Doorway only, not a sync.
+    { id: 'world', label: 'The Inbetween' },
     { id: 'frontmatter', label: 'FrontMatter' },
     // AI Studio only appears when the server has it configured.
     ...(studioConfigured ? [{ id: 'studio', label: 'AI Studio' }] : []),
     { id: 'expansions', label: 'Expansions' },
-    { id: 'unlock', label: 'Unlock' },
     { id: 'faq', label: 'FAQ' },
     // Admin panel: only for admins (server-gated via is_admin).
     ...(user.is_admin ? [{ id: 'admin', label: 'Admin' }] : []),
@@ -697,7 +754,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-cream-canvas text-stone-900 dark:bg-[#000a15] dark:text-cream-canvas flex flex-col font-sans selection:bg-rose-200 selection:text-rose-900 pb-[env(safe-area-inset-bottom)]">
 
-      <InstallBanner />
+      {/* LaunchDarkly first-flag test banner — shows only when the
+          `hello-world` flag is on, otherwise renders nothing. */}
+      <LaunchDarklyBanner />
+
+      {/* Trial demo: no install banner, ever (owner rule) — the only
+          install path in the demo is the gated download prompt. */}
+      {!TRIAL_DEMO && <InstallBanner />}
+      {TRIAL_DEMO && <TrialDownloadPrompt />}
       <UpdateBanner />
       <TestModeNotice />
 
@@ -710,7 +774,7 @@ export default function App() {
         unreadCount={unreadCount}
         toggleTheme={handleToggleAppTheme}
         onDashboard={() => setActiveTab('dashboard')}
-        onOpenProfile={() => setActiveTab('identity')}
+        onOpenProfile={() => setActiveTab('profile')}
         onOpenPoints={() => setActiveTab('points')}
         onOpenSearch={() => setActiveTab('search')}
         onOpenInbox={() => setActiveTab('inbox')}
@@ -780,6 +844,12 @@ export default function App() {
               dueCount={dueCount}
               unreadCount={unreadCount}
               onOpen={onOpenDashboardDoor}
+              todayMission={{
+                morningIntention: dailyEntry.morning_intention || '',
+                middayCheckin: dailyEntry.midday_checkin || '',
+                eveningNotes: dailyEntry.evening_notes || '',
+                khaosScore: dailyEntry.khaos_score || 5,
+              }}
             />
           )}
 
@@ -892,7 +962,7 @@ export default function App() {
           {activeTab === 'cosmic' && (
             <CosmicCornerView
               user={user}
-              onEditProfile={() => setActiveTab('identity')}
+              onEditProfile={() => setActiveTab('profile')}
               onSaveProfile={handleSaveProfile}
             />
           )}
@@ -965,6 +1035,18 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'profile' && (
+            <ProfileView
+              user={user}
+              onSaveProfile={handleSaveProfile}
+              onOpenSettings={() => setActiveTab('settings')}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsView user={user} />
+          )}
+
           {activeTab === 'points' && (
             <KhaosPointsView
               points={points}
@@ -1024,6 +1106,14 @@ export default function App() {
 
           {activeTab === 'field' && (
             <FieldView />
+          )}
+
+          {activeTab === 'world' && (
+            <WorldView onBack={() => setActiveTab('dashboard')} />
+          )}
+
+          {activeTab === 'torqueworld' && (
+            <TorqueWorldView onBack={() => setActiveTab('dashboard')} />
           )}
 
           {activeTab === 'wall' && (

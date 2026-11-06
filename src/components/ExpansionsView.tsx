@@ -16,6 +16,7 @@ const KIND_ICON: Record<string, React.ReactNode> = {
   holiday: <PartyPopper className="w-5 h-5 text-amber-500" />,
   zodiac: <MoonStar className="w-5 h-5 text-violet-400" />,
   wedding: <Heart className="w-5 h-5 text-[#ea4798]" />,
+  intent: <Users className="w-5 h-5 text-teal-600" />,
 };
 
 const ProductCard: React.FC<{
@@ -96,8 +97,11 @@ export const ExpansionsView: React.FC = () => {
   useEffect(() => { refresh(); }, []);
 
   const groups: { kind: string; title: string; sub: string }[] = [
-    { kind: 'theme', title: 'Monthly Themes', sub: '$0.99/month — a fresh khaos theme, every month' },
-    { kind: 'holiday', title: 'Holiday Specials', sub: '$0.99/month — seasonal spreads and rituals' },
+    // Monthly digital add-ons are $1/month before taxes/fees (Amber, 2026-10-29).
+    // Yearly Zodiac ($5) and Wedding ($10) are NOT in the $1 scope.
+    { kind: 'theme', title: 'Monthly Themes', sub: '$1/month before taxes/fees — a fresh khaos theme, every month' },
+    { kind: 'holiday', title: 'Holiday Specials', sub: '$1/month before taxes/fees — seasonal spreads and rituals' },
+    { kind: 'intent', title: 'Intent Viewer', sub: '$1/month before taxes/fees — another person\'s intent/action alignment % only, never the full assessment. Owner consent still required and undecided — gated, not live.' },
     { kind: 'zodiac', title: 'Zodiac Expansions', sub: '$5/year per sign — a full year in that sign\'s flavor' },
     { kind: 'wedding', title: 'Wedding', sub: '$10/year — the full 365-day bride arc' },
   ];

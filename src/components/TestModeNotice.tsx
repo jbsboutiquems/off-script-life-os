@@ -51,7 +51,7 @@ export const TestModeNotice: React.FC = () => {
         <p className="flex-1 text-xs font-bold">
           Test mode — things might break. Found a problem?{' '}
           <a
-            href="mailto:support@lifeosoffscript.info?subject=Off*Script%20bug%20report"
+            href="mailto:lifeosoffscript@gmail.com?subject=Off*Script%20bug%20report"
             className="underline underline-offset-2"
           >
             Report it

@@ -84,7 +84,7 @@ export interface ExpansionProduct {
   blurb: string;
   price: number;
   days: number;
-  kind: "theme" | "holiday" | "zodiac" | "wedding";
+  kind: "theme" | "holiday" | "zodiac" | "wedding" | "intent";
   owned: boolean;
   expired: boolean;
   expires_at: string | null;

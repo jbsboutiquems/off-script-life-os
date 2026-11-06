@@ -202,6 +202,18 @@ export function flushOutbox(): Promise<{ flushed: number; remaining: number }> {
 export function getApiBase(): string {
   const envBase = (import.meta as any).env?.VITE_API_URL as string | undefined;
   if (envBase && envBase.trim()) return envBase.trim().replace(/\/+$/, '');
+  // Android relative-/api/ blocker (verified 2026-11-01): a plain `vite build`
+  // APK has no VITE_API_URL, so a relative /api/* call lands on the
+  // Capacitor origin instead of Railway and every call fails. `build:mobile`
+  // is still the correct build (it sets VITE_API_URL to Railway); this is
+  // only a safety net so a mis-built APK degrades to the canonical backend
+  // instead of silently calling itself. Web builds are unaffected.
+  try {
+    const cap = (window as any).Capacitor;
+    if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()) {
+      return 'https://off-script-life-os-production.up.railway.app';
+    }
+  } catch { /* ignore */ }
   return '';
 }
 
@@ -719,6 +731,15 @@ export const api = {
   },
 
   // ---- Inbox (DMs) ----
+
+  /** Admin-only account count. Returns a number only — never user data. */
+  async getAdminAccountCount(): Promise<number> {
+    const res = await req('/api/admin/stats');
+    if (!res.ok) throw new Error('Could not load the account count.');
+    const body = await res.json();
+    if (typeof body?.accountCount !== 'number') throw new Error('Could not load the account count.');
+    return body.accountCount;
+  },
 
   async getUserDirectory(query?: string): Promise<{ id: string; username: string }[]> {
     const res = await req('/api/users/directory' + (query ? `?q=${encodeURIComponent(query)}` : ''));

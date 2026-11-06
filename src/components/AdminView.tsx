@@ -2,7 +2,7 @@
  * Minimal admin panel: find users and delete accounts.
  * Mounted only when the signed-in user is an admin (server-gated).
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Search, Trash2 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -17,6 +17,15 @@ export const AdminView: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Admin-only count (2026-11-01): a number only, never a user list.
+  const [accountCount, setAccountCount] = useState<number | null>(null);
+  const [countError, setCountError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getAdminAccountCount()
+      .then((n) => setAccountCount(n))
+      .catch(() => setCountError('Count unavailable — admins only, and the server must be running the new endpoint.'));
+  }, []);
 
   const search = async (q: string) => {
     setQuery(q);
@@ -65,6 +74,26 @@ export const AdminView: React.FC = () => {
         <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
           Search accounts, delete them with all their data. Deletion is permanent.
         </p>
+        <div className="mt-4 rounded-xl bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 px-4 py-3">
+          <div className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-stone-500 dark:text-stone-400">
+            Registered accounts
+          </div>
+          {countError ? (
+            <p className="text-xs font-semibold text-rose-700 dark:text-rose-300 mt-1">{countError}</p>
+          ) : accountCount === null ? (
+            <p className="text-xs text-stone-400 mt-1 font-mono-code">Loading…</p>
+          ) : (
+            <p className="text-2xl font-black text-slate-900 dark:text-cream-canvas mt-0.5">
+              {accountCount}
+              <span className="ml-2 text-xs font-semibold text-stone-500 dark:text-stone-400">
+                account{accountCount === 1 ? '' : 's'} — count only, no names or emails shown here.
+              </span>
+            </p>
+          )}
+          <p className="text-[11px] text-stone-400 mt-1 italic">
+            Live in-memory count only until the Railway volume fix lands — a container restart resets it.
+          </p>
+        </div>
         <div className="mt-4 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
           <input

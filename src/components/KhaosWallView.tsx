@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { api } from '../services/api';
+import { TRIAL_DEMO, promptAppDownload, sampleWallPosts } from '../lib/trialDemo';
 import { Megaphone, Send, Trash2, RefreshCw, Clock, MessageCircle, Pin, PinOff } from 'lucide-react';
 
 interface WallReply {
@@ -55,6 +56,12 @@ const PostCard: React.FC<{
   const submitReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyDraft.trim()) return;
+    if (TRIAL_DEMO) {
+      // Words are gated in the demo: a reply prompts the download
+      // and goes nowhere near the server.
+      promptAppDownload();
+      return;
+    }
     try {
       const reply = await api.replyToWallPost(post.id, replyDraft.trim());
       onUpdate({ ...post, replies: [...post.replies, reply] });
@@ -71,6 +78,20 @@ const PostCard: React.FC<{
   };
 
   const react = async (emoji: string) => {
+    if (TRIAL_DEMO) {
+      // Reactions are FREE in the demo (owner rule): toggle locally so
+      // the tap visibly works. Nothing is sent to the server.
+      const current = post.reactions[emoji] || [];
+      const next = current.includes(myUserId)
+        ? current.filter((u) => u !== myUserId)
+        : [...current, myUserId];
+      const reactions = { ...post.reactions };
+      if (next.length > 0) reactions[emoji] = next;
+      else delete reactions[emoji];
+      onUpdate({ ...post, reactions });
+      setShowReactions(false);
+      return;
+    }
     try {
       const { reactions } = await api.toggleWallReaction(post.id, emoji);
       onUpdate({ ...post, reactions });
@@ -206,6 +227,13 @@ export const KhaosWallView: React.FC<KhaosWallViewProps> = ({ myUserId }) => {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
+    if (TRIAL_DEMO) {
+      // Demo: seed the sample wall once, then leave local state alone
+      // (the 30s poll must not wipe a visitor's local reactions).
+      setPosts((prev) => (prev.length ? prev : sampleWallPosts()));
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const raw = await api.getWallPosts();
@@ -233,6 +261,12 @@ export const KhaosWallView: React.FC<KhaosWallViewProps> = ({ myUserId }) => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!draft.trim()) return;
+    if (TRIAL_DEMO) {
+      // Words are gated in the demo: posting prompts the download and
+      // the draft stays put — nothing is sent anywhere.
+      promptAppDownload();
+      return;
+    }
     setPosting(true);
     setError(null);
     try {

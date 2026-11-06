@@ -83,9 +83,13 @@ export const SearchView: React.FC<SearchViewProps> = (props) => {
       list.push({ kind: 'crew',
       kindLabel: 'Crew', id: `crew:${c.id}`, title: `Crew: ${c.name}`, body: [c.role, c.notes].filter(Boolean).join('\n'), door: 'crew' })
     );
-    Object.entries(CORE_HOLIDAYS).forEach(([key, h]: any) =>
+    // Verified bug (2026-11-01): holiday docs used h.name / h.description,
+    // which do not exist on KhaosHoliday (fields are title / meaning).
+    // The `any` cast hid it from tsc, and searchDocs then called
+    // undefined.toLowerCase(), crashing search on any query. Fixed here.
+    Object.entries(CORE_HOLIDAYS).forEach(([key, h]) =>
       list.push({ kind: 'holiday',
-      kindLabel: 'Holiday', id: `holiday:${key}`, title: h.name, body: h.description || '', door: 'holidays' })
+      kindLabel: 'Holiday', id: `holiday:${key}`, title: h.title, body: [h.meaning, h.tagline].filter(Boolean).join('\n'), door: 'holidays' })
     );
     return list;
   }, [props.entries, props.goals, props.antiGoals, props.debriefs, props.moneyMaps, props.flightCrew]);

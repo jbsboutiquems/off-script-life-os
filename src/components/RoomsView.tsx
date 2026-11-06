@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
+import { TRIAL_DEMO, promptAppDownload, sampleRooms, sampleRoomMessages } from '../lib/trialDemo';
 import { Plus, Send, Users, LogOut, Trash2, RefreshCw, Hash } from 'lucide-react';
 
 interface RoomSummary {
@@ -48,6 +49,12 @@ export const RoomsView: React.FC<{ myUserId: string }> = ({ myUserId }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const refreshRooms = async () => {
+    if (TRIAL_DEMO) {
+      // Demo: rooms are a read-only sample. Seed once and keep it.
+      setRooms((prev) => (prev.length ? prev : sampleRooms()));
+      setLoading(false);
+      return;
+    }
     try {
       setRooms(await api.getRooms());
       setError(null);
@@ -61,6 +68,13 @@ export const RoomsView: React.FC<{ myUserId: string }> = ({ myUserId }) => {
   const openRoom = async (id: string) => {
     setActiveId(id);
     setMessages([]);
+    if (TRIAL_DEMO) {
+      const room = sampleRooms().find((r) => r.id === id);
+      setRoomName(room?.name ?? 'Room');
+      setRoomOwnerId(room?.ownerId ?? null);
+      setMessages(sampleRoomMessages(id));
+      return;
+    }
     try {
       const { room, messages } = await api.getRoomMessages(id);
       setRoomName(room.name);
@@ -95,6 +109,11 @@ export const RoomsView: React.FC<{ myUserId: string }> = ({ myUserId }) => {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
+    if (TRIAL_DEMO) {
+      // Creating a room writes to the community — gated in the demo.
+      promptAppDownload();
+      return;
+    }
     try {
       const room = await api.createRoom(newName.trim(), newDesc.trim());
       setNewName('');
@@ -110,6 +129,12 @@ export const RoomsView: React.FC<{ myUserId: string }> = ({ myUserId }) => {
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!draft.trim() || !activeId) return;
+    if (TRIAL_DEMO) {
+      // Words are gated in the demo: messaging the room prompts the
+      // download and the draft stays put.
+      promptAppDownload();
+      return;
+    }
     const text = draft.trim();
     setDraft('');
     try {
@@ -122,7 +147,9 @@ export const RoomsView: React.FC<{ myUserId: string }> = ({ myUserId }) => {
   };
 
   const leave = async () => {
-    if (!activeId || !window.confirm('Leave this room?')) return;
+    if (!activeId) return;
+    if (TRIAL_DEMO) { promptAppDownload(); return; }
+    if (!window.confirm('Leave this room?')) return;
     try {
       await api.leaveRoom(activeId);
       setActiveId(null);
@@ -131,7 +158,9 @@ export const RoomsView: React.FC<{ myUserId: string }> = ({ myUserId }) => {
   };
 
   const demolish = async () => {
-    if (!activeId || !window.confirm('Demolish this room for everyone?')) return;
+    if (!activeId) return;
+    if (TRIAL_DEMO) { promptAppDownload(); return; }
+    if (!window.confirm('Demolish this room for everyone?')) return;
     try {
       await api.deleteRoom(activeId);
       setActiveId(null);

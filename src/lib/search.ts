@@ -65,8 +65,9 @@ export function searchDocs(docs: SearchDoc[], query: string, limit = 50): Search
   if (terms.length === 0) return [];
   const out: SearchResult[] = [];
   for (const doc of docs) {
-    const title = doc.title.toLowerCase();
-    const body = doc.body.toLowerCase();
+    // Defensive (2026-11-01): a malformed doc must never crash search.
+    const title = String(doc.title || '').toLowerCase();
+    const body = String(doc.body || '').toLowerCase();
     let score = 0;
     let matchedAll = true;
     for (const t of terms) {

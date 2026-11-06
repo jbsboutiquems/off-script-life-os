@@ -44,7 +44,23 @@ export function getSunSign(month: number, day: number): SunSign {
   return day <= CUTOFFS[month - 1] ? SUN_SIGNS[opener] : SUN_SIGNS[(opener + 1) % 12];
 }
 
+/** True only for a real calendar date (rejects Feb 30, Apr 31, month 13, …). */
+export function isValidBirthDate(birthday: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthday || '');
+  if (!m) return false;
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1) return false;
+  const daysInMonth = [31, ((y % 4 === 0 && y % 100 !== 0) || y % 400 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+  return d <= daysInMonth;
+}
+
 export function sunSignFromBirthday(birthday: string): SunSign | null {
+  // Verified bug (2026-11-01): the old code regex-matched any YYYY-MM-DD
+  // and silently gave a sign for impossible dates (Feb 30 → Pisces,
+  // month 13 → Sagittarius fallback). Invalid dates now return null, so
+  // the Cosmic Corner shows its "add your birthday" state instead of a
+  // wrong sign.
+  if (!isValidBirthDate(birthday)) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthday || '');
   if (!m) return null;
   return getSunSign(Number(m[2]), Number(m[3]));
@@ -478,7 +494,10 @@ export function forFunPlacements(birthday: string, birthTime?: string, birthplac
   const sun = sunSignFromBirthday(birthday);
   if (!sun) return null;
   const moon = SUN_SIGNS[hashStr(`moon:${birthday}`) % 12];
-  const rising = birthTime && /^\d{2}:\d{2}$/.test(birthTime)
+  // Birth time must be a real clock time, not just HH:MM-shaped (25:99 passed before).
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(birthTime || '');
+  const timeValid = !!timeMatch && Number(timeMatch[1]) <= 23 && Number(timeMatch[2]) <= 59;
+  const rising = timeValid
     ? SUN_SIGNS[hashStr(`rising:${birthday}:${birthTime}:${birthplace || ''}`) % 12]
     : null;
   return { sun, moon, rising };

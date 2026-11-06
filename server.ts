@@ -7,6 +7,13 @@ import dotenv from "dotenv";
 import { smtpConfigured, baseUrl, sendMail, verificationEmail, resetEmail } from "./email";
 import { smsConfigured, normalizePhone, sendSms, generateSmsCode } from "./sms";
 import { computeDueReminders, type ReminderSettings } from "./src/lib/reminders";
+import {
+  worldCatalog,
+  sanitizeWallPost,
+  sanitizeDmMessage,
+  defaultWorldSync,
+  type WorldSyncRecord,
+} from "./src/lib/worldContract";
 
 dotenv.config();
 
@@ -113,7 +120,7 @@ interface ExpansionProduct {
   blurb: string;
   price: number;
   days: number;
-  kind: "theme" | "holiday" | "zodiac" | "wedding";
+  kind: "theme" | "holiday" | "zodiac" | "wedding" | "intent";
   link_url?: string;
   link_label?: string;
 }
@@ -128,7 +135,9 @@ const EXPANSION_PRODUCTS: ExpansionProduct[] = [
     product_id: "monthly-theme",
     title: "Monthly Khaos Theme",
     blurb: "A fresh khaos theme every month. New prompts, new energy.",
-    price: 0.99,
+    // Monthly digital add-ons are $1 before taxes/fees (Amber, 2026-10-29).
+    // Yearly Zodiac ($5) and Wedding ($10) are NOT in this $1 scope.
+    price: 1,
     days: 30,
     kind: "theme",
   },
@@ -136,9 +145,23 @@ const EXPANSION_PRODUCTS: ExpansionProduct[] = [
     product_id: "holiday-special",
     title: "Holiday Special",
     blurb: "Seasonal spreads and rituals for the current holiday.",
-    price: 0.99,
+    price: 1,
     days: 30,
     kind: "holiday",
+  },
+  {
+    // Intent viewer add-on (staged, 2026-11-01): $1/month before taxes/fees.
+    // It must show ONLY another person's intent/action alignment % — never
+    // the full assessment. There is NO endpoint for it yet, and no
+    // owner-consent bypass: owner consent is still undecided, so this
+    // product is listed for pricing only and must stay gated until that
+    // decision is made. Do not grant or render it from this entry alone.
+    product_id: "intent-viewer",
+    title: "Intent Viewer",
+    blurb: "See another person's intent/action alignment % only — never their full assessment. Owner consent still required and undecided.",
+    price: 1,
+    days: 30,
+    kind: "intent",
   },
   ...ZODIAC_SIGNS.map((sign) => ({
     product_id: `zodiac-${sign}`,
@@ -286,6 +309,13 @@ interface DataStore {
   fieldPresence: Record<string, FieldPresence>;
   /** Active Field game sessions: userId -> session. While active, nearby players are hidden. */
   fieldGames: Record<string, FieldGameSession>;
+  /**
+   * World-link opt-in, per user (staged 2026-11-01, NOT live).
+   * Presence here never means a sync is running: sync is off by default,
+   * opt-in per user, reversible, and Wall-only. DMs are never in this map
+   * and are never synced. See src/lib/worldContract.ts.
+   */
+  worldSync?: Record<string, WorldSyncRecord>;
 }
 
 interface FieldPresence {
@@ -423,6 +453,7 @@ function freshStore(): DataStore {
     wallPosts: [],
     fieldPresence: {},
     fieldGames: {},
+    worldSync: {},
     dmMessages: [],
     dmRead: {},
     emailTokens: {},
@@ -488,6 +519,7 @@ function loadData(): DataStore {
         if (!Array.isArray(store.faqQuestions)) store.faqQuestions = [];
         if (!store.fieldPresence || typeof store.fieldPresence !== "object") store.fieldPresence = {};
         if (!store.fieldGames || typeof store.fieldGames !== "object") store.fieldGames = {};
+        if (!store.worldSync || typeof store.worldSync !== "object") store.worldSync = {};
         for (const a of store.accounts) if (typeof a.recoveryHash !== "string") a.recoveryHash = "";
         return store;
       }
@@ -869,9 +901,9 @@ app.get("/api/auth/config", (_req, res) => {
 });
 
 // Data-deletion instructions (Meta App Review / Live mode requirement).
-// Users email support@lifeosoffscript.info with subject "Delete my data".
+// Users email lifeosoffscript@gmail.com with subject "Delete my data".
 app.get("/data-deletion", (_req, res) => {
-  res.type("html").send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Deletion — Off*Script Life OS</title></head><body style="font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#1c1917"><h1>Request data deletion</h1><p>To request deletion of your Off*Script Life OS account and all associated data, email <a href="mailto:support@lifeosoffscript.info?subject=Delete%20my%20data">support@lifeosoffscript.info</a> with the subject line <strong>"Delete my data"</strong> and the username of the account.</p><p>We delete the account and all associated entries, messages, and settings within 30 days and confirm by reply email.</p></body></html>`);
+  res.type("html").send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Deletion — Off*Script Life OS</title></head><body style="font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#1c1917"><h1>Request data deletion</h1><p>To request deletion of your Off*Script Life OS account and all associated data, email <a href="mailto:lifeosoffscript@gmail.com?subject=Delete%20my%20data">lifeosoffscript@gmail.com</a> with the subject line <strong>"Delete my data"</strong> and the username of the account.</p><p>We delete the account and all associated entries, messages, and settings within 30 days and confirm by reply email.</p></body></html>`);
 });
 
 // Short-lived CSRF states and pending OAuth signups (single-process prototype).
@@ -2394,6 +2426,31 @@ app.get("/api/users/directory", requireAuth, (req, res) => {
   );
 });
 
+/**
+ * Public account count (2026-11-06, staged for Amber's review — user-count
+ * display on the app Dashboard and the website homepage).
+ * Returns ONLY { accountCount } — no auth, no usernames, emails, ids, or
+ * password data. A full user list is deliberately not exposed:
+ * /api/users/directory is search-only by design (2026-10-10
+ * bulk-enumeration block).
+ * NOTE: the count is registered accounts in the app's current in-memory
+ * session until a volume is attached — it can reset on restart, so it is
+ * a live count, not a permanent total.
+ */
+app.get("/api/public/stats", (_req, res) => {
+  res.json({ accountCount: db.accounts.length });
+});
+
+/**
+ * Admin-only account count (2026-11-01, staged for Amber's review).
+ * Returns ONLY a count — no usernames, emails, ids, or password data.
+ * A full user list is deliberately not exposed: /api/users/directory is
+ * search-only by design (2026-10-10 bulk-enumeration block).
+ */
+app.get("/api/admin/stats", requireAuth, requireAdmin, (_req, res) => {
+  res.json({ accountCount: db.accounts.length });
+});
+
 app.delete("/api/admin/users/:username", requireAuth, requireAdmin, (req, res) => {
   const ar = req as AuthedRequest;
   const target = String(req.params.username || "").toLowerCase();
@@ -2764,6 +2821,278 @@ app.post("/api/field/game/end", requireAuth, (req, res) => {
   delete db.fieldGames[userId];
   saveData(db);
   res.json({ ok: true });
+});
+
+// ================= WORLD LINK — STAGED ONLY, NOT LIVE (2026-11-01) =================
+// Minimal contract the Inbetween (Cue's world) can correlate to. Read the
+// hard limits in src/lib/worldContract.ts before touching these routes.
+// CORRECTED 2026-11-01 (Amber): DMs DO sync app <-> world, both ways, for
+// admitted users; the Khaos Wall IS always public INSIDE the controlled
+// world (admitted via the wired app identity), NOT to anonymous visitors.
+// - /api/world/catalog is PUBLIC and contains NO user data at all.
+// - /api/world/wall is account-gated, opt-in, and BOTH WAYS via the same
+//   WallPost store: admitted users post in either place, it appears in both.
+// - /api/world/inbox/* is account-gated, opt-in, participant-only, and
+//   BOTH WAYS via the same dmMessages store, addressed by username.
+// - Anonymous/trial visitors who are NOT admitted get NO words and NO DMs
+//   through this contract: look-only, local reactions/stickers only.
+// - This is a spec + staged local code, NOT a live sync. A real sync is
+//   not live until Amber's one-line go + Cue's world code + the Meta
+//   (Facebook) steps are done. Never claim otherwise.
+
+app.get("/api/world/catalog", (_req, res) => {
+  res.json(worldCatalog());
+});
+
+app.get("/api/world/sync", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  if (!db.worldSync) db.worldSync = {};
+  res.json(db.worldSync[userId] || defaultWorldSync());
+});
+
+app.post("/api/world/sync", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  if (!db.worldSync) db.worldSync = {};
+  const enabled = req.body?.enabled === true;
+  const onDisconnect =
+    req.body?.onDisconnect === "remove" ? "remove" : "keep";
+  const record: WorldSyncRecord = {
+    enabled,
+    onDisconnect,
+    updatedAt: new Date().toISOString(),
+  };
+  db.worldSync[userId] = record;
+  saveData(db);
+  res.json(record);
+});
+
+app.post("/api/world/sync/disconnect", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  if (!db.worldSync) db.worldSync = {};
+  const prev = db.worldSync[userId] || defaultWorldSync();
+  // Disconnect STOPS sync. It never deletes the user's app Wall posts or
+  // app DMs, and it never silently deletes mirrored world copies: the
+  // user's chosen onDisconnect rule (default "keep") governs the world's
+  // display copies of Wall posts, and the world must apply it. App posts
+  // stay in the app unless the user deletes them in the app
+  // (DELETE /api/wall/:id), which the world must mirror as a removal on
+  // its next sync. DM cache is separate and mandatory: the world must
+  // ALWAYS purge its cached DM content for this user on disconnect,
+  // regardless of the Wall choice.
+  const record: WorldSyncRecord = {
+    enabled: false,
+    onDisconnect:
+      req.body?.onDisconnect === "remove" ? "remove" : prev.onDisconnect || "keep",
+    updatedAt: new Date().toISOString(),
+  };
+  db.worldSync[userId] = record;
+  saveData(db);
+  res.json({
+    ...record,
+    note: "Sync stopped. Your app Wall posts and app DMs were NOT deleted. Mirrored world copies of Wall posts follow your onDisconnect rule: 'keep' means the world keeps its display copies, 'remove' means the world deletes its display copies. App posts are only deleted when you delete them in the app. DM rule is separate and mandatory: the world must ALWAYS purge its cached DM content for you on disconnect, regardless of the Wall choice.",
+  });
+});
+
+app.get("/api/world/wall", requireAuth, (req, res) => {
+  const { userId } = req as AuthedRequest;
+  if (!db.worldSync) db.worldSync = {};
+  const sync = db.worldSync[userId] || defaultWorldSync();
+  if (!sync.enabled) {
+    return res.status(403).json({
+      error: "World Wall sync is off for this account. Opt in first via POST /api/world/sync with { enabled: true }.",
+      enabled: false,
+    });
+  }
+  // Sanitized view only: no user ids, no reactor ids (counts only),
+  // no emails, no notes, no photos, no location, no DMs. See worldContract.ts.
+  const posts = [...(db.wallPosts || [])]
+    .map((p) => sanitizeWallPost(p))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 200);
+  res.json({ posts, sync: { enabled: true, onDisconnect: sync.onDisconnect } });
+});
+
+// Wall, world -> app, same store, same rules as POST /api/wall.
+// Admitted + opted-in only. Anonymous/trial visitors never reach this:
+// requireAuth + worldSync.enabled both gate it.
+app.post("/api/world/wall", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  if (!db.worldSync) db.worldSync = {};
+  const sync = db.worldSync[ar.userId] || defaultWorldSync();
+  if (!sync.enabled) {
+    return res.status(403).json({
+      error: "World Wall sync is off for this account. Opt in first via POST /api/world/sync with { enabled: true }.",
+      enabled: false,
+    });
+  }
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "Empty screams echo nowhere. Write something first." });
+  if (text.length > WALL_MAX) {
+    return res.status(400).json({ error: `Keep it under ${WALL_MAX} characters. Scream concisely.` });
+  }
+  const acct = db.accounts.find((a) => a.id === ar.userId);
+  const post: WallPost = {
+    id: `wall_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    userId: ar.userId,
+    username: acct?.username || "anonymous",
+    text,
+    created_at: new Date().toISOString(),
+    replies: [],
+    reactions: {},
+    pinned: false,
+    pinned_at: null,
+  };
+  db.wallPosts = db.wallPosts || [];
+  db.wallPosts.push(post);
+  saveData(db);
+  res.json(sanitizeWallPost(post));
+});
+
+// ---------- World DMs: participant-only, username-addressed, both ways ----------
+// Same dmMessages store as the app. A caller sees ONLY threads where they
+// are sender or recipient. Addressing is by username (resolved server-side,
+// case-insensitive, must exist, not self, not legacy) so the world never
+// needs — and never receives — internal user ids or a user list.
+
+function worldDmPartner(req: AuthedRequest, partnerUsername: string) {
+  const key = String(partnerUsername || "").trim().toLowerCase();
+  if (!key) return null;
+  const acct = db.accounts.find((a) => a.usernameKey === key || a.username.toLowerCase() === key);
+  if (!acct || acct.id === "legacy" || acct.id === req.userId) return null;
+  return acct;
+}
+
+function requireWorldSync(req: AuthedRequest, res: express.Response): boolean {
+  if (!db.worldSync) db.worldSync = {};
+  const sync = db.worldSync[req.userId] || defaultWorldSync();
+  if (!sync.enabled) {
+    res.status(403).json({
+      error: "World sync is off for this account. Opt in first via POST /api/world/sync with { enabled: true }.",
+      enabled: false,
+    });
+    return false;
+  }
+  return true;
+}
+
+app.get("/api/world/inbox/threads", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  if (!requireWorldSync(ar, res)) return;
+  // inboxThreads() already filters to this user's threads; strip partnerId
+  // so the world works in usernames only, never internal ids.
+  const threads = inboxThreads(ar.userId).map((t: any) => ({
+    partnerUsername: t.partnerUsername,
+    lastText: t.lastText,
+    lastAt: t.lastAt,
+    lastFromMe: t.lastFromMe,
+    unread: t.unread,
+  }));
+  res.json({ threads });
+});
+
+app.get("/api/world/inbox/threads/:partnerUsername", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  if (!requireWorldSync(ar, res)) return;
+  const partner = worldDmPartner(ar, req.params.partnerUsername);
+  if (!partner) return res.status(404).json({ error: "No such user." });
+  const messages = (db.dmMessages || [])
+    .filter(
+      (m) =>
+        (m.fromId === ar.userId && m.toId === partner.id) ||
+        (m.fromId === partner.id && m.toId === ar.userId),
+    )
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map((m) => sanitizeDmMessage(m));
+  if (!db.dmRead[ar.userId]) db.dmRead[ar.userId] = {};
+  db.dmRead[ar.userId][partner.id] = new Date().toISOString();
+  saveData(db);
+  res.json({ partnerUsername: partner.username, messages });
+});
+
+// ---------- World Intent + entitlements: read-only, owner-only, private-by-default ----------
+// Intent guardrails (2026-11-01, standing): the Intent assessment and live
+// score stay PRIVATE by default. This endpoint returns ONLY the caller's
+// own user-chosen public words/tags (khaos_name, word_of_the_year, slogan
+// — the public persona in ProfileView). It NEVER returns the full
+// assessment, a live score, an alignment %, raw entries, snapshots, or
+// debrief text, and it NEVER calls /api/mei/* or Gemini. The $1/month
+// Intent viewer add-on (single alignment % for a PAYING viewer only) has
+// NO endpoint, NO metric, and NO owner-consent decision yet — so in v1
+// the world shows a paying viewer NOTHING of the assessment, exactly like
+// a non-paying visitor. Do not fake a %.
+// Entitlements: the caller's OWN expansion grants only, stripped to
+// product/owned/expired/dates. No user id, no email, no payment data.
+// Purchases are NOT wired in the app (POST /api/expansions/purchase
+// returns 503) and must NOT be invented in the world: no second checkout,
+// no duplicate charge for the same add-on. A world add-on carries only
+// once a shared purchase/entitlement record exists for the linked identity.
+
+app.get("/api/world/intent", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  if (!requireWorldSync(ar, res)) return;
+  const u = ar.ud.user || {};
+  res.json({
+    publicWordsTags: {
+      khaosName: u.khaos_name || null,
+      wordOfTheYear: u.word_of_the_year || null,
+      slogan: u.slogan || null,
+    },
+    assessment: null,
+    liveScore: null,
+    alignmentPercent: null,
+    note: "Assessment, live score, and alignment % are NOT synced to the world in v1. The Intent viewer % exists only for a paying viewer once (a) the entitlement is live, (b) owner consent is decided, and (c) a real alignment metric exists — none of which is true yet. See the Cue instruction's Intent + Add-ons section.",
+  });
+});
+
+app.get("/api/world/entitlements", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  if (!requireWorldSync(ar, res)) return;
+  const grants = ar.ud.userEntitlements || {};
+  const items = EXPANSION_PRODUCTS.map((p) => {
+    const g = grants[p.product_id];
+    const expired = !!g?.expires_at && Date.parse(g.expires_at) <= Date.now();
+    return {
+      product_id: p.product_id,
+      kind: p.kind,
+      title: p.title,
+      price: p.price,
+      days: p.days,
+      owned: !!g && !expired,
+      expired: !!g && expired,
+      expires_at: g?.expires_at || null,
+      days_left: g?.expires_at
+        ? Math.max(0, Math.ceil((Date.parse(g.expires_at) - Date.now()) / 86400000))
+        : null,
+    };
+  });
+  res.json({ entitlements: items });
+});
+
+app.post("/api/world/inbox/messages", requireAuth, (req, res) => {
+  const ar = req as AuthedRequest;
+  if (!requireWorldSync(ar, res)) return;
+  const partner = worldDmPartner(ar, String(req.body?.toUsername || ""));
+  if (!partner) return res.status(404).json({ error: "That user doesn't exist." });
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "Can't send an empty message. The void has standards." });
+  if (text.length > DM_MAX) {
+    return res.status(400).json({ error: `Keep it under ${DM_MAX} characters. Write a letter, not a novel.` });
+  }
+  const sender = db.accounts.find((a) => a.id === ar.userId);
+  const msg: DmMessage = {
+    id: `dm_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
+    fromId: ar.userId,
+    fromUsername: sender?.username || "anonymous",
+    toId: partner.id,
+    toUsername: partner.username,
+    text,
+    created_at: new Date().toISOString(),
+  };
+  db.dmMessages = db.dmMessages || [];
+  db.dmMessages.push(msg);
+  notifyUser(partner.id, ar.userId, "dm", `${msg.fromUsername} sent you a DM.`, msg.id);
+  saveData(db);
+  res.json(sanitizeDmMessage(msg));
 });
 
 // ================= MEI-STYLE NLP DIAGNOSTIC ENGINE =================
