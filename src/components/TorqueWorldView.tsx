@@ -6,6 +6,11 @@ import { getJanuary2027Day } from '../data/january2027Daily';
 import { getHolidayForDate } from '../data/holidays';
 import { localDateKey } from '../lib/dates';
 import { SelfieAvatarCreator } from './SelfieAvatarCreator';
+// Lazy: Three.js (~600KB) only downloads when she taps First-person 3D,
+// never on normal Dashboard load — matters on a Moto G Play.
+const FirstPersonWorld = React.lazy(() =>
+  import('./FirstPersonWorld').then((m) => ({ default: m.FirstPersonWorld })),
+);
 
 /**
  * Torque World — the public-facing Off*Script virtual world, built by Torque.
@@ -49,7 +54,9 @@ interface Tile {
 }
 
 // 7 wide x 5 tall walkable world. The Commons sits in the middle.
-const TILES: Tile[] = [
+// Exported so FirstPersonWorld renders the SAME world in 3D — one map,
+// two views. Do not fork the tile list.
+export const TILES: Tile[] = [
   { x: 0, y: 0, place: 'wild', label: 'Wild Edge', emoji: '🌿' },
   { x: 1, y: 0, place: 'games', label: 'Games Board', emoji: '🎲' },
   { x: 2, y: 0, place: 'wild', label: 'Wild Edge', emoji: '🌿' },
@@ -87,7 +94,7 @@ const TILES: Tile[] = [
   { x: 6, y: 4, place: 'wild', label: 'Wild Edge', emoji: '🌿' },
 ];
 
-const PLACES: Record<PlaceId, { name: string; blurb: string; action: string }> = {
+export const PLACES: Record<PlaceId, { name: string; blurb: string; action: string }> = {
   commons: {
     name: 'The Commons',
     blurb: 'One shared place. Play together. This is the heart of the world — start here, meet here, come back here.',
@@ -125,7 +132,7 @@ const PLACES: Record<PlaceId, { name: string; blurb: string; action: string }> =
   },
 };
 
-const FAMILIARS = [
+export const FAMILIARS = [
   { name: 'Rouxgarou', epithet: 'Feral Swamp Gremlin King', city: 'Kosciusko, Mississippi', greeting: 'The swamp has noticed you. Try not to make it weird. (You will.)' },
   { name: 'Sin Bin', epithet: 'The Penalty Box Instigator', city: 'Biloxi, Mississippi', greeting: 'All right, hotshot. The coast is your rink now.' },
   { name: 'Red Reb', epithet: 'The Extra-Innings Disruptor', city: 'Orange Grove, Mississippi', greeting: 'Extra innings. Nobody leaves early.' },
@@ -133,7 +140,7 @@ const FAMILIARS = [
   { name: 'Golden Eagle', epithet: 'The Blitz Coordinator', city: 'Hattiesburg, Mississippi', greeting: 'Blitz on three. No, now. Go.' },
 ];
 
-const COMPANIONS = [
+export const COMPANIONS = [
   { name: 'Torque', role: 'Your production partner', lines: ['I have got the build. You just make the call.', 'One missing item at a time. No big lists, no double work.', 'You are not behind. You are building. That counts.'] },
   { name: 'GPT', role: 'The world-builder', lines: ['Every world starts as a sentence. Yours started as a script.', 'Want to try the same idea three different ways? I will hold all three.', 'You do not have to finish it today for it to be real.'] },
   { name: 'Cue', role: 'The Inbetween keeper', lines: ['The Commons is open. Come as you are.', 'A doorway is not a test. Walk through it when you want to.', 'You are welcome here even if you only look around.'] },
@@ -211,6 +218,16 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [reqLink, setReqLink] = useState('');
   const [reqName, setReqName] = useState('');
   const [avatarOpen, setAvatarOpen] = useState(false);
+  // First-person 3D walkthrough (STAGED 2026-11-06, Amber's call). The 2D
+  // grid stays the default and stays intact — this only swaps the walk
+  // panel, never the world data.
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>(() => {
+    try {
+      return (localStorage.getItem('torque-world-view-mode') as '2d' | '3d') || '2d';
+    } catch {
+      return '2d';
+    }
+  });
   const [avatar, setAvatar] = useState<{ name: string; image: string; glow: string } | null>(() => {
     try {
       const saved = localStorage.getItem('torque-world-avatar');
@@ -344,11 +361,39 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
       </section>
 
       <section className="grid md:grid-cols-2 gap-6">
+        {viewMode === '3d' ? (
+          <React.Suspense fallback={<div className="rounded-3xl border border-stone-300 dark:border-white/10 p-6 text-sm font-bold">Loading the 3D walk…</div>}>
+            <FirstPersonWorld
+              pos={pos}
+              onArrive={(x, y) => {
+                if (x === pos.x && y === pos.y) return;
+                const next = TILES.find((t) => t.x === x && t.y === y);
+                setPos({ x, y });
+                setLog((l) => [`You walk to ${next?.label ?? 'the wild'}.`, ...l].slice(0, 6));
+              }}
+              onExit={() => {
+                setViewMode('2d');
+                try { localStorage.setItem('torque-world-view-mode', '2d'); } catch { /* solo playtest */ }
+              }}
+            />
+          </React.Suspense>
+        ) : (
         <div className="rounded-3xl border border-stone-300 dark:border-white/10 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Globe className="w-4 h-4" />
             <h3 className="font-bold">Walk the world</h3>
             <span className="text-xs text-stone-500 ml-auto">Arrows, D-pad, or tap a tile</span>
+          </div>
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => {
+                setViewMode('3d');
+                try { localStorage.setItem('torque-world-view-mode', '3d'); } catch { /* solo playtest */ }
+              }}
+              className="px-3 py-2 bg-slate-900 text-white dark:bg-amber-400 dark:text-stone-950 rounded-xl text-xs font-bold"
+            >
+              👁 First-person 3D — walk it yourself
+            </button>
           </div>
           <div className="grid grid-cols-7 gap-1">
             {TILES.map((t) => {
@@ -378,6 +423,7 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
           </p>
           <p className="text-sm text-stone-600 dark:text-stone-300 mt-1">{place.action}</p>
         </div>
+        )}
 
         <div className="space-y-4">
           <div className="rounded-3xl border border-stone-300 dark:border-white/10 p-4">
