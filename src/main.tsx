@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { asyncWithLDProvider } from 'launchdarkly-react-client-sdk';
 import Observability from '@launchdarkly/observability';
 import SessionReplay from '@launchdarkly/session-replay';
+import { injectContentsquareScript } from '@contentsquare/tag-sdk';
 import App from './App.tsx';
 import { api } from './services/api';
 import './index.css';
@@ -32,6 +33,11 @@ window.addEventListener('online', () => {
 // VITE_LAUNCHDARKLY_CLIENT_SIDE_ID — never hardcoded. Until a real ID is
 // set, the app renders without the provider so nothing breaks.
 const clientSideID = import.meta.env.VITE_LAUNCHDARKLY_CLIENT_SIDE_ID?.trim();
+
+// Contentsquare session replay — tag ID from Amber's Contentsquare account.
+// main.tsx runs in the browser only, so this injects the CS tag script
+// client-side. (Contentsquare masks typed text by default.)
+injectContentsquareScript({ clientId: '4d0b8a97b26bb' });
 
 void (async () => {
   let LDProvider: ComponentType<{ children: ReactNode }> | null = null;
