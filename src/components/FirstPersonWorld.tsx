@@ -18,13 +18,15 @@ import { PLACES, TILES, FAMILIARS, COMPANIONS } from './TorqueWorldView';
  * not live AI sessions.
  *
  * Controls: WASD / arrow keys to walk, drag (mouse or touch) to look.
- * On touch: left half of the screen is a virtual joystick (walk), right
- * half is look-drag. On-screen arrow buttons are a fallback.
+ * On touch: the visible trackball (bottom-left) walks — push it further
+ * to walk faster; the right side of the screen is look-drag. On-screen
+ * arrow buttons are a fallback.
  */
 
 const TILE = 4; // world units per grid tile
 const WORLD_W = 7 * TILE;
 const WORLD_H = 5 * TILE;
+const JOY_R = 40; // trackball travel in px — push further to walk faster
 
 type PlaceId = 'commons' | 'games' | 'missions' | 'grove' | 'tower' | 'dock' | 'wild';
 
@@ -90,6 +92,13 @@ export const FirstPersonWorld: React.FC<FirstPersonWorldProps> = ({ pos, onArriv
     }
   });
   const [compass, setCompass] = useState('N');
+  // Visible trackball (bottom-left, thumb-reachable): drag it to walk.
+  // Knob offset in px, clamped to JOY_R; feeds the same joyRef the
+  // invisible left-half joystick and the frame loop already use, so push
+  // distance controls walk speed. Works with touch and mouse (pointer
+  // events). The D-pad buttons and WASD/arrows keep working alongside.
+  const [joyKnob, setJoyKnob] = useState({ x: 0, y: 0 });
+  const joyActiveId = useRef<number | null>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const joyRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const stateRef = useRef({ pos, onArrive });
@@ -441,11 +450,29 @@ export const FirstPersonWorld: React.FC<FirstPersonWorldProps> = ({ pos, onArriv
     window.setTimeout(() => keysRef.current.delete(key), 350);
   };
 
+  const updateJoyFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    let dx = e.clientX - (rect.left + rect.width / 2);
+    let dy = e.clientY - (rect.top + rect.height / 2);
+    const len = Math.hypot(dx, dy);
+    if (len > JOY_R) {
+      dx = (dx / len) * JOY_R;
+      dy = (dy / len) * JOY_R;
+    }
+    joyRef.current = { x: dx / JOY_R, y: dy / JOY_R };
+    setJoyKnob({ x: dx, y: dy });
+  };
+  const endJoy = () => {
+    joyActiveId.current = null;
+    joyRef.current = { x: 0, y: 0 };
+    setJoyKnob({ x: 0, y: 0 });
+  };
+
   return (
     <div className="rounded-3xl border border-stone-300 dark:border-white/10 p-4">
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <h3 className="font-bold">First-person walk — see through your own eyes</h3>
-        <span className="text-xs text-stone-500 ml-auto">Drag to look · WASD / arrows / left-half joystick to walk</span>
+        <span className="text-xs text-stone-500 ml-auto">Drag to look · WASD / arrows / trackball to walk</span>
         <button onClick={onExit} className="px-3 py-2 bg-stone-200 dark:bg-white/10 rounded-xl text-xs font-bold">
           ← Back to 2D grid
         </button>
@@ -456,6 +483,29 @@ export const FirstPersonWorld: React.FC<FirstPersonWorldProps> = ({ pos, onArriv
         </div>
         <div className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-black/60 text-white text-xs font-bold pointer-events-none">
           Facing {compass}
+        </div>
+        {/* Visible trackball — bottom-left, thumb-reachable. Drag to walk;
+            push further to walk faster. Touch and mouse. */}
+        <div
+          className="absolute left-3 bottom-3 w-28 h-28 rounded-full border-2 border-white/30 bg-black/40"
+          style={{ touchAction: 'none' }}
+          onPointerDown={(e) => {
+            joyActiveId.current = e.pointerId;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            updateJoyFromEvent(e);
+          }}
+          onPointerMove={(e) => {
+            if (joyActiveId.current === e.pointerId) updateJoyFromEvent(e);
+          }}
+          onPointerUp={endJoy}
+          onPointerCancel={endJoy}
+          role="application"
+          aria-label="Trackball — drag to walk, push further to walk faster"
+        >
+          <div
+            className="absolute w-12 h-12 rounded-full bg-white/80 border-2 border-white shadow"
+            style={{ left: `calc(50% - 24px + ${joyKnob.x}px)`, top: `calc(50% - 24px + ${joyKnob.y}px)` }}
+          />
         </div>
       </div>
       <p className="text-sm mt-3">
