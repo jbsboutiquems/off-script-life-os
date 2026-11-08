@@ -3946,6 +3946,13 @@ async function setupViteAndListen() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
+    // Perf: Vite emits JS/CSS under /assets with content hashes in the
+    // filename, so those files are immutable — cache them for a year.
+    // Everything else (index.html, PWA icons, buddy images) keeps the
+    // default revalidation behaviour, and the SPA fallback below is
+    // explicitly no-cache so deploys reach users immediately.
+    const hashedAssets = { maxAge: "1y", immutable: true };
+    app.use("/off-script-life-os/assets", express.static(path.join(distPath, "assets"), hashedAssets));
     app.use(express.static(distPath));
     // The web bundle is built with Vite base '/off-script-life-os/'
     // (GitHub Pages), so its asset URLs live under that prefix. Serve the
@@ -3954,6 +3961,7 @@ async function setupViteAndListen() {
     // JS/CSS, and the page renders blank.
     app.use("/off-script-life-os", express.static(distPath));
     app.get("*", (req, res) => {
+      res.set("Cache-Control", "no-cache");
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

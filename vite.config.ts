@@ -10,6 +10,24 @@ export default defineConfig(() => {
     // base paths 404 there (blank screen) — mobile builds use './'.
     base: process.env.CAPACITOR_BUILD ? './' : '/off-script-life-os/',
     plugins: [react(), tailwindcss()],
+    build: {
+      rolldownOptions: {
+        output: {
+          // React + React DOM change rarely; isolate them so app edits
+          // don't invalidate the framework chunk in repeat-visit caches.
+          // (Rolldown requires the function form of manualChunks.)
+          manualChunks: (id: string) => {
+            if (
+              id.includes('/node_modules/react/') ||
+              id.includes('/node_modules/react-dom/') ||
+              id.includes('/node_modules/scheduler/')
+            ) {
+              return 'vendor-react';
+            }
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

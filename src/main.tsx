@@ -2,9 +2,6 @@ import {StrictMode, type ComponentType, type ReactNode} from 'react';
 import {createRoot} from 'react-dom/client';
 import { Analytics } from '@vercel/analytics/react';
 import { Capacitor } from '@capacitor/core';
-import { asyncWithLDProvider } from 'launchdarkly-react-client-sdk';
-import Observability from '@launchdarkly/observability';
-import SessionReplay from '@launchdarkly/session-replay';
 import { injectContentsquareScript } from '@contentsquare/tag-sdk';
 import App from './App.tsx';
 import { api } from './services/api';
@@ -43,6 +40,16 @@ void (async () => {
   let LDProvider: ComponentType<{ children: ReactNode }> | null = null;
   if (clientSideID) {
     try {
+      // Perf: the LaunchDarkly client + observability/session-replay
+      // plugins are ~1 MB of JS. They are only needed when a client-side
+      // ID is configured, so load them on demand instead of in the
+      // initial bundle. With no ID set (the normal case) nothing loads.
+      const [{ asyncWithLDProvider }, { default: Observability }, { default: SessionReplay }] =
+        await Promise.all([
+          import('launchdarkly-react-client-sdk'),
+          import('@launchdarkly/observability'),
+          import('@launchdarkly/session-replay'),
+        ]);
       LDProvider = await asyncWithLDProvider({
         clientSideID,
         context: { kind: 'user', key: 'anonymous', anonymous: true },

@@ -36,11 +36,9 @@
     "express": "^4.21.2",
     "launchdarkly-react-client-sdk": "^3.9.4",
     "lucide-react": "^0.546.0",
-    "motion": "^12.23.24",
     "nodemailer": "^10.0.10",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "react-is": "^19.0.0",
     "recharts": "^3.10.1",
     "three": "^0.180.0",
     "vite": "^8.3.0"

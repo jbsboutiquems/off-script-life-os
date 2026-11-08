@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFlightDebrief, MonthlyMoneyMap, KhaosPointEntry, FlightCrewContact } from './types';
 import { api, AuthError } from './services/api';
 import { initTheme, getTheme, cycleTheme, type KhaosTheme } from './theme';
@@ -7,41 +7,47 @@ import { TRIAL_DEMO, DEMO_USER, APK_DOWNLOAD_URL, promptAppDownload } from './li
 import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
-import { CommunityView } from './components/CommunityView';
 import { NotificationBell } from './components/NotificationBell';
-import { ExpansionsView } from './components/ExpansionsView';
-import { FaqView } from './components/FaqView';
+// Perf: tab views load on demand via React.lazy so first paint only ships
+// the dashboard/auth shell. World/Field stay eager (untouched by this
+// pass); every other door splits into its own chunk, fetched when opened.
+// No copy or behaviour changes — Suspense fallbacks are blank while a
+// chunk loads.
+const CommunityView = lazy(() => import('./components/CommunityView').then((m) => ({ default: m.CommunityView })));
+const ExpansionsView = lazy(() => import('./components/ExpansionsView').then((m) => ({ default: m.ExpansionsView })));
+const FaqView = lazy(() => import('./components/FaqView').then((m) => ({ default: m.FaqView })));
 import { AuthScreen } from './components/AuthScreen';
 import { OAuthUsernameStep } from './components/OAuthUsernameStep';
 import { DashboardView, type DashboardTab } from './components/DashboardView';
 import { WorldView } from './components/WorldView';
 import { TorqueWorldView } from './components/TorqueWorldView';
-import { CosmicCornerView } from './components/CosmicCornerView';
-import { HolidaysView } from './components/HolidaysView';
-import { TourGuideView } from './components/TourGuideView';
-import { DailyOSView } from './components/DailyOSView';
-import { IntentCard } from './components/IntentCard';
-import { Big6GoalsTracker } from './components/Big6GoalsTracker';
-import { IdentityProfileView } from './components/IdentityProfileView';
-import { ProfileView } from './components/ProfileView';
-import { SettingsView } from './components/SettingsView';
-import { WeeklyDebriefView } from './components/WeeklyDebriefView';
-import { MonthlyMoneyMapView } from './components/MonthlyMoneyMapView';
-import { ThemesGalleryView } from './components/ThemesGalleryView';
-import { StickersSheetModal } from './components/StickersSheetModal';
-import { SocialShareModal, type ShareContextType } from './components/SocialShareModal';
-import { UnlockScreen } from './components/UnlockScreen';
-import { CoverArtView } from './components/CoverArtView';
-import { KhaosTrendline } from './components/KhaosTrendline';
-import { KhaosPointsView } from './components/KhaosPointsView';
-import { FlightCrewView } from './components/FlightCrewView';
-import { DriveBackupView } from './components/DriveBackupView';
-import { OnboardingTour } from './components/OnboardingTour';
-import { RemindersView } from './components/RemindersView';
-import { SearchView } from './components/SearchView';
-import { InboxView } from './components/InboxView';
-import { FrontMatterView } from './components/frontmatter';
-import { AiStudioView } from './components/studio/AiStudioView';
+const CosmicCornerView = lazy(() => import('./components/CosmicCornerView').then((m) => ({ default: m.CosmicCornerView })));
+const HolidaysView = lazy(() => import('./components/HolidaysView').then((m) => ({ default: m.HolidaysView })));
+const TourGuideView = lazy(() => import('./components/TourGuideView').then((m) => ({ default: m.TourGuideView })));
+const DailyOSView = lazy(() => import('./components/DailyOSView').then((m) => ({ default: m.DailyOSView })));
+const IntentCard = lazy(() => import('./components/IntentCard').then((m) => ({ default: m.IntentCard })));
+const Big6GoalsTracker = lazy(() => import('./components/Big6GoalsTracker').then((m) => ({ default: m.Big6GoalsTracker })));
+const IdentityProfileView = lazy(() => import('./components/IdentityProfileView').then((m) => ({ default: m.IdentityProfileView })));
+const ProfileView = lazy(() => import('./components/ProfileView').then((m) => ({ default: m.ProfileView })));
+const SettingsView = lazy(() => import('./components/SettingsView').then((m) => ({ default: m.SettingsView })));
+const WeeklyDebriefView = lazy(() => import('./components/WeeklyDebriefView').then((m) => ({ default: m.WeeklyDebriefView })));
+const MonthlyMoneyMapView = lazy(() => import('./components/MonthlyMoneyMapView').then((m) => ({ default: m.MonthlyMoneyMapView })));
+const ThemesGalleryView = lazy(() => import('./components/ThemesGalleryView').then((m) => ({ default: m.ThemesGalleryView })));
+const StickersSheetModal = lazy(() => import('./components/StickersSheetModal').then((m) => ({ default: m.StickersSheetModal })));
+import type { ShareContextType } from './components/SocialShareModal';
+const SocialShareModal = lazy(() => import('./components/SocialShareModal').then((m) => ({ default: m.SocialShareModal })));
+const UnlockScreen = lazy(() => import('./components/UnlockScreen').then((m) => ({ default: m.UnlockScreen })));
+const CoverArtView = lazy(() => import('./components/CoverArtView').then((m) => ({ default: m.CoverArtView })));
+const KhaosTrendline = lazy(() => import('./components/KhaosTrendline').then((m) => ({ default: m.KhaosTrendline })));
+const KhaosPointsView = lazy(() => import('./components/KhaosPointsView').then((m) => ({ default: m.KhaosPointsView })));
+const FlightCrewView = lazy(() => import('./components/FlightCrewView').then((m) => ({ default: m.FlightCrewView })));
+const DriveBackupView = lazy(() => import('./components/DriveBackupView').then((m) => ({ default: m.DriveBackupView })));
+const OnboardingTour = lazy(() => import('./components/OnboardingTour').then((m) => ({ default: m.OnboardingTour })));
+const RemindersView = lazy(() => import('./components/RemindersView').then((m) => ({ default: m.RemindersView })));
+const SearchView = lazy(() => import('./components/SearchView').then((m) => ({ default: m.SearchView })));
+const InboxView = lazy(() => import('./components/InboxView').then((m) => ({ default: m.InboxView })));
+const FrontMatterView = lazy(() => import('./components/frontmatter').then((m) => ({ default: m.FrontMatterView })));
+const AiStudioView = lazy(() => import('./components/studio/AiStudioView').then((m) => ({ default: m.AiStudioView })));
 import { studioApi } from './components/studio/studioApi';
 import { AdminView } from './components/AdminView';
 import { syncNativeReminders } from './lib/nativeNotifications';
@@ -53,13 +59,13 @@ import { AndroidPermissionGate } from './components/AndroidPermissionGate';
 import { TestModeNotice } from './components/TestModeNotice';
 import LaunchDarklyBanner from './components/LaunchDarklyBanner';
 import { TrialDownloadPrompt } from './components/TrialDownloadPrompt';
-import { PackageAppModal } from './components/PackageAppModal';
+const PackageAppModal = lazy(() => import('./components/PackageAppModal').then((m) => ({ default: m.PackageAppModal })));
 import { computeStreak } from './lib/streaks';
 import { localDateKey } from './lib/dates';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { getBuddy, saveBuddy, type BuddyProfile } from './buddy';
-import { BuddyCreator } from './components/BuddyCreator';
+const BuddyCreator = lazy(() => import('./components/BuddyCreator').then((m) => ({ default: m.BuddyCreator })));
 import { BeastHost } from './components/BeastHost';
 import { ChevronLeft, Activity, Mail } from 'lucide-react';
 
@@ -834,6 +840,7 @@ export default function App() {
         )}
 
         <main className="min-w-0">
+          <Suspense fallback={null}>
           {activeTab === 'dashboard' && (
             <DashboardView
               user={user}
@@ -1148,10 +1155,12 @@ export default function App() {
               onNavigate={handleSearchNavigate}
             />
           )}
+          </Suspense>
         </main>
       </div>
 
       {/* STICKERS SHEET MODAL */}
+      <Suspense fallback={null}>
       <StickersSheetModal
         isOpen={stickersModalOpen}
         onClose={() => setStickersModalOpen(false)}
@@ -1202,6 +1211,7 @@ export default function App() {
       {showTour && (
         <OnboardingTour onDone={handleFinishOnboarding} />
       )}
+      </Suspense>
 
       {/* FLOATING TOAST NOTIFICATION */}
       {toastMessage && (
