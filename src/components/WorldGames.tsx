@@ -1,4 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Scoreboard } from './Scoreboard';
+import { CURRENCY_ICON, CURRENCY_NAME, getCoinBalance, recordRoundAndAward } from './gameCurrency';
+import type { GameResult } from './gameScores';
 
 /**
  * Playable Community Games for Torque World (Amber, 2026-11-07).
@@ -49,10 +52,12 @@ interface WordSearchProps {
   size?: number;
   secondsLeft?: number;
   onWin?: () => void;
+  // Called once when the game ends — win, or the community timer runs out.
+  onFinish?: (found: number, total: number) => void;
 }
 
 export const WordSearchGame: React.FC<WordSearchProps> = ({
-  seed, wordCount = 5, size = 8, secondsLeft, onWin,
+  seed, wordCount = 5, size = 8, secondsLeft, onWin, onFinish,
 }) => {
   const { grid, words, placements } = useMemo(() => {
     const rand = mulberry32(seed);
@@ -95,6 +100,17 @@ export const WordSearchGame: React.FC<WordSearchProps> = ({
   const [start, setStart] = useState<{ r: number; c: number } | null>(null);
   const [sel, setSel] = useState<{ r: number; c: number }[]>([]);
   const [won, setWon] = useState(false);
+  // Scoreboard: report the result once — on a win, or when the community
+  // timer hits zero. After the timer, the grid stops taking taps.
+  const finishedRef = useRef(false);
+  const timedOut = secondsLeft !== undefined && secondsLeft <= 0 && !won;
+  useEffect(() => {
+    if (finishedRef.current || !onFinish) return;
+    if (won || timedOut) {
+      finishedRef.current = true;
+      onFinish(found.length, words.length);
+    }
+  }, [won, timedOut, onFinish, found.length, words.length]);
 
   const foundCells = useMemo(() => {
     const s = new Set<string>();
@@ -103,7 +119,7 @@ export const WordSearchGame: React.FC<WordSearchProps> = ({
   }, [found, placements]);
 
   const tapCell = (r: number, c: number) => {
-    if (won) return;
+    if (won || timedOut) return;
     if (!start) {
       setStart({ r, c });
       setSel([{ r, c }]);
@@ -173,6 +189,7 @@ export const WordSearchGame: React.FC<WordSearchProps> = ({
         ))}
       </div>
       {won && <p className="font-black text-emerald-600 mt-2">🎉 You found all {words.length} words!</p>}
+      {timedOut && <p className="font-bold text-rose-600 mt-2">⏱ Time&apos;s up — you found {found.length} of {words.length} words.</p>}
     </div>
   );
 };
@@ -205,8 +222,8 @@ const CONNECTION_SETS: { label: string; words: string[] }[][] = [
 
 const GROUP_COLORS = ['bg-emerald-400', 'bg-sky-400', 'bg-amber-400', 'bg-rose-400'];
 
-const ConnectionsGame: React.FC<{ seed: number; secondsElapsed: number; botNames: string[]; onWin?: () => void }> = ({
-  seed, secondsElapsed, botNames, onWin,
+const ConnectionsGame: React.FC<{ seed: number; secondsElapsed: number; botNames: string[]; onWin?: () => void; onFinish?: (results: GameResult[]) => void }> = ({
+  seed, secondsElapsed, botNames, onWin, onFinish,
 }) => {
   const groups = useMemo(() => CONNECTION_SETS[seed % CONNECTION_SETS.length], [seed]);
   const words = useMemo(
@@ -220,6 +237,18 @@ const ConnectionsGame: React.FC<{ seed: number; secondsElapsed: number; botNames
   const won = locked.length === groups.length;
   // Bots find groups as the clock runs — same rules, just slower or faster.
   const botGroups = botNames.map((_, i) => Math.min(3, Math.floor(secondsElapsed / (55 + i * 25))));
+
+  // Scoreboard: report once when the round ends (win or out of guesses).
+  const finishedRef = useRef(false);
+  useEffect(() => {
+    if (over && !finishedRef.current) {
+      finishedRef.current = true;
+      onFinish?.([
+        { player: 'You', score: locked.length, detail: `${locked.length}/4 groups` },
+        ...botNames.map((n, i) => ({ player: n, score: botGroups[i], detail: `${botGroups[i]}/4 groups` })),
+      ]);
+    }
+  }, [over, locked.length, botGroups, botNames, onFinish]);
 
   const submit = () => {
     if (selected.length !== 4 || over || won) return;
@@ -308,8 +337,8 @@ const ConnectionsGame: React.FC<{ seed: number; secondsElapsed: number; botNames
 const DareDashGame: React.FC<{
   seed: number; missionTitle: string; missionTagline: string;
   secondsElapsed: number; botNames: string[]; now: number;
-  onLog: (msg: string) => void;
-}> = ({ seed, missionTitle, missionTagline, secondsElapsed, botNames, now, onLog }) => {
+  onLog: (msg: string) => void; onFinish?: (results: GameResult[]) => void;
+}> = ({ seed, missionTitle, missionTagline, secondsElapsed, botNames, now, onLog, onFinish }) => {
   const botTimes = useMemo(() => {
     const rand = mulberry32(seed + 13);
     return botNames.map(() => 25 + Math.floor(rand() * 30));
@@ -322,6 +351,11 @@ const DareDashGame: React.FC<{
     if (startAt === null || finishedIn !== null) return;
     setFinishedIn(elapsed);
     onLog(`You did today's dare — ${missionTitle} — in ${fmtClock(elapsed)}!`);
+    // Scoreboard: fastest time wins (lower is better).
+    onFinish?.([
+      { player: 'You', score: elapsed, detail: fmtClock(elapsed) },
+      ...botNames.map((n, i) => ({ player: n, score: botTimes[i], detail: fmtClock(botTimes[i]) })),
+    ]);
   };
 
   const rank = finishedIn === null ? null : 1 + botTimes.filter((t) => t < finishedIn).length;
@@ -384,7 +418,7 @@ const TRIVIA_POOL: { q: string; options: string[]; answer: number }[] = [
   { q: "Golden Eagle's epithet?", options: ['The Blitz Coordinator', 'Feral Swamp Gremlin King', 'The Extra-Innings Disruptor', 'Commander of the Almost-Sea'], answer: 0 },
 ];
 
-const TriviaGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => void }> = ({ seed, botNames, onWin }) => {
+const TriviaGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => void; onFinish?: (results: GameResult[]) => void }> = ({ seed, botNames, onWin, onFinish }) => {
   const questions = useMemo(() => shuffle(TRIVIA_POOL, mulberry32(seed + 21)).slice(0, 3), [seed]);
   const botScores = useMemo(() => {
     const rand = mulberry32(seed + 23);
@@ -396,6 +430,20 @@ const TriviaGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => voi
   const [done, setDone] = useState(false);
   const q = questions[qIdx];
 
+  // Scoreboard: report once when the round ends. (Note: score is already
+  // incremented in pick(), so a perfect round is score === questions.length
+  // — do not add the last pick again here.)
+  const finishedRef = useRef(false);
+  useEffect(() => {
+    if (done && !finishedRef.current) {
+      finishedRef.current = true;
+      onFinish?.([
+        { player: 'You', score, detail: `${score}/3 correct` },
+        ...botNames.map((n, i) => ({ player: n, score: botScores[i], detail: `${botScores[i]}/3 correct` })),
+      ]);
+    }
+  }, [done, score, botScores, botNames, onFinish]);
+
   const pick = (i: number) => {
     if (picked !== null) return;
     setPicked(i);
@@ -404,7 +452,7 @@ const TriviaGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => voi
   const next = () => {
     if (qIdx + 1 >= questions.length) {
       setDone(true);
-      if (score + (picked === q.answer ? 1 : 0) === questions.length) onWin?.();
+      if (score === questions.length) onWin?.();
     } else {
       setQIdx(qIdx + 1);
       setPicked(null);
@@ -465,7 +513,7 @@ const CHARADE_POOL: { clue: string; actor: string; answer: string; options: stri
   { clue: '🌙 📝 💭', actor: 'Cue', answer: 'Landing', options: ['Landing', 'Launch', 'Orbit', 'Dusk'] },
 ];
 
-const CharadesGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => void }> = ({ seed, botNames, onWin }) => {
+const CharadesGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => void; onFinish?: (results: GameResult[]) => void }> = ({ seed, botNames, onWin, onFinish }) => {
   const rounds = useMemo(() => shuffle(CHARADE_POOL, mulberry32(seed + 29)).slice(0, 3), [seed]);
   const botScores = useMemo(() => {
     const rand = mulberry32(seed + 31);
@@ -478,6 +526,19 @@ const CharadesGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => v
   const cur = rounds[round];
   const options = useMemo(() => shuffle(cur.options, mulberry32(seed + 37 + round)), [cur, seed, round]);
 
+  // Scoreboard: report once when the round ends. (score already includes
+  // the last pick — do not add it again here.)
+  const finishedRef = useRef(false);
+  useEffect(() => {
+    if (done && !finishedRef.current) {
+      finishedRef.current = true;
+      onFinish?.([
+        { player: 'You', score, detail: `${score}/3 correct` },
+        ...botNames.map((n, i) => ({ player: n, score: botScores[i], detail: `${botScores[i]}/3 correct` })),
+      ]);
+    }
+  }, [done, score, botScores, botNames, onFinish]);
+
   const pick = (opt: string) => {
     if (picked !== null) return;
     setPicked(opt);
@@ -486,7 +547,7 @@ const CharadesGame: React.FC<{ seed: number; botNames: string[]; onWin?: () => v
   const next = () => {
     if (round + 1 >= rounds.length) {
       setDone(true);
-      if (score + (picked === cur.answer ? 1 : 0) === rounds.length) onWin?.();
+      if (score === rounds.length) onWin?.();
     } else {
       setRound(round + 1);
       setPicked(null);
@@ -556,6 +617,13 @@ export const CommunityGamePlayer: React.FC<CommunityGamePlayerProps> = (props) =
       3 players: you · {props.botNames.join(' · ')} — same rules, same timer, no bot advantages.
     </p>
   );
+  // One finished round → scoreboard entry + coins for you. Each game's
+  // onFinish is guarded to fire once, so this runs once per round.
+  const recordRound = (results: GameResult[]) => {
+    const earned = recordRoundAndAward(gameName, results);
+    props.onLog(`Round over — you earned ${earned} ${CURRENCY_ICON} (${CURRENCY_NAME}). Balance: ${getCoinBalance()} ${CURRENCY_NAME}.`);
+  };
+  const board = <Scoreboard game={gameName} />;
 
   if (gameName === 'Word Search Sprint') {
     const botTargets = [2, 3].map((base, i) => base + ((gameIndex + i) % 2));
@@ -567,11 +635,16 @@ export const CommunityGamePlayer: React.FC<CommunityGamePlayerProps> = (props) =
           seed={gameIndex * 31 + 7}
           secondsLeft={props.secondsLeft}
           onWin={() => props.onLog('You finished the Word Search Sprint — all words found!')}
+          onFinish={(found, total) => recordRound([
+            { player: 'You', score: found, detail: `${found}/${total} words` },
+            ...props.botNames.map((n, i) => ({ player: n, score: botFound[i], detail: `${botFound[i]} words` })),
+          ])}
         />
         <p className="text-xs text-stone-500 mt-2">
           Bots: {props.botNames.map((n, i) => `${n} — ${botFound[i]} words`).join(' · ')}
         </p>
         {botLine}
+        {board}
       </div>
     );
   }
@@ -585,8 +658,10 @@ export const CommunityGamePlayer: React.FC<CommunityGamePlayerProps> = (props) =
           secondsElapsed={props.secondsElapsed}
           botNames={props.botNames}
           onWin={() => props.onLog('You solved Khaos Connections — all four groups found!')}
+          onFinish={recordRound}
         />
         {botLine}
+        {board}
       </div>
     );
   }
@@ -603,8 +678,10 @@ export const CommunityGamePlayer: React.FC<CommunityGamePlayerProps> = (props) =
           botNames={props.botNames}
           now={props.now}
           onLog={props.onLog}
+          onFinish={recordRound}
         />
         {botLine}
+        {board}
       </div>
     );
   }
@@ -617,8 +694,10 @@ export const CommunityGamePlayer: React.FC<CommunityGamePlayerProps> = (props) =
           seed={gameIndex * 19 + 11}
           botNames={props.botNames}
           onWin={() => props.onLog('Perfect round on Familiar Trivia — 3 out of 3!')}
+          onFinish={recordRound}
         />
         {botLine}
+        {board}
       </div>
     );
   }
@@ -631,8 +710,10 @@ export const CommunityGamePlayer: React.FC<CommunityGamePlayerProps> = (props) =
           seed={gameIndex * 23 + 9}
           botNames={props.botNames}
           onWin={() => props.onLog('You guessed every charade in Commons Charades!')}
+          onFinish={recordRound}
         />
         {botLine}
+        {board}
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { localDateKey } from '../lib/dates';
 import { SelfieAvatarCreator } from './SelfieAvatarCreator';
 import { CommunityGamePlayer } from './WorldGames';
 import { SoloGamesPanel } from './SoloGames';
+import { CoinBalance } from './CoinBalance';
 // Lazy: Three.js (~600KB) only downloads when she taps First-person 3D,
 // never on normal Dashboard load — matters on a Moto G Play.
 const FirstPersonWorld = React.lazy(() =>
@@ -580,6 +581,7 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
           <button onClick={onBack} className="px-4 py-2 bg-stone-200 dark:bg-white/10 rounded-xl text-xs font-bold">
             ← Back to Dashboard
           </button>
+          <CoinBalance />
           <button onClick={() => setAvatarOpen(true)} className="px-4 py-2 bg-slate-900 text-white dark:bg-amber-400 dark:text-stone-950 rounded-xl text-xs font-bold">
             {avatar ? 'Change my selfie avatar' : 'Create avatar from selfie'}
           </button>
@@ -727,7 +729,7 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
 
       <section className="rounded-3xl border border-stone-300 dark:border-white/10 p-4">
         <h3 className="font-bold text-lg">🎮 Solo games — play anytime</h3>
-        <p className="text-sm text-stone-600 dark:text-stone-300 mt-1">No waiting for the community clock, no bots, no pressure. Pick a game and start right now.</p>
+        <p className="text-sm text-stone-600 dark:text-stone-300 mt-1">No waiting for the community clock, no bots, no pressure. Pick a game and start right now. Every game earns coins — your balance is up top.</p>
         <div className="mt-3">
           <SoloGamesPanel />
         </div>

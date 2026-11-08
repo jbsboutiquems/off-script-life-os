@@ -1,5 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { WordSearchGame, mulberry32, shuffle } from './WorldGames';
+import { BestScoreLine, Scoreboard } from './Scoreboard';
+import { recordRoundAndAward } from './gameCurrency';
+
+const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /**
  * On-demand single-player games (Amber, 2026-11-07) — separate from the
@@ -79,6 +83,23 @@ const SudokuGame: React.FC = () => {
   const [sel, setSel] = useState<{ r: number; c: number } | null>(null);
   const [wrong, setWrong] = useState<Set<string>>(new Set());
   const [solved, setSolved] = useState(false);
+  // Timer + scoreboard: the clock starts on the first entry and stops on
+  // solve — fastest solve wins (lower is better).
+  const [startAt, setStartAt] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const recordedRef = useRef(false);
+  useEffect(() => {
+    if (startAt === null || solved) return;
+    const t = window.setInterval(() => setElapsed(Math.floor((Date.now() - startAt) / 1000)), 1000);
+    return () => window.clearInterval(t);
+  }, [startAt, solved]);
+  useEffect(() => {
+    if (solved && !recordedRef.current) {
+      recordedRef.current = true;
+      const seconds = startAt ? Math.floor((Date.now() - startAt) / 1000) : 0;
+      recordRoundAndAward('Sudoku', [{ player: 'You', score: seconds, detail: `Puzzle ${puzzleIdx + 1} · ${fmtClock(seconds)}` }]);
+    }
+  }, [solved, startAt, puzzleIdx]);
 
   const newPuzzle = (idx: number) => {
     setPuzzleIdx(idx);
@@ -86,10 +107,14 @@ const SudokuGame: React.FC = () => {
     setSel(null);
     setWrong(new Set());
     setSolved(false);
+    setStartAt(null);
+    setElapsed(0);
+    recordedRef.current = false;
   };
 
   const setValue = (n: number) => {
     if (!sel || solved) return;
+    if (startAt === null) setStartAt(Date.now());
     const { r, c } = sel;
     if (puzzle[r][c] !== 0) return;
     const next = cells.map((row) => [...row]);
@@ -112,6 +137,7 @@ const SudokuGame: React.FC = () => {
 
   return (
     <div>
+      <p className="text-sm mt-2">⏱ {fmtClock(elapsed)}{solved ? ' — solved!' : ''}</p>
       <div className="grid grid-cols-9 gap-0 mt-2 border-2 border-stone-400 dark:border-white/30 rounded-lg overflow-hidden max-w-md mx-auto">
         {cells.map((row, r) => row.map((v, c) => {
           const given = puzzle[r][c] !== 0;
@@ -139,7 +165,8 @@ const SudokuGame: React.FC = () => {
         <button onClick={checkAll} className="px-3 py-2 bg-stone-200 dark:bg-white/10 rounded-xl text-xs font-bold">Check</button>
         <button onClick={() => newPuzzle((puzzleIdx + 1) % SUDOKU_PUZZLES.length)} className="px-3 py-2 bg-slate-900 text-white dark:bg-amber-400 dark:text-stone-950 rounded-xl text-xs font-bold">New puzzle</button>
       </div>
-      {solved && <p className="font-black text-emerald-600 mt-2">🎉 Solved! Nice and steady wins it.</p>}
+      {solved && <p className="font-black text-emerald-600 mt-2">🎉 Solved in {fmtClock(elapsed)}! Nice and steady wins it.</p>}
+      <Scoreboard game="Sudoku" />
     </div>
   );
 };
@@ -158,6 +185,15 @@ const MemoryGame: React.FC = () => {
   const [moves, setMoves] = useState(0);
   const [lock, setLock] = useState(false);
   const won = matched.size === deck.length;
+
+  // Scoreboard + coins: fewest moves wins (lower is better).
+  const recordedRef = useRef(false);
+  useEffect(() => {
+    if (won && !recordedRef.current) {
+      recordedRef.current = true;
+      recordRoundAndAward('Memory Match', [{ player: 'You', score: moves, detail: `${moves} moves` }]);
+    }
+  }, [won, moves]);
 
   const flip = (i: number) => {
     if (lock || won || flipped.includes(i) || matched.has(i)) return;
@@ -184,6 +220,7 @@ const MemoryGame: React.FC = () => {
     setMatched(new Set());
     setMoves(0);
     setLock(false);
+    recordedRef.current = false;
   };
 
   return (
@@ -212,6 +249,7 @@ const MemoryGame: React.FC = () => {
       {!won && (
         <button onClick={restart} className="mt-3 px-3 py-2 bg-stone-200 dark:bg-white/10 rounded-xl text-xs font-bold">Shuffle & restart</button>
       )}
+      <Scoreboard game="Memory Match" />
     </div>
   );
 };
@@ -237,6 +275,15 @@ const ScrambleGame: React.FC = () => {
   }, [target, round, roundKey]);
   const [built, setBuilt] = useState<number[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Scoreboard + coins: +10 per word unscrambled.
+  const recordedRef = useRef(false);
+  useEffect(() => {
+    if (done && !recordedRef.current) {
+      recordedRef.current = true;
+      recordRoundAndAward('Word Scramble', [{ player: 'You', score, detail: `${score}/5 correct` }]);
+    }
+  }, [done, score]);
 
   const tapLetter = (i: number) => {
     if (feedback || built.includes(i)) return;
@@ -266,11 +313,12 @@ const ScrambleGame: React.FC = () => {
         <p className="font-black text-lg">You unscrambled {score} / {words.length}!</p>
         {score === words.length && <p className="font-black text-emerald-600">🎉 Clean sweep — every word unscrambled!</p>}
         <button
-          onClick={() => { setRoundKey((k) => k + 1); setRound(0); setScore(0); setDone(false); setBuilt([]); setFeedback(null); }}
+          onClick={() => { setRoundKey((k) => k + 1); setRound(0); setScore(0); setDone(false); setBuilt([]); setFeedback(null); recordedRef.current = false; }}
           className="mt-2 px-3 py-2 bg-slate-900 text-white dark:bg-amber-400 dark:text-stone-950 rounded-xl text-xs font-bold"
         >
           Play again
         </button>
+        <Scoreboard game="Word Scramble" />
       </div>
     );
   }
@@ -321,8 +369,14 @@ export const SoloGamesPanel: React.FC = () => {
       <div>
         <button onClick={() => setGame(null)} className="text-xs font-bold underline">← All solo games</button>
         <p className="font-bold mt-2">🔍 Word Search</p>
-        <WordSearchGame seed={wsSeed} />
+        {/* key remounts on New puzzle — otherwise found/won state would leak into the next grid */}
+        <WordSearchGame
+          key={wsSeed}
+          seed={wsSeed}
+          onFinish={(found, total) => recordRoundAndAward('Word Search', [{ player: 'You', score: found, detail: `${found}/${total} words` }])}
+        />
         <button onClick={() => setWsSeed(Date.now() % 2147483647)} className="mt-3 px-3 py-2 bg-slate-900 text-white dark:bg-amber-400 dark:text-stone-950 rounded-xl text-xs font-bold">New puzzle</button>
+        <Scoreboard game="Word Search" />
       </div>
     );
   }
@@ -365,6 +419,7 @@ export const SoloGamesPanel: React.FC = () => {
           <span className="text-2xl">{g.emoji}</span>
           <span className="block font-bold mt-1">{g.name}</span>
           <span className="block text-xs text-stone-500 mt-1">{g.blurb}</span>
+          <BestScoreLine game={g.name} />
           <span className="block text-xs font-bold mt-2">Play →</span>
         </button>
       ))}
