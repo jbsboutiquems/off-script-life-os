@@ -56,7 +56,7 @@ export interface BuddyPalette {
 }
 
 export const BUDDY_PALETTES: BuddyPalette[] = [
-  { id: 'teal', name: 'Teal', color: '#2da2ee' },
+  { id: 'teal', name: 'Teal', color: '#60d0f8' },
   { id: 'pink', name: 'Hot Pink', color: '#ea4798' },
   { id: 'purple', name: 'Electric Purple', color: '#c26bff' },
   { id: 'lime', name: 'Acid Lime', color: '#b6ff2e' },

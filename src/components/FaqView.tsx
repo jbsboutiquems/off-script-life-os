@@ -170,7 +170,7 @@ export const FaqView: React.FC<{ user: UserProfile | null }> = ({ user }) => {
       {/* Header */}
       <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-3xl p-6 shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#2da2ee] to-[#ea4798] text-white flex items-center justify-center border border-stone-800">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#60d0f8] to-[#ea4798] text-white flex items-center justify-center border border-stone-800">
             <CircleHelp className="w-5 h-5" />
           </div>
           <div>

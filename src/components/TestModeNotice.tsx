@@ -43,7 +43,7 @@ export const TestModeNotice: React.FC = () => {
 
   return (
     <div
-      className="print:hidden bg-gradient-to-r from-[#ea4798] to-[#2da2ee] text-white"
+      className="print:hidden bg-gradient-to-r from-[#ea4798] to-[#60d0f8] text-white"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">

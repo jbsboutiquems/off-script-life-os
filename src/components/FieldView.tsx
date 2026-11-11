@@ -170,7 +170,7 @@ export const FieldView: React.FC = () => {
         <button
           onClick={locate}
           disabled={status === 'locating'}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-white bg-gradient-to-r from-[#2da2ee] to-[#ea4798] hover:brightness-110 disabled:opacity-60 transition shadow-lg"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-white bg-gradient-to-r from-[#60d0f8] to-[#ea4798] hover:brightness-110 disabled:opacity-60 transition shadow-lg"
         >
           {status === 'locating' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Navigation className="w-5 h-5" />}
           {status === 'locating' ? 'Triangulating…' : 'Find my Familiar'}

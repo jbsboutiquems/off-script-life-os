@@ -41,7 +41,7 @@ const TILE_COLORS: Record<PlaceId, number> = {
 };
 
 const FAMILIAR_COLORS = ['#b6ff2e', '#7be0ea', '#ff725e', '#77c9c5', '#ffd35f'];
-const COMPANION_COLORS = ['#ea4798', '#28d7ff', '#ffd35f', '#b6ff2e', '#c26bff'];
+const COMPANION_COLORS = ['#ea4798', '#60d0f8', '#ffd35f', '#b6ff2e', '#c26bff'];
 
 const tileAt = (x: number, y: number) =>
   TILES.find((t) => t.x === x && t.y === y) ?? TILES[10];

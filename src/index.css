@@ -2,9 +2,10 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Brand accent system: pink + teal only (site palette).
-   rose/pink -> hot pink ramp; sky/teal/cyan/indigo -> teal ramp;
-   purple/violet/fuchsia -> pink ramp. Amber/emerald/stone scales untouched. */
+/* Brand accent system: pink + blue (brand). Blue ramp centered on #60D0F8
+   (light blue heart). rose/pink -> hot pink ramp; sky/teal/cyan/indigo -> blue ramp;
+   purple/violet/fuchsia -> pink ramp. Edition teal lives in yearScheme.ts only.
+   Amber/emerald/stone scales untouched. */
 @theme {
   --color-rose-50: #fdf0f6; --color-rose-100: #fbdcef; --color-rose-200: #f6b9d6;
   --color-rose-300: #f191bd; --color-rose-400: #ec6aa2; --color-rose-500: #ea4798;
@@ -27,21 +28,21 @@
   --color-fuchsia-600: #d13a83; --color-fuchsia-700: #ad2f6c; --color-fuchsia-800: #882656;
   --color-fuchsia-900: #662043; --color-fuchsia-950: #471430;
   --color-sky-50: #eef8fe; --color-sky-100: #d9effc; --color-sky-200: #b3e0fa;
-  --color-sky-300: #7ccbf7; --color-sky-400: #4db4f2; --color-sky-500: #2da2ee;
-  --color-sky-600: #1e8fd4; --color-sky-700: #1a74ac; --color-sky-800: #195d88;
-  --color-sky-900: #174a6c; --color-sky-950: #102f47;
+  --color-sky-300: #9adcfb; --color-sky-400: #7ccbf7; --color-sky-500: #60d0f8;
+  --color-sky-600: #38b8ec; --color-sky-700: #1e8fd4; --color-sky-800: #1a74ac;
+  --color-sky-900: #195d88; --color-sky-950: #102f47;
   --color-teal-50: #eef8fe; --color-teal-100: #d9effc; --color-teal-200: #b3e0fa;
-  --color-teal-300: #7ccbf7; --color-teal-400: #4db4f2; --color-teal-500: #2da2ee;
-  --color-teal-600: #1e8fd4; --color-teal-700: #1a74ac; --color-teal-800: #195d88;
-  --color-teal-900: #174a6c; --color-teal-950: #102f47;
+  --color-teal-300: #9adcfb; --color-teal-400: #7ccbf7; --color-teal-500: #60d0f8;
+  --color-teal-600: #38b8ec; --color-teal-700: #1e8fd4; --color-teal-800: #1a74ac;
+  --color-teal-900: #195d88; --color-teal-950: #102f47;
   --color-cyan-50: #eef8fe; --color-cyan-100: #d9effc; --color-cyan-200: #b3e0fa;
-  --color-cyan-300: #7ccbf7; --color-cyan-400: #4db4f2; --color-cyan-500: #2da2ee;
-  --color-cyan-600: #1e8fd4; --color-cyan-700: #1a74ac; --color-cyan-800: #195d88;
-  --color-cyan-900: #174a6c; --color-cyan-950: #102f47;
+  --color-cyan-300: #9adcfb; --color-cyan-400: #7ccbf7; --color-cyan-500: #60d0f8;
+  --color-cyan-600: #38b8ec; --color-cyan-700: #1e8fd4; --color-cyan-800: #1a74ac;
+  --color-cyan-900: #195d88; --color-cyan-950: #102f47;
   --color-indigo-50: #eef8fe; --color-indigo-100: #d9effc; --color-indigo-200: #b3e0fa;
-  --color-indigo-300: #7ccbf7; --color-indigo-400: #4db4f2; --color-indigo-500: #2da2ee;
-  --color-indigo-600: #1e8fd4; --color-indigo-700: #1a74ac; --color-indigo-800: #195d88;
-  --color-indigo-900: #174a6c; --color-indigo-950: #102f47;
+  --color-indigo-300: #9adcfb; --color-indigo-400: #7ccbf7; --color-indigo-500: #60d0f8;
+  --color-indigo-600: #38b8ec; --color-indigo-700: #1e8fd4; --color-indigo-800: #1a74ac;
+  --color-indigo-900: #195d88; --color-indigo-950: #102f47;
 }
 
 /* ============ DAYBREAK (light mode) ============
@@ -56,8 +57,8 @@
   --pink: #f0669f;
   --orange: #d63a84;
   --yellow: #f5c51b;
-  --teal: #1e8fd4;
-  --purple: #1e8fd4;
+  --teal: #38b8ec;
+  --purple: #38b8ec;
 }
 
 /* Daybreak: hardcoded warm-paper utility tints -> light-blue tints.
@@ -79,15 +80,15 @@
   --ink: #f2ecdc;
   --ink-soft: #c6cfe2;
   --pink: #ea4798;
-  --teal: #2da2ee;
-  --purple: #2da2ee;
+  --teal: #60d0f8;
+  --purple: #60d0f8;
   color-scheme: dark;
 }
 
 .dark body {
   background-image:
     radial-gradient(circle at 8% 12%, rgba(234, 71, 152, 0.16) 0 2px, transparent 3px),
-    radial-gradient(circle at 88% 76%, rgba(45, 162, 238, 0.16) 0 3px, transparent 4px),
+    radial-gradient(circle at 88% 76%, rgba(96, 208, 248, 0.16) 0 3px, transparent 4px),
     radial-gradient(circle at 50% 40%, rgba(245, 197, 27, 0.05) 0 2px, transparent 3px),
     linear-gradient(115deg, rgba(242, 236, 220, 0.045) 25%, transparent 25%, transparent 50%, rgba(242, 236, 220, 0.045) 50%, rgba(242, 236, 220, 0.045) 75%, transparent 75%);
 }
@@ -163,7 +164,7 @@
 .dark .border-rose-300 { border-color: #7e2f5c; }
 .dark .border-rose-400 { border-color: #a03a72; }
 .dark .border-sky-200 { border-color: #1c4a66; }
-.dark .border-sky-400 { border-color: #2da2ee; }
+.dark .border-sky-400 { border-color: #60d0f8; }
 .dark .border-purple-200 { border-color: #5c2347; }
 .dark .border-purple-950 { border-color: #1c1125; }
 .dark .border-orange-300 { border-color: #6e3f1c; }
@@ -192,8 +193,8 @@
 .dark .hover\:border-stone-300:hover { border-color: #274264; }
 .dark .hover\:border-rose-400:hover, .dark .hover\:border-rose-500:hover { border-color: #a03a72; }
 .dark .hover\:border-amber-500:hover { border-color: #d97706; }
-.dark .hover\:border-emerald-500:hover { border-color: #2da2ee; }
-.dark .hover\:border-sky-400:hover { border-color: #2da2ee; }
+.dark .hover\:border-emerald-500:hover { border-color: #60d0f8; }
+.dark .hover\:border-sky-400:hover { border-color: #60d0f8; }
 .dark .hover\:border-purple-300:hover { border-color: #7e2f5c; }
 
 /* ---------- Focus rings ---------- */
@@ -394,7 +395,7 @@
     -webkit-font-smoothing: antialiased;
     background-image:
       radial-gradient(circle at 8% 12%, rgba(234, 71, 152, 0.08) 0 2px, transparent 3px),
-      radial-gradient(circle at 88% 76%, rgba(45, 162, 238, 0.09) 0 3px, transparent 4px),
+      radial-gradient(circle at 88% 76%, rgba(96, 208, 248, 0.09) 0 3px, transparent 4px),
       linear-gradient(115deg, rgba(2, 20, 46, 0.025) 25%, transparent 25%, transparent 50%, rgba(2, 20, 46, 0.025) 50%, rgba(2, 20, 46, 0.025) 75%, transparent 75%);
     background-size: 120px 120px, 180px 180px, 9px 9px;
   }
@@ -452,7 +453,7 @@
   to { background-position: -110% center; }
 }
 .brand-gem {
-  background: linear-gradient(135deg, #a5f3fc 0%, #2da2ee 55%, #0369a1 100%);
+  background: linear-gradient(135deg, #a5f3fc 0%, #60d0f8 55%, #0369a1 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -472,7 +473,7 @@
   animation: sparklet-twinkle 2.4s ease-in-out infinite;
 }
 .sparklet-1 { top: -6px; right: -14px; font-size: 15px; color: #f59e0b; }
-.sparklet-2 { bottom: 10px; left: -15px; font-size: 11px; color: #2da2ee; animation-delay: 0.8s; }
+.sparklet-2 { bottom: 10px; left: -15px; font-size: 11px; color: #60d0f8; animation-delay: 0.8s; }
 .sparklet-3 { top: 38%; right: -19px; font-size: 10px; color: #ea4798; animation-delay: 1.5s; }
 @keyframes sparklet-twinkle {
   0%, 100% { opacity: 0.2; transform: scale(0.7) rotate(0deg); }

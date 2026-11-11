@@ -12,9 +12,9 @@ const PILLARS: { glyph: string; glyphClass: string; cardClass: string; borderCla
   },
   {
     glyph: '■',
-    glyphClass: 'text-[#2da2ee]',
-    cardClass: 'bg-[#2da2ee]/10 dark:bg-[#2da2ee]/15',
-    borderClass: 'border-[#2da2ee]/30',
+    glyphClass: 'text-[#60d0f8]',
+    cardClass: 'bg-[#60d0f8]/10 dark:bg-[#60d0f8]/15',
+    borderClass: 'border-[#60d0f8]/30',
     title: 'Not who you planned to be in January.',
     text: 'You are allowed to evolve mid-month and discard what no longer fits.'
   },
@@ -22,7 +22,7 @@ const PILLARS: { glyph: string; glyphClass: string; cardClass: string; borderCla
     glyph: '✧',
     glyphClass: 'text-[#ea4798]',
     cardClass: 'bg-[#ea4798]/10 dark:bg-[#ea4798]/15',
-    borderClass: 'border-[#2da2ee]/30',
+    borderClass: 'border-[#60d0f8]/30',
     title: 'Not who the algorithm wants you to be.',
     text: 'Zero gold stars for burnout. Zero sticker packs for feeling behind.'
   }

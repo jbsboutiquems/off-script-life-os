@@ -12,7 +12,7 @@ function term(days: number): string {
 }
 
 const KIND_ICON: Record<string, React.ReactNode> = {
-  theme: <Sparkles className="w-5 h-5 text-[#2da2ee]" />,
+  theme: <Sparkles className="w-5 h-5 text-[#60d0f8]" />,
   holiday: <PartyPopper className="w-5 h-5 text-amber-500" />,
   zodiac: <MoonStar className="w-5 h-5 text-violet-400" />,
   wedding: <Heart className="w-5 h-5 text-[#ea4798]" />,
@@ -41,7 +41,7 @@ const ProductCard: React.FC<{
           href={product.link_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-1.5 text-xs font-black text-[#2da2ee] hover:underline"
+          className="inline-flex items-center gap-1 mt-1.5 text-xs font-black text-[#60d0f8] hover:underline"
         >
           <Users className="w-3.5 h-3.5" /> {product.link_label || 'Open'}
         </a>

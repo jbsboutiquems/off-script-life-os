@@ -37,7 +37,7 @@ export const LifeAuditSection: React.FC<FrontMatterSectionProps> = ({ user, onTo
   return (
     <SectionCard
       badge="06 — LIFE AUDIT"
-      badgeClass="bg-[#2da2ee]"
+      badgeClass="bg-[#60d0f8]"
       kicker={`RADICAL HONESTY · SCORE: ${average}/10`}
     >
       <div className="border-b border-stone-200 dark:border-white/10 pb-3">
@@ -97,7 +97,7 @@ export const LifeAuditSection: React.FC<FrontMatterSectionProps> = ({ user, onTo
             rows={2}
           />
         </div>
-        <div className="p-4 rounded-2xl bg-[#2da2ee]/10 border border-[#2da2ee]/30 space-y-1.5">
+        <div className="p-4 rounded-2xl bg-[#60d0f8]/10 border border-[#60d0f8]/30 space-y-1.5">
           <label className="text-xs font-mono-code font-bold uppercase text-slate-900 dark:text-cream-canvas block">
             ✦ Highest ({highest.name}) — what are you protecting?
           </label>
@@ -105,7 +105,7 @@ export const LifeAuditSection: React.FC<FrontMatterSectionProps> = ({ user, onTo
             value={highestProtection}
             onChange={(e) => setHighestProtection(e.target.value)}
             placeholder="What boundaries maintain this high score?"
-            className="w-full p-2.5 rounded-xl border border-[#2da2ee]/40 text-xs bg-white dark:bg-white/5 dark:text-stone-200 focus:outline-hidden"
+            className="w-full p-2.5 rounded-xl border border-[#60d0f8]/40 text-xs bg-white dark:bg-white/5 dark:text-stone-200 focus:outline-hidden"
             rows={2}
           />
         </div>
@@ -114,7 +114,7 @@ export const LifeAuditSection: React.FC<FrontMatterSectionProps> = ({ user, onTo
       <button
         type="button"
         onClick={handleSave}
-        className="px-4 py-2 bg-stone-900 hover:bg-black dark:bg-[#2da2ee] dark:hover:bg-[#1f8fd6] text-white rounded-xl text-xs font-mono-code font-bold flex items-center space-x-1.5 cursor-pointer shadow-xs"
+        className="px-4 py-2 bg-stone-900 hover:bg-black dark:bg-[#60d0f8] dark:hover:bg-[#38b8ec] text-white rounded-xl text-xs font-mono-code font-bold flex items-center space-x-1.5 cursor-pointer shadow-xs"
       >
         <Save className="w-3.5 h-3.5" />
         <span>{savedTick ? '✓ Saved' : 'Save Life Audit'}</span>

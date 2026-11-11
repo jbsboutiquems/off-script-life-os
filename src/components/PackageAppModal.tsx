@@ -67,7 +67,7 @@ export const PackageAppModal: React.FC<PackageAppModalProps> = ({
         {/* Modal Header */}
         <div className="bg-[#02142e] text-white px-5 py-4 border-b border-stone-800 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#2da2ee] to-[#ea4798] flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#60d0f8] to-[#ea4798] flex items-center justify-center text-white">
               <Smartphone className="w-4 h-4" />
             </div>
             <div>
@@ -120,7 +120,7 @@ export const PackageAppModal: React.FC<PackageAppModalProps> = ({
           {activeTab === 'overview' && (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-[#eaf6fd] border border-[#bfe3fa] flex items-start gap-3">
-                <Info className="w-5 h-5 text-[#2da2ee] flex-shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-[#60d0f8] flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold font-serif-display text-[#02142e] text-sm">
                     The Off*Script app, packed into an Android app

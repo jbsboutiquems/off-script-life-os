@@ -75,7 +75,7 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
     <button
       key={item.id}
       onClick={() => { onSelectMenu(item.id); setMenuOpen(false); }}
-      className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${activeMenuId === item.id ? 'bg-[#2da2ee]/15 text-[#2da2ee]' : 'text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-white/5'}`}
+      className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${activeMenuId === item.id ? 'bg-[#60d0f8]/15 text-[#60d0f8]' : 'text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-white/5'}`}
     >
       {item.label}
     </button>
@@ -94,7 +94,7 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
               onClick={() => onSelect(id)}
               className={`relative flex shrink-0 items-center gap-1.5 px-3 sm:px-5 pt-2.5 rounded-t-2xl text-sm font-black uppercase tracking-wider transition-all whitespace-nowrap
                 ${active
-                  ? 'pb-3 -mb-0.5 bg-gradient-to-b from-[#2da2ee] to-[#ea4798] text-white shadow-lg z-10'
+                  ? 'pb-3 -mb-0.5 bg-gradient-to-b from-[#60d0f8] to-[#ea4798] text-white shadow-lg z-10'
                   : 'pb-2 bg-stone-200/70 dark:bg-white/5 text-stone-500 dark:text-stone-400 hover:bg-stone-300/70 dark:hover:bg-white/10 hover:text-stone-700 dark:hover:text-stone-200'
                 }`}
             >

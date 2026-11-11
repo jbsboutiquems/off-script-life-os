@@ -230,7 +230,7 @@ export const Big6GoalsTracker: React.FC<Big6GoalsTrackerProps> = ({
         particleCount: 45,
         spread: 60,
         origin: { y: 0.7 },
-        colors: ['#ea4798', '#ec6aa2', '#f6b9d6', '#f59e0b', '#2da2ee']
+        colors: ['#ea4798', '#ec6aa2', '#f6b9d6', '#f59e0b', '#60d0f8']
       });
     }
   };

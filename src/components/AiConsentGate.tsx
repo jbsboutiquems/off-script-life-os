@@ -54,7 +54,7 @@ export const AiConsentGate: React.FC<Props> = ({ userId }) => {
     >
       <div className="w-full max-w-md rounded-2xl border-2 border-[#ea4798]/40 bg-[#faf7f0] dark:bg-[#000a15] p-6 shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#ea4798] to-[#2da2ee] text-white">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#ea4798] to-[#60d0f8] text-white">
             <Sparkles size={20} />
           </span>
           <h2 id="ai-consent-title" className="text-lg font-black text-slate-900 dark:text-stone-100">
@@ -80,7 +80,7 @@ export const AiConsentGate: React.FC<Props> = ({ userId }) => {
         <div className="mt-6 flex flex-col gap-2">
           <button
             onClick={() => decide('granted')}
-            className="w-full rounded-xl bg-gradient-to-r from-[#ea4798] to-[#2da2ee] px-4 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+            className="w-full rounded-xl bg-gradient-to-r from-[#ea4798] to-[#60d0f8] px-4 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110"
           >
             Yes, enable Gemini
           </button>

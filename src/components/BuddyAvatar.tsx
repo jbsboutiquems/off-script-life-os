@@ -37,7 +37,7 @@ export const BuddyAvatar: React.FC<BuddyAvatarProps> = ({
       </div>
     );
   }
-  const tint = buddy.color || '#2da2ee';
+  const tint = buddy.color || '#60d0f8';
   const isCustom = buddy.creatureId === 'custom';
   return (
     <div className="flex flex-col items-center gap-1">

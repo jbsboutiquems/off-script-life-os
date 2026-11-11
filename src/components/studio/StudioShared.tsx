@@ -3,7 +3,7 @@
 import React from 'react';
 import { Sparkles, SlidersHorizontal } from 'lucide-react';
 
-export const TEAL = '#2da2ee';
+export const TEAL = '#60d0f8';
 export const PINK = '#ea4798';
 
 export function StudioSectionTitle({ icon, title, blurb }: { icon: React.ReactNode; title: string; blurb: string }) {

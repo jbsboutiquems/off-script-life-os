@@ -20,7 +20,7 @@ export const KHAOS_THEMES: KhaosMonthTheme[] = [
     tagline: "The blank page, the first breath, the decision to start before you're ready.",
     description: "January doesn't ask you to have it all figured out. It asks you to show up anyway — imperfectly, uncertainly, honestly. The khaos of beginning is not a problem to solve. It is the invitation.",
     monthlyQuestion: "What are you finally willing to start?",
-    accentColor: "#2da2ee", // Sky
+    accentColor: "#60d0f8", // Sky
     badgeBg: "bg-sky-100",
     badgeText: "text-sky-800"
   },
@@ -44,7 +44,7 @@ export const KHAOS_THEMES: KhaosMonthTheme[] = [
     tagline: "The uncomfortable in-between. You're not who you were, not yet who you're going to be.",
     description: "Growth is not a feeling. It is a decision made quietly, over and over again. Discipline is not a cage; it is the host to your highest momentum.",
     monthlyQuestion: "What are you finally ready to be disciplined about?",
-    accentColor: "#2da2ee", // Emerald
+    accentColor: "#60d0f8", // Emerald
     badgeBg: "bg-emerald-100",
     badgeText: "text-emerald-800"
   },
@@ -80,7 +80,7 @@ export const KHAOS_THEMES: KhaosMonthTheme[] = [
     tagline: "Where are you growing beyond your own edges? What are you becoming too small for?",
     description: "Staying is not the same as settling. One is a choice. The other is a surrender. June is the month that tests your commitments in the messy middle.",
     monthlyQuestion: "Where in your life is staying the harder, braver choice right now?",
-    accentColor: "#2da2ee", // Green
+    accentColor: "#60d0f8", // Green
     badgeBg: "bg-teal-100",
     badgeText: "text-teal-800"
   },
@@ -104,7 +104,7 @@ export const KHAOS_THEMES: KhaosMonthTheme[] = [
     tagline: "What you actually think. What you actually feel. No performance required.",
     description: "August sits in a doorway. Summer is winding down, but the shift hasn't landed yet. The quiet before the shift is not empty. It is full of intelligence.",
     monthlyQuestion: "What needs to be finished, released, or decided before the season changes?",
-    accentColor: "#2da2ee", // Indigo
+    accentColor: "#60d0f8", // Indigo
     badgeBg: "bg-indigo-100",
     badgeText: "text-indigo-800"
   },
@@ -116,7 +116,7 @@ export const KHAOS_THEMES: KhaosMonthTheme[] = [
     tagline: "Every ending is a beginning in disguise. What are you moving through?",
     description: "Structure is not a cage. It is the container that makes the khaos navigable. September is about building systems that honor who you actually are.",
     monthlyQuestion: "What structure have you been resisting that might actually set you free?",
-    accentColor: "#2da2ee", // Light blue
+    accentColor: "#60d0f8", // Light blue
     badgeBg: "bg-sky-100",
     badgeText: "text-sky-800"
   },

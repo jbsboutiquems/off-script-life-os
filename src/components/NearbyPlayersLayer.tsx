@@ -129,7 +129,7 @@ export const NearbyPlayersLayer: React.FC<Props> = ({ region }) => {
           </p>
           <button
             onClick={() => setState('on')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-white bg-gradient-to-r from-[#2da2ee] to-[#ea4798] hover:brightness-110 transition shadow"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-white bg-gradient-to-r from-[#60d0f8] to-[#ea4798] hover:brightness-110 transition shadow"
           >
             <Eye className="w-4 h-4" /> Show nearby players
           </button>
@@ -175,7 +175,7 @@ export const NearbyPlayersLayer: React.FC<Props> = ({ region }) => {
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <button
                   onClick={() => setState('on')}
-                  className="px-5 py-2.5 rounded-2xl font-black text-white bg-gradient-to-r from-[#2da2ee] to-[#ea4798] hover:brightness-110 transition shadow"
+                  className="px-5 py-2.5 rounded-2xl font-black text-white bg-gradient-to-r from-[#60d0f8] to-[#ea4798] hover:brightness-110 transition shadow"
                 >
                   Yes, share my dot
                 </button>
@@ -225,7 +225,7 @@ export const NearbyPlayersLayer: React.FC<Props> = ({ region }) => {
           ))}
 
           {/* you */}
-          <span className="absolute left-1/2 top-1/2 w-5 h-5 -ml-2.5 -mt-2.5 rounded-full bg-gradient-to-br from-[#2da2ee] to-[#ea4798] ring-4 ring-white/70 dark:ring-white/20 shadow-lg" />
+          <span className="absolute left-1/2 top-1/2 w-5 h-5 -ml-2.5 -mt-2.5 rounded-full bg-gradient-to-br from-[#60d0f8] to-[#ea4798] ring-4 ring-white/70 dark:ring-white/20 shadow-lg" />
         </div>
 
         <p className="text-xs text-center text-stone-500 dark:text-stone-400 max-w-md mx-auto">

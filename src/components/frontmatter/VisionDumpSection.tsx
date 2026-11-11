@@ -24,7 +24,7 @@ export const VisionDumpSection: React.FC<FrontMatterSectionProps> = ({ user, onT
   };
 
   return (
-    <SectionCard badge="04 — THE VISION DUMP" badgeClass="bg-[#2da2ee]" kicker="WHAT 2027 LOOKS LIKE FROM HERE">
+    <SectionCard badge="04 — THE VISION DUMP" badgeClass="bg-[#60d0f8]" kicker="WHAT 2027 LOOKS LIKE FROM HERE">
       <div className="border-b border-stone-200 dark:border-white/10 pb-3">
         <h3 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 dark:text-cream-canvas">
           Unfiltered Vision
@@ -46,14 +46,14 @@ export const VisionDumpSection: React.FC<FrontMatterSectionProps> = ({ user, onT
               value={items[area.id] || ''}
               onChange={(e) => setItems({ ...items, [area.id]: e.target.value })}
               placeholder={`Write your raw ${area.title} vision...`}
-              className="w-full p-2.5 rounded-xl border border-stone-300 dark:border-white/10 text-xs focus:ring-2 focus:ring-[#2da2ee] focus:outline-hidden bg-white dark:bg-white/5 dark:text-stone-200"
+              className="w-full p-2.5 rounded-xl border border-stone-300 dark:border-white/10 text-xs focus:ring-2 focus:ring-[#60d0f8] focus:outline-hidden bg-white dark:bg-white/5 dark:text-stone-200"
               rows={3}
             />
           </div>
         ))}
       </div>
 
-      <div className="p-4 rounded-2xl bg-[#2da2ee]/10 border border-[#2da2ee]/30 space-y-2">
+      <div className="p-4 rounded-2xl bg-[#60d0f8]/10 border border-[#60d0f8]/30 space-y-2">
         <label className="text-xs font-mono-code font-bold uppercase text-slate-900 dark:text-cream-canvas block">
           ◆ One sentence that captures 2027:
         </label>
@@ -62,14 +62,14 @@ export const VisionDumpSection: React.FC<FrontMatterSectionProps> = ({ user, onT
           value={items.one_sentence || ''}
           onChange={(e) => setItems({ ...items, one_sentence: e.target.value })}
           placeholder="e.g. 2027 is the year I stopped performing and started living."
-          className="w-full p-3 rounded-xl border border-[#2da2ee]/40 text-xs font-medium focus:ring-2 focus:ring-[#2da2ee] focus:outline-hidden bg-white dark:bg-white/5 dark:text-stone-200"
+          className="w-full p-3 rounded-xl border border-[#60d0f8]/40 text-xs font-medium focus:ring-2 focus:ring-[#60d0f8] focus:outline-hidden bg-white dark:bg-white/5 dark:text-stone-200"
         />
       </div>
 
       <button
         type="button"
         onClick={handleSave}
-        className="px-4 py-2 bg-stone-900 hover:bg-black dark:bg-[#2da2ee] dark:hover:bg-[#1f8fd6] text-white rounded-xl text-xs font-mono-code font-bold flex items-center space-x-1.5 cursor-pointer shadow-xs"
+        className="px-4 py-2 bg-stone-900 hover:bg-black dark:bg-[#60d0f8] dark:hover:bg-[#38b8ec] text-white rounded-xl text-xs font-mono-code font-bold flex items-center space-x-1.5 cursor-pointer shadow-xs"
       >
         <Save className="w-3.5 h-3.5" />
         <span>{savedTick ? '✓ Saved' : 'Save Vision Dump'}</span>

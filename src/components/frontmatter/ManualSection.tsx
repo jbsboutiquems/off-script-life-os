@@ -12,7 +12,7 @@ interface ManualSectionProps {
 export const ManualSection: React.FC<ManualSectionProps> = ({ onNavigateToGoals, onNavigateToDaily }) => (
   <SectionCard
     badge="02 — THE OPERATING MANUAL"
-    badgeClass="bg-[#2da2ee]"
+    badgeClass="bg-[#60d0f8]"
     kicker="THE SYSTEM BENDS SO YOU DON'T BREAK"
   >
     <h3 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 dark:text-cream-canvas">
@@ -48,7 +48,7 @@ export const ManualSection: React.FC<ManualSectionProps> = ({ onNavigateToGoals,
           <button
             type="button"
             onClick={onNavigateToDaily}
-            className="px-4 py-2.5 bg-[#2da2ee] hover:bg-[#1f8fd6] text-white rounded-xl text-xs font-mono-code font-bold transition-all shadow-sm cursor-pointer"
+            className="px-4 py-2.5 bg-[#60d0f8] hover:bg-[#38b8ec] text-white rounded-xl text-xs font-mono-code font-bold transition-all shadow-sm cursor-pointer"
           >
             Go to Today&apos;s Log
           </button>

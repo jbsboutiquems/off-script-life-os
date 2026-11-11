@@ -12,7 +12,7 @@ interface NotificationItem {
 }
 
 const KIND_ICON: Record<string, React.ReactNode> = {
-  reply: <MessageCircle className="w-4 h-4 text-[#2da2ee]" />,
+  reply: <MessageCircle className="w-4 h-4 text-[#60d0f8]" />,
   reaction: <Heart className="w-4 h-4 text-[#ea4798]" />,
   dm: <Inbox className="w-4 h-4 text-amber-500" />,
   room: <Users className="w-4 h-4 text-emerald-500" />,

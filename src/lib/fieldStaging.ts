@@ -36,7 +36,7 @@ export interface NearbyFixture {
  * Obviously fake; positions are bearings + bands, never coordinates.
  */
 export const NEARBY_FIXTURES: NearbyFixture[] = [
-  { id: 'fixture-alpha', codename: 'FIXTURE-ALPHA', color: '#2da2ee', bearingDeg: 40, rangeBand: 1, quietMinutes: 1 },
+  { id: 'fixture-alpha', codename: 'FIXTURE-ALPHA', color: '#60d0f8', bearingDeg: 40, rangeBand: 1, quietMinutes: 1 },
   { id: 'fixture-bravo', codename: 'FIXTURE-BRAVO', color: '#c26bff', bearingDeg: 150, rangeBand: 0, quietMinutes: 2 },
   { id: 'fixture-charlie', codename: 'FIXTURE-CHARLIE', color: '#f5c46a', bearingDeg: 225, rangeBand: 2, quietMinutes: 7 },
   { id: 'fixture-delta', codename: 'FIXTURE-DELTA', color: '#ff725e', bearingDeg: 320, rangeBand: 1, quietMinutes: 0 },

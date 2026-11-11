@@ -88,7 +88,7 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
       aria-modal="true"
       aria-labelledby="android-perms-title"
     >
-      <div className="mx-auto w-full max-w-md rounded-2xl border-2 border-[#2da2ee]/40 bg-[#faf7f0] dark:bg-[#000a15] p-5 shadow-2xl">
+      <div className="mx-auto w-full max-w-md rounded-2xl border-2 border-[#60d0f8]/40 bg-[#faf7f0] dark:bg-[#000a15] p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-3 mb-3">
           <h2 id="android-perms-title" className="text-base font-black text-slate-900 dark:text-stone-100">
             Two quick permissions
@@ -108,7 +108,7 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
 
         <ul className="space-y-3 mb-5">
           <li className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#2da2ee]/15 text-[#2da2ee]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#60d0f8]/15 text-[#60d0f8]">
               <Camera size={18} />
             </span>
             <span className="text-sm text-slate-600 dark:text-stone-300">
@@ -134,7 +134,7 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
         <div className="flex gap-2">
           <button
             onClick={enable}
-            className="flex-1 rounded-xl bg-gradient-to-r from-[#2da2ee] to-[#ea4798] px-4 py-2.5 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+            className="flex-1 rounded-xl bg-gradient-to-r from-[#60d0f8] to-[#ea4798] px-4 py-2.5 text-sm font-black text-white shadow-lg transition hover:brightness-110"
           >
             Enable
           </button>

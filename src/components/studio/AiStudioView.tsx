@@ -107,7 +107,7 @@ export const AiStudioView: React.FC<{ userId?: string | null }> = ({ userId }) =
             </p>
             <button
               onClick={() => reaskAiConsent(userId)}
-              className="rounded-xl bg-gradient-to-r from-[#ea4798] to-[#2da2ee] px-5 py-2.5 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+              className="rounded-xl bg-gradient-to-r from-[#ea4798] to-[#60d0f8] px-5 py-2.5 text-sm font-black text-white shadow-lg transition hover:brightness-110"
             >
               Enable Gemini
             </button>

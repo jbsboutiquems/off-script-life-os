@@ -9,3 +9,5 @@ coverage/
 
 # Contentsquare wizard (generated)
 .cs-wizard/
+
+dist-try/

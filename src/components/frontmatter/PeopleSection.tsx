@@ -48,7 +48,7 @@ export const PeopleSection: React.FC<FrontMatterSectionProps> = ({ user, onToast
   const handleDelete = (id: string) => persist(contacts.filter((c) => c.id !== id));
 
   return (
-    <SectionCard badge="10 — MY PEOPLE" badgeClass="bg-[#2da2ee]" kicker="KEEP YOUR PEOPLE CLOSE">
+    <SectionCard badge="10 — MY PEOPLE" badgeClass="bg-[#60d0f8]" kicker="KEEP YOUR PEOPLE CLOSE">
       <div className="border-b border-stone-200 dark:border-white/10 pb-3">
         <h3 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 dark:text-cream-canvas">
           Address Book &amp; Anchors
@@ -120,7 +120,7 @@ export const PeopleSection: React.FC<FrontMatterSectionProps> = ({ user, onToast
             <div>
               <div className="flex items-center space-x-2 flex-wrap gap-1">
                 <span className="font-bold text-xs text-slate-900 dark:text-cream-canvas">{c.name}</span>
-                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-[#2da2ee]/10 text-[#2da2ee] border border-[#2da2ee]/30">
+                <span className="text-[10px] font-mono-code px-2 py-0.5 rounded bg-[#60d0f8]/10 text-[#60d0f8] border border-[#60d0f8]/30">
                   {c.category}
                 </span>
               </div>
