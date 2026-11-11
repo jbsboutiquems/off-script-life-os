@@ -191,6 +191,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user }) => {
           <p className="text-xs text-stone-400 font-mono-code">Loading phone status…</p>
         )}
       </section>
+
+      {/* Contact */}
+      <section className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 space-y-2">
+        <h3 className="font-bold text-sm uppercase flex items-center gap-2"><Mail className="w-4 h-4 text-rose-600" /> Questions?</h3>
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          Reach us at <a href="mailto:lifeosoffscript@gmail.com" className="font-semibold text-rose-600 underline">lifeosoffscript@gmail.com</a>.
+        </p>
+      </section>
     </div>
   );
 };

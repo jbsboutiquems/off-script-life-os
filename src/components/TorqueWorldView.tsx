@@ -153,7 +153,7 @@ export const COMPANIONS = [
 
 const COMMUNITY_GAMES = [
   { name: 'Word Search Sprint', blurb: 'Find the hidden words before the timer runs out. Fast fingers, no perfection required.' },
-  { name: 'Khaos Connections', blurb: 'Group the chaos into fours. Wrong groups are just plot twists.' },
+  { name: 'Khaos Connections', blurb: 'Group the khaos into fours. Wrong groups are just plot twists.' },
   { name: 'Daily Dare Dash', blurb: "Today's daily holiday, as a dare. Do it, log it, move on." },
   { name: 'Familiar Trivia', blurb: 'Five Familiars, five cities, one very confident quizmaster.' },
   { name: 'Commons Charades', blurb: 'Act it out, guess it out. Companions guess first, so you never guess alone.' },
