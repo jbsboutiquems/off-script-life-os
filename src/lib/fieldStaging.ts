@@ -16,6 +16,14 @@
 export const FIELD_NEARBY_FIXTURES_ENABLED =
   import.meta.env.VITE_FIELD_NEARBY_FIXTURES === '1';
 
+/**
+ * FIELD HIDDEN 2026-11-13 per Amber ("hide all familiars for now").
+ * Set to true to restore the Field tab. Reversible: no Field code or
+ * familiar data was deleted — this flag gates every entry point
+ * (the folder tab in FolderTabs.tsx and the mount in App.tsx).
+ */
+export const FIELD_ENABLED = false;
+
 export interface NearbyFixture {
   /** Internal id — never rendered. */
   id: string;

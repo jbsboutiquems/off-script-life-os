@@ -7,6 +7,7 @@ import { TRIAL_DEMO, DEMO_USER, APK_DOWNLOAD_URL, promptAppDownload } from './li
 import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
+import { FIELD_ENABLED } from './lib/fieldStaging';
 import { NotificationBell } from './components/NotificationBell';
 // Perf: tab views load on demand via React.lazy so first paint only ships
 // the dashboard/auth shell. World/Field stay eager (untouched by this
@@ -717,11 +718,13 @@ export default function App() {
   const onOpenDashboardDoor = (tab: DashboardTab) => setActiveTab(tab);
 
   // Folder-tab navigation: core sections as planner dividers.
+  // Field hidden 2026-11-13 per Amber (FIELD_ENABLED=false) — a stale
+  // 'field' tab falls through to 'daily' instead of a hidden tab.
   const activeSection: FolderSection =
     activeTab === 'wall' ? 'wall'
     : activeTab === 'inbox' ? 'dms'
     : activeTab === 'diagnostic' ? 'mei'
-    : activeTab === 'field' ? 'field'
+    : activeTab === 'field' && FIELD_ENABLED ? 'field'
     : activeTab === 'torqueworld' ? 'world'
     : 'daily';
 
@@ -730,7 +733,7 @@ export default function App() {
       s === 'wall' ? 'wall'
       : s === 'dms' ? 'inbox'
       : s === 'mei' ? 'diagnostic'
-      : s === 'field' ? 'field'
+      : s === 'field' ? (FIELD_ENABLED ? 'field' : 'dashboard')
       : s === 'world' ? 'torqueworld'
       : 'dashboard',
     );
@@ -1111,7 +1114,7 @@ export default function App() {
             <AdminView />
           )}
 
-          {activeTab === 'field' && (
+          {activeTab === 'field' && FIELD_ENABLED && (
             <FieldView />
           )}
 

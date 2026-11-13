@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BookOpen, Megaphone, Inbox, Sparkles, MapPin, Menu, X, Globe } from 'lucide-react';
+import { FIELD_ENABLED } from '../lib/fieldStaging';
 
 export type FolderSection = 'daily' | 'wall' | 'dms' | 'mei' | 'field' | 'world';
 
@@ -68,6 +69,10 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
     tabRefs.current[activeSection]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
   }, [activeSection]);
 
+  // Field tab hidden 2026-11-13 per Amber (FIELD_ENABLED=false in
+  // lib/fieldStaging.ts) — the folder list is filtered, never edited.
+  const visibleFolders = FIELD_ENABLED ? FOLDERS : FOLDERS.filter((f) => f.id !== 'field');
+
   const groupedIds = new Set(MENU_SECTIONS.flatMap((s) => s.ids));
   const ungrouped = menuItems.filter((m) => !groupedIds.has(m.id));
 
@@ -85,7 +90,7 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
     <div className="border-b-2 border-stone-200 dark:border-white/10 bg-cream-canvas/80 dark:bg-transparent print:hidden">
       <div className="relative" ref={menuRef}>
       <div className="max-w-7xl mx-auto px-2 sm:px-6 flex items-end gap-1 pt-2 overflow-x-auto scroll-smooth scroll-px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {FOLDERS.map(({ id, label, icon: Icon }) => {
+        {visibleFolders.map(({ id, label, icon: Icon }) => {
           const active = activeSection === id;
           return (
             <button
