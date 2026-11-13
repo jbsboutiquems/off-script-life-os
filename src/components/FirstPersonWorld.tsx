@@ -234,17 +234,6 @@ export const FirstPersonWorld: React.FC<FirstPersonWorldProps> = ({ pos, onArriv
     groveLabel.position.set(-12, 3.6, 0);
     scene.add(groveLabel);
 
-    // Snoopster — VIP Familiar, live 2026-11-13 per Amber (presence only,
-    // no ability). Amber's own dog, home base Kosciusko; not zone-tied,
-    // so he stands by the Commons fountain where everyone meets him.
-    // White orb, sage glow; placed clear of the fountain collider (r 1.9).
-    const snoopsterOrb = new THREE.Mesh(sphereGeo, new THREE.MeshLambertMaterial({ color: 0xf5f5f0, emissive: 0x7a9a8a, emissiveIntensity: 0.45 }));
-    snoopsterOrb.position.set(2.2, 0.9, -4);
-    scene.add(snoopsterOrb);
-    const snoopsterLabel = makeLabelSprite('Snoopster', '#ffffff');
-    snoopsterLabel.position.set(2.2, 2.1, -4);
-    scene.add(snoopsterLabel);
-
     // Companions — five coloured markers standing in the Commons.
     COMPANIONS.forEach((c, i) => {
       const angle = (i / COMPANIONS.length) * Math.PI * 2 + 0.5;
