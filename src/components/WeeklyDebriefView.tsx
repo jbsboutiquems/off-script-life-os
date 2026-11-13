@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WeeklyFlightDebrief } from '../types';
+import { api } from '../services/api';
 import { BookOpen, Save, Flame, Compass, Printer } from 'lucide-react';
 import { canPrint } from '../lib/exporter';
 
@@ -13,16 +14,46 @@ export const WeeklyDebriefView: React.FC<WeeklyDebriefViewProps> = ({
   initialWeek = 1
 }) => {
   const [weekNumber, setWeekNumber] = useState(initialWeek);
-  const [khaosLevel, setKhaosLevel] = useState(6);
-  const [q1, setQ1] = useState("Felt pressure to follow a rigid routine that collapsed by Wednesday.");
-  const [q2, setQ2] = useState("Admitting I didn't want to attend the group planning call.");
-  const [q3, setQ3] = useState("A 20-minute unscheduled walk completely solved a sticky architecture bottleneck.");
-  const [q4, setQ4] = useState("Refused to apologize for not answering non-urgent messages immediately.");
-  const [q5, setQ5] = useState("FERAL");
-  const [q6, setQ6] = useState("Quiet mornings with zero screens.");
-  const [q7, setQ7] = useState("Other people's urgency projection.");
-  const [q8, setQ8] = useState("Ship the core prototype and ignore second-round doubts.");
+  // Fresh weeks start blank (neutral khaos midpoint 5, matching
+  // blankDailyEntry in App.tsx). The previous hardcoded sample answers
+  // were identical on every week and read as the user's own debrief.
+  const [khaosLevel, setKhaosLevel] = useState(5);
+  const [q1, setQ1] = useState("");
+  const [q2, setQ2] = useState("");
+  const [q3, setQ3] = useState("");
+  const [q4, setQ4] = useState("");
+  const [q5, setQ5] = useState("");
+  const [q6, setQ6] = useState("");
+  const [q7, setQ7] = useState("");
+  const [q8, setQ8] = useState("");
   const [isSaved, setIsSaved] = useState(false);
+
+  // Load the saved record for THIS week only. A week with no saved
+  // debrief resets to blank — never another week's answers.
+  const applyDebrief = (saved: WeeklyFlightDebrief | null) => {
+    setKhaosLevel(saved?.khaos_level ?? 5);
+    setQ1(saved?.q1_script_disapproval ?? "");
+    setQ2(saved?.q2_honest_moment ?? "");
+    setQ3(saved?.q3_useful_surprise ?? "");
+    setQ4(saved?.q4_refusal_to_perform ?? "");
+    setQ5(saved?.q5_one_word ?? "");
+    setQ6(saved?.q6_more_oxygen ?? "");
+    setQ7(saved?.q7_less_attention ?? "");
+    setQ8(saved?.q8_next_move ?? "");
+    setIsSaved(false);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getWeeklyDebrief(weekNumber)
+      .then((saved) => { if (!cancelled) applyDebrief(saved); })
+      // getWeeklyDebrief already falls back to localStorage; a failure
+      // here (e.g. auth) must still not leave the previous week's
+      // answers on screen, so reset to blank.
+      .catch(() => { if (!cancelled) applyDebrief(null); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekNumber]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

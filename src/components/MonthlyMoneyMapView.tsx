@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { MonthlyMoneyMap, MoneyExpense } from '../types';
+import React, { useState, useEffect } from 'react';
+import { MonthlyMoneyMap, MoneyExpense, VariableSpendingItem } from '../types';
+import { api } from '../services/api';
 import { DollarSign, Plus, Trash2, Save, TrendingUp } from 'lucide-react';
 
 interface MonthlyMoneyMapViewProps {
@@ -22,7 +23,35 @@ export const MonthlyMoneyMapView: React.FC<MonthlyMoneyMapViewProps> = ({
   const [onePattern, setOnePattern] = useState("");
   const [financialCommitment, setFinancialCommitment] = useState("");
   const [noShameRecap, setNoShameRecap] = useState("");
+  // Variable logs aren't edited in this view, but a saved map may carry
+  // them — keep them so saving a loaded month doesn't wipe them.
+  const [variableLogs, setVariableLogs] = useState<VariableSpendingItem[]>([]);
   const [isSaved, setIsSaved] = useState(false);
+
+  // Load the saved record for THIS month only. A month with no saved
+  // map resets to empty — never another month's streams/expenses.
+  const applyMoneyMap = (saved: MonthlyMoneyMap | null) => {
+    setIncomeStreams(saved?.income_sources ?? []);
+    setFixedExpenses(saved?.fixed_expenses ?? []);
+    setVariableLogs(saved?.variable_logs ?? []);
+    setOneSurprise(saved?.one_surprise ?? "");
+    setOnePattern(saved?.one_pattern ?? "");
+    setFinancialCommitment(saved?.financial_commitment ?? "");
+    setNoShameRecap(saved?.no_shame_recap ?? "");
+    setIsSaved(false);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getMoneyMap(2027, selectedMonth)
+      .then((saved) => { if (!cancelled) applyMoneyMap(saved); })
+      // getMoneyMap already falls back to localStorage; a failure here
+      // (e.g. auth) must still not leave the previous month's money
+      // on screen, so reset to empty.
+      .catch(() => { if (!cancelled) applyMoneyMap(null); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth]);
 
   const totalIncome = incomeStreams.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const totalFixed = fixedExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
@@ -37,7 +66,7 @@ export const MonthlyMoneyMapView: React.FC<MonthlyMoneyMapViewProps> = ({
         year: 2027,
         income_sources: incomeStreams,
         fixed_expenses: fixedExpenses,
-        variable_logs: [],
+        variable_logs: variableLogs,
         one_surprise: oneSurprise,
         one_pattern: onePattern,
         financial_commitment: financialCommitment,

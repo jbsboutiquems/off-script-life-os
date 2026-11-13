@@ -561,7 +561,7 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   );
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {!adultOk && <AdultConsentGate onConfirmed={() => setAdultOk(true)} />}
+      {!adultOk && <AdultConsentGate onConfirmed={() => setAdultOk(true)} onDeclined={onBack} />}
       <ExplicitContentBanner />
       <section className="rounded-3xl p-6 shadow-sm border-2 border-stone-800" style={{ background: `linear-gradient(135deg, ${theme.colors.primary}22, ${theme.colors.secondary}22)` }}>
         <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-rose-600">

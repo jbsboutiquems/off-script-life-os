@@ -403,7 +403,7 @@ export const Big6GoalsTracker: React.FC<Big6GoalsTrackerProps> = ({
             <button
               type="button"
               onClick={() => setIsAdding(false)}
-              className="px-3.5 py-1.5 text-xs text-stone-600 hover:text-stone-900"
+              className="px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 dark:text-stone-300 dark:hover:text-white"
             >
               Cancel
             </button>
@@ -715,7 +715,7 @@ export const Big6GoalsTracker: React.FC<Big6GoalsTrackerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsAddingAntiGoal(false)}
-                className="px-3.5 py-1.5 text-xs text-stone-600 hover:text-stone-900"
+                className="px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 dark:text-stone-300 dark:hover:text-white"
               >
                 Cancel
               </button>

@@ -6,7 +6,7 @@ import {
   Compass, Star, Flame, Ban, Activity, BookOpen, DollarSign,
   Award, PartyPopper, Trophy, Image as ImageIcon,
   DoorOpen, HeartHandshake, Users,
-  BookMarked, Clapperboard, Globe
+  BookMarked, Clapperboard, Globe, ShieldAlert
 } from 'lucide-react';
 
 export type DashboardTab =
@@ -44,9 +44,14 @@ interface DashboardViewProps {
   onOpen: (tab: DashboardTab) => void;
   /** Today's Launch / Orbit / Landing summary, if the caller has it. */
   todayMission?: TodayMissionSummary | null;
+  /** Whether the server has the AI Studio configured. Defaults true so
+      existing callers don't break; pass false to hide the AI Studio door
+      (the studio view itself only renders when configured, so an
+      unconditional door would open a blank page). */
+  studioConfigured?: boolean;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal, goalsCount, crewCount, streak, dueCount, unreadCount, onOpen, todayMission }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal, goalsCount, crewCount, streak, dueCount, unreadCount, onOpen, todayMission, studioConfigured = true }) => {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const yearScheme = getYearScheme(new Date().getFullYear());
 
@@ -70,10 +75,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
   }, []);
 
   // 2026-11-01 (Amber's red-X cleanup): Inbox, the Intent, Khaos Wall,
-  // Reminders, Search, Flight Crew, Drive Backup, Unlock Packs and Identity
-  // Base are removed from the doors grid. Daily Flight Log stays — its mark
-  // was unclarified. The underlying tabs still exist (see App.tsx); removing
+  // Reminders, Search, Flight Crew, Drive Backup and Unlock Packs are
+  // removed from the doors grid. Daily Flight Log stays — its mark was
+  // unclarified. The underlying tabs still exist (see App.tsx); removing
   // them from header/menu navigation is a separate, flagged decision.
+  // 2026-11-13 (finding 11 fix): Identity Base is restored to the grid —
+  // it had no navigation path anywhere after the cleanup, and the
+  // IdentityProfileView tab still exists in App.tsx. Restored verbatim
+  // from its pre-removal door (label, description, icon, accent).
   const doors: DoorDef[] = [
     { id: 'daily', name: 'Daily Flight Log', description: 'Launch, orbit, landing. Today\'s mess, documented.', icon: Compass, accent: 'from-teal-500 to-teal-700' },
     { id: 'cosmic', name: 'The Cosmic Corner', description: 'Your horoscope + a natal chart drawn by the app, not the ephemeris.', icon: Star, accent: 'from-indigo-500 to-purple-700' },
@@ -83,12 +92,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
     { id: 'weekly', name: 'Weekly Debrief', description: 'Eight questions. Zero performance-review energy.', icon: BookOpen, accent: 'from-teal-500 to-teal-700' },
     { id: 'money', name: 'Money Map', description: 'Where it went, minus the shame spiral.', icon: DollarSign, accent: 'from-emerald-500 to-green-700' },
     { id: 'themes', name: 'Annual Arc Themes', description: 'Twelve themes for the year\'s plot twists.', icon: Award, accent: 'from-pink-500 to-pink-700' },
-    { id: 'holidays', name: 'Holiday Vault', description: 'Fourteen made-up holidays with real meaning.', icon: PartyPopper, accent: 'from-amber-400 to-rose-600' },
+    { id: 'holidays', name: 'Holiday Vault', description: 'Seventeen made-up holidays with real meaning.', icon: PartyPopper, accent: 'from-amber-400 to-rose-600' },
     { id: 'points', name: 'Khaos Points & Sharing', description: 'Proof you showed up — and a button to brag about it.', icon: Trophy, accent: 'from-yellow-500 to-amber-700', badge: `${pointsTotal}` },
     { id: 'cover', name: 'Cover Art', description: 'The jacket. Stop and admire it.', icon: ImageIcon, accent: 'from-pink-500 to-pink-700' },
+    { id: 'identity', name: 'Identity Base', description: 'Who is flying this thing — plus your birthday, for the stars.', icon: ShieldAlert, accent: 'from-pink-500 to-pink-700' },
     { id: 'tourguide', name: 'Meet Your Tour Guide', description: 'The human behind the khaos. Come say hi to Amber.', icon: HeartHandshake, accent: 'from-rose-500 to-amber-600' },
-    { id: 'frontmatter', name: 'Front Matter Codex', description: 'The planner\u2019s first 14 pages \u2014 manifesto, one word, audit, permission slip, and your people.', icon: BookMarked, accent: 'from-pink-500 to-teal-600' },
-    { id: 'studio', name: 'AI Studio', description: 'Backstage media lab: hype tracks, cover art, video renders.', icon: Clapperboard, accent: 'from-fuchsia-500 to-teal-600' },
+    { id: 'frontmatter', name: 'Front Matter Codex', description: 'The planner\u2019s front matter, pages 01–06, 09–10 \u2014 manifesto, one word, audit, permission slip, and your people.', icon: BookMarked, accent: 'from-pink-500 to-teal-600' },
+    // AI Studio door only when the server has it configured (finding: the
+    // studio view renders only when studioConfigured, so an unconditional
+    // door opened a blank page). App.tsx must pass studioConfigured.
+    ...(studioConfigured ? [{ id: 'studio', name: 'AI Studio', description: 'Backstage media lab: hype tracks, cover art, video renders.', icon: Clapperboard, accent: 'from-fuchsia-500 to-teal-600' } as DoorDef] : []),
     // 2026-11-01 staged doorway: the Inbetween playtest world, embedded.
     // A doorway, NOT a connection — live playtest, app not connected.
     // No existing door was removed to make room for it.

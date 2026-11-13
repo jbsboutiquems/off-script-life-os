@@ -127,3 +127,18 @@ export function StudioHeader() {
     </div>
   );
 }
+
+/** Full-page fallback for the studio tab when the server says the studio
+ * isn't configured — the same header + card AiStudioView shows, for
+ * callers that gate on studioConfigured instead of mounting AiStudioView.
+ * Keeps the tab from ever rendering blank. */
+export function StudioUnavailableView() {
+  return (
+    <div className="space-y-5">
+      <StudioHeader />
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-6">
+        <StudioNotConfiguredCard />
+      </div>
+    </div>
+  );
+}

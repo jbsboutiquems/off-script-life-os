@@ -37,8 +37,10 @@ interface KhaosTrendlineProps {
 interface TrendDataPoint {
   date: string;
   displayDate: string;
-  score: number;
-  type: 'controlled' | 'uncontrolled' | 'stagnant';
+  // null = no entry was logged for this day. Unlogged days must never
+  // carry a fabricated score or note (see series builder below).
+  score: number | null;
+  type: 'controlled' | 'uncontrolled' | 'stagnant' | 'none';
   typeLabel: string;
   note: string;
   intention: string;
@@ -85,21 +87,18 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
     // of UTC (OS-012).
     const baseDate = parseDateKey(currentDate);
 
-    // Realistic baseline pattern seed for days without explicit entries
-    const sampleVariations = [
-      { score: 5, note: "Steady sovereign flow. Kept boundaries intact.", dare: true },
-      { score: 6, note: "Pushed into unfamiliar design experiments.", dare: true },
-      { score: 3, note: "Felt overly cautious and stuck in email loops.", dare: false },
-      { score: 7, note: "Chaotic schedule but handled with creative humor.", dare: true },
-      { score: 9, note: "Uncontrolled friction spike. Meeting overload & zero rest.", dare: false },
-      { score: 4, note: "Quiet recovery day. Walking without phone.", dare: false },
-      { score: 6, note: "Defied deadline anxiety, worked at natural rhythm.", dare: true },
-      { score: 2, note: "Complete inertia. Felt numb to priorities.", dare: false },
-      { score: 5, note: "Balanced focus. Refused two unnecessary calls.", dare: true },
-      { score: 8, note: "Cognitive overload. Overcommitted to helping others.", dare: false },
-      { score: 7, note: "Off-script bookstore exploration. High serendipity.", dare: true },
-      { score: 5, note: "Normal operating cadence. One creative breakthrough.", dare: true }
-    ];
+    // Build the 30-day series from real logged entries ONLY.
+    // Days without an entry stay null (no score, no note) and render as
+    // gaps — never as invented data.
+    //
+    // The old code filled unlogged days from a `sampleVariations` seed
+    // array indexed by `(i + d.getDate()) % 12`. That index is invariant
+    // across the window — as `i` counts down 29..0 the calendar day
+    // counts up by the same amount — so every unlogged day in a window
+    // landed on the SAME seed entry (score 5, "Balanced focus. Refused
+    // two unnecessary calls."), presenting a month of fabricated days
+    // as if they were really logged. The seed array is gone, not fixed:
+    // no seed can stand in for a day the user never logged.
 
     for (let i = 29; i >= 0; i--) {
       const d = new Date(baseDate);
@@ -112,7 +111,7 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
 
       const existingEntry = entriesMap.get(dateStr);
 
-      let score: number;
+      let score: number | null;
       let note = "";
       let intention = "";
       let microDareCompleted = false;
@@ -125,18 +124,21 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
         microDareCompleted = existingEntry.micro_dare_completed || false;
         isRealEntry = true;
       } else {
-        const seed = sampleVariations[(i + d.getDate()) % sampleVariations.length];
-        score = seed.score;
-        note = seed.note;
-        intention = "Maintain autonomy and clarity";
-        microDareCompleted = seed.dare;
+        // No entry logged for this day: no score, no note, no dare.
+        score = null;
+        note = "No entry logged for this day.";
+        intention = "";
+        microDareCompleted = false;
         isRealEntry = false;
       }
 
-      let type: 'controlled' | 'uncontrolled' | 'stagnant';
+      let type: 'controlled' | 'uncontrolled' | 'stagnant' | 'none';
       let typeLabel: string;
 
-      if (score >= 8) {
+      if (score === null) {
+        type = 'none';
+        typeLabel = 'No entry logged';
+      } else if (score >= 8) {
         type = 'uncontrolled';
         typeLabel = 'Uncontrolled Khaos (Overwhelm)';
       } else if (score >= 4) {
@@ -164,31 +166,52 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
     return points;
   }, [entries, currentDate]);
 
-  // Analytical Calculations
+  // Analytical Calculations — computed from LOGGED days only.
+  // Unlogged days (score null) contribute nothing: no mean, no ratio,
+  // no rebound, no weekday/weekend average may be built from invented data.
   const stats = useMemo(() => {
-    const scores = trendData.map(p => p.score);
-    const avgScore = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
-    const controlledCount = trendData.filter(p => p.type === 'controlled').length;
-    const controlledPct = Math.round((controlledCount / trendData.length) * 100);
-    const spikeCount = trendData.filter(p => p.type === 'uncontrolled').length;
-    const dipCount = trendData.filter(p => p.type === 'stagnant').length;
+    const realPoints = trendData.filter(
+      (p): p is TrendDataPoint & { score: number } =>
+        p.isRealEntry && typeof p.score === 'number'
+    );
+    const loggedCount = realPoints.length;
+    const scores = realPoints.map(p => p.score);
+    const avgScore = loggedCount > 0
+      ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
+      : '—';
+    const controlledCount = realPoints.filter(p => p.type === 'controlled').length;
+    const controlledPct = loggedCount > 0 ? Math.round((controlledCount / loggedCount) * 100) : 0;
+    const spikeCount = realPoints.filter(p => p.type === 'uncontrolled').length;
+    const dipCount = realPoints.filter(p => p.type === 'stagnant').length;
 
-    // Pattern Recognition: Check if spikes follow consecutive low scores
+    // Pattern Recognition: Check if spikes follow consecutive low scores.
+    // Only consecutive CALENDAR days that were both actually logged count.
     let reboundSpikes = 0;
     for (let i = 1; i < trendData.length; i++) {
-      if (trendData[i].score >= 8 && trendData[i - 1].score <= 3) {
+      const prev = trendData[i - 1];
+      const cur = trendData[i];
+      if (
+        cur.isRealEntry && prev.isRealEntry &&
+        typeof cur.score === 'number' && typeof prev.score === 'number' &&
+        cur.score >= 8 && prev.score <= 3
+      ) {
         reboundSpikes++;
       }
     }
 
-    // Weekend vs Weekday analysis
-    const weekendPoints = trendData.filter(p => p.dayOfWeek === 'Sat' || p.dayOfWeek === 'Sun');
-    const weekdayPoints = trendData.filter(p => p.dayOfWeek !== 'Sat' && p.dayOfWeek !== 'Sun');
-    const weekendAvg = (weekendPoints.reduce((a, b) => a + b.score, 0) / (weekendPoints.length || 1)).toFixed(1);
-    const weekdayAvg = (weekdayPoints.reduce((a, b) => a + b.score, 0) / (weekdayPoints.length || 1)).toFixed(1);
+    // Weekend vs Weekday analysis (logged days only)
+    const weekendPoints = realPoints.filter(p => p.dayOfWeek === 'Sat' || p.dayOfWeek === 'Sun');
+    const weekdayPoints = realPoints.filter(p => p.dayOfWeek !== 'Sat' && p.dayOfWeek !== 'Sun');
+    const weekendAvg = weekendPoints.length > 0
+      ? (weekendPoints.reduce((a, b) => a + b.score, 0) / weekendPoints.length).toFixed(1)
+      : '—';
+    const weekdayAvg = weekdayPoints.length > 0
+      ? (weekdayPoints.reduce((a, b) => a + b.score, 0) / weekdayPoints.length).toFixed(1)
+      : '—';
 
     return {
       avgScore,
+      loggedCount,
       controlledCount,
       controlledPct,
       spikeCount,
@@ -225,6 +248,9 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
           <p className="text-xs sm:text-sm text-stone-600 mt-0.5">
             Visualize the critical distinction between <span className="font-bold text-amber-800">Controlled Khaos</span> (deliberate play, boundary pushing) and <span className="font-bold text-rose-700">Uncontrolled Khaos</span> (burnout, reactive spiraling).
           </p>
+          <p className="text-xs sm:text-sm text-stone-600 mt-1">
+            Only days you actually logged appear as points — {stats.loggedCount} of the last 30 {stats.loggedCount === 1 ? 'day is' : 'days are'} logged. Unlogged days show as gaps, never as invented scores.
+          </p>
         </div>
 
         {/* Zone Legend */}
@@ -248,13 +274,15 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div className="bg-stone-50 border border-stone-200 p-3.5 rounded-2xl">
           <div className="text-[10px] font-mono-code uppercase font-bold text-stone-500">
-            30-Day Mean Khaos
+            Mean Khaos · Logged Days
           </div>
           <div className="text-2xl font-bold font-mono-code text-slate-900 mt-0.5 flex items-baseline gap-1">
             {stats.avgScore} <span className="text-xs text-stone-400 font-normal">/ 10</span>
           </div>
           <div className="text-[11px] text-stone-600 mt-1 font-medium">
-            Cadence: {Number(stats.avgScore) >= 7 ? 'High Friction' : Number(stats.avgScore) >= 4 ? 'Sovereign Balance' : 'Rigid Script'}
+            {stats.loggedCount === 0
+              ? 'Log a day to start your trendline'
+              : `Cadence: ${Number(stats.avgScore) >= 7 ? 'High Friction' : Number(stats.avgScore) >= 4 ? 'Sovereign Balance' : 'Rigid Script'}`}
           </div>
         </div>
 
@@ -266,7 +294,9 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
             {stats.controlledPct}%
           </div>
           <div className="text-[11px] text-amber-800 mt-1 font-medium">
-            {stats.controlledCount} of 30 days in sweet spot
+            {stats.loggedCount === 0
+              ? 'No days logged yet'
+              : `${stats.controlledCount} of ${stats.loggedCount} logged ${stats.loggedCount === 1 ? 'day' : 'days'} in sweet spot`}
           </div>
         </div>
 
@@ -303,7 +333,7 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
             <span>TRAJECTORY CURVE (SCORES 1 - 10)</span>
           </div>
           <span className="text-[11px] font-mono-code text-stone-500">
-            Hover points for diagnostic notes · Click to inspect day
+            Hover points for diagnostic notes · Unlogged days show as gaps · Click to inspect day
           </span>
         </div>
 
@@ -394,6 +424,18 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload as TrendDataPoint;
+                    if (!data.isRealEntry || data.score === null) {
+                      return (
+                        <div className="bg-slate-900 text-white p-3 rounded-xl border border-stone-700 shadow-xl text-xs max-w-xs space-y-1.5 font-sans">
+                          <div className="font-bold text-amber-300 font-mono-code text-[11px]">
+                            {data.displayDate} ({data.dayOfWeek})
+                          </div>
+                          <p className="text-[11px] text-stone-300 leading-snug">
+                            No entry logged for this day — tap to open it and log your khaos score.
+                          </p>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="bg-slate-900 text-white p-3 rounded-xl border border-stone-700 shadow-xl text-xs max-w-xs space-y-1.5 font-sans">
                         <div className="flex items-center justify-between border-b border-slate-800 pb-1 font-mono-code text-[11px]">
@@ -433,12 +475,17 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
               <Area
                 type="monotone"
                 dataKey="score"
+                connectNulls={false}
                 stroke="#ea4798"
                 strokeWidth={2.5}
                 fillOpacity={1}
                 fill="url(#khaosGradient)"
                 dot={(props: any) => {
                   const { cx, cy, payload } = props;
+                  // Unlogged days have no score and get no dot.
+                  if (!payload || payload.score === null || payload.score === undefined) {
+                    return <g key={payload ? payload.date : 'no-data'} />;
+                  }
                   const isSpike = payload.score >= 8;
                   const isDip = payload.score <= 3;
                   const fillColor = isSpike ? '#ea4798' : isDip ? chart.dipDot : '#f59e0b';
@@ -482,7 +529,11 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
           </div>
 
           <p className="text-stone-700 leading-relaxed">
-            {stats.reboundSpikes > 0 ? (
+            {stats.loggedCount === 0 ? (
+              <>
+                <strong className="text-slate-900">No logged days yet:</strong> log your khaos score in the Daily OS and your pattern will appear here — nothing is guessed in the meantime.
+              </>
+            ) : stats.reboundSpikes > 0 ? (
               <>
                 <strong className="text-rose-700">Suppression Blowout Detected:</strong> You experienced {stats.reboundSpikes} uncontrolled spikes immediately following days of low khaos (score ≤ 3). When you force yourself into rigid order for too long, the system over-corrects into reactive explosion.
               </>
@@ -520,7 +571,9 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
           </div>
 
           <p className="text-[11px] text-stone-600 mt-1">
-            {Number(stats.weekdayAvg) > Number(stats.weekendAvg)
+            {stats.loggedCount === 0
+              ? "Log a few days and this comparison will appear."
+              : Number(stats.weekdayAvg) > Number(stats.weekendAvg)
               ? "External demands drive most weekday khaos. Protect your Sunday reset ritual."
               : "Weekend restlessness is driving your spikes. Try intentional open studio time."}
           </p>
@@ -595,9 +648,11 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
                     ? 'bg-rose-100 text-rose-800'
                     : pt.type === 'controlled'
                     ? 'bg-amber-100 text-amber-900'
+                    : pt.type === 'none'
+                    ? 'bg-stone-100 text-stone-400'
                     : 'bg-stone-200 text-stone-700'
                 }`}>
-                  {pt.score}
+                  {pt.score ?? '—'}
                 </span>
 
                 <div className="overflow-hidden">
@@ -609,9 +664,11 @@ export const KhaosTrendline: React.FC<KhaosTrendlineProps> = ({
                         ? 'text-rose-700'
                         : pt.type === 'controlled'
                         ? 'text-amber-800'
+                        : pt.type === 'none'
+                        ? 'text-stone-400'
                         : 'text-stone-500'
                     }`}>
-                      {pt.type === 'uncontrolled' ? 'Friction Spike' : pt.type === 'controlled' ? 'Sovereign Flow' : 'Rigid Lull'}
+                      {pt.type === 'uncontrolled' ? 'Friction Spike' : pt.type === 'controlled' ? 'Sovereign Flow' : pt.type === 'none' ? 'No entry' : 'Rigid Lull'}
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-600 truncate mt-0.5">

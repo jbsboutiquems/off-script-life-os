@@ -43,6 +43,17 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
       .then((s) => setDevPasswordSet(s.passwordSet))
       .catch(() => setDevPasswordSet(false));
   }, []);
+  // Unlock the dev gate — same guard as the Unlock button's disabled state.
+  const unlockDev = async () => {
+    if (devBusy || !devPwInput) return;
+    setDevBusy(true); setDevErr(null);
+    try {
+      await api.unlockDev(devPwInput);
+      setDevUnlocked(true);
+      setDevPwInput('');
+    } catch (e: any) { setDevErr(e.message); }
+    finally { setDevBusy(false); }
+  };
   // Phone verification state
   const [phone, setPhone] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
@@ -787,22 +798,14 @@ export const IdentityProfileView: React.FC<IdentityProfileViewProps> = ({
               <PwInput
                 value={devPwInput}
                 onChange={(v) => { setDevPwInput(v); setDevErr(null); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).closest('div')?.querySelector('button')?.click(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (e.isComposing || e.keyCode === 229) return; unlockDev(); } }}
                 placeholder="Dev password"
                 className="flex-1 px-3 py-2 border border-stone-300 rounded-xl bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
               <button
                 type="button"
                 disabled={devBusy || !devPwInput}
-                onClick={async () => {
-                  setDevBusy(true); setDevErr(null);
-                  try {
-                    await api.unlockDev(devPwInput);
-                    setDevUnlocked(true);
-                    setDevPwInput('');
-                  } catch (e: any) { setDevErr(e.message); }
-                  finally { setDevBusy(false); }
-                }}
+                onClick={unlockDev}
                 className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
               >
                 {devBusy ? 'Checking…' : 'Unlock'}

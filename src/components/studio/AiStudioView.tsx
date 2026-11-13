@@ -10,7 +10,7 @@
 // a creative-tools section. Do NOT add Gemini anywhere else.
 import React, { useState, useEffect } from 'react';
 import { Music, Image as ImageIcon, Video, Mic, Library, Sparkles } from 'lucide-react';
-import { studioApi, StudioNotConfiguredError } from './studioApi';
+import { studioApi } from './studioApi';
 import { StudioHeader, StudioNotConfiguredCard, PINK, TEAL } from './StudioShared';
 import { MusicStudio } from './MusicStudio';
 import { ImageStudio } from './ImageStudio';
@@ -38,22 +38,32 @@ const TABS: Array<{ id: StudioTab; label: string; icon: React.ReactNode }> = [
 export const AiStudioView: React.FC<{ userId?: string | null }> = ({ userId }) => {
   const [tab, setTab] = useState<StudioTab>('music');
   const [configured, setConfigured] = useState<boolean | null>(null);
+  // True only when the status call itself failed (network) — a non-OK
+  // response is reported by studioApi.status() as { configured: false }.
+  const [statusError, setStatusError] = useState(false);
+  // Bumped by the retry button to re-run the status check.
+  const [statusAttempt, setStatusAttempt] = useState(0);
   const [consent, setConsent] = useState<AiConsentState>(() => getAiConsent(userId));
 
   useEffect(() => {
     let cancelled = false;
+    setStatusError(false);
     studioApi
       .status()
       .then((s) => {
         if (!cancelled) setConfigured(s.configured);
       })
-      .catch((e) => {
-        if (!cancelled) setConfigured(!(e instanceof StudioNotConfiguredError));
+      .catch(() => {
+        // Never claim the studio is configured when the server couldn't be
+        // reached at all. The old catch set configured=true on any error
+        // (status() never throws StudioNotConfiguredError), which flashed
+        // the full studio UI and let every tab fail on its own instead.
+        if (!cancelled) setStatusError(true);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [statusAttempt]);
 
   // First open: ask for Google Gemini consent if the user hasn't decided yet.
   useEffect(() => {
@@ -91,7 +101,36 @@ export const AiStudioView: React.FC<{ userId?: string | null }> = ({ userId }) =
       </div>
 
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-6">
-        {configured === false ? (
+        {statusError ? (
+          <div className="text-center py-10 px-4">
+            <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400">
+              <Sparkles size={22} />
+            </span>
+            <h3 className="text-base font-black text-slate-900 dark:text-stone-100 mb-2">
+              Couldn&apos;t reach the studio
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-stone-400 max-w-sm mx-auto mb-5">
+              The server didn&apos;t answer when we asked whether AI Studio is set up.
+              Check your connection and try again — everything else in the app is fine.
+            </p>
+            <button
+              onClick={() => {
+                setStatusError(false);
+                setStatusAttempt((n) => n + 1);
+              }}
+              className="rounded-xl bg-gradient-to-r from-[#ea4798] to-[#60d0f8] px-5 py-2.5 text-sm font-black text-white shadow-lg transition hover:brightness-110"
+            >
+              Try again
+            </button>
+          </div>
+        ) : configured === null ? (
+          <div className="text-center py-10 px-4">
+            <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400">
+              <span className="w-5 h-5 border-2 border-slate-300 dark:border-slate-400 border-t-[#ea4798] rounded-full animate-spin" />
+            </span>
+            <p className="text-sm text-slate-500 dark:text-stone-400">Warming up the studio…</p>
+          </div>
+        ) : configured === false ? (
           <StudioNotConfiguredCard />
         ) : consentDeclined && generativeTab ? (
           <div className="text-center py-10 px-4">

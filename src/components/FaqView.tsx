@@ -218,7 +218,7 @@ export const FaqView: React.FC<{ user: UserProfile | null }> = ({ user }) => {
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') ask(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (e.isComposing || e.keyCode === 229) return; ask(); } }}
             placeholder="What's your question?"
             maxLength={500}
             className="flex-1 px-4 py-3 rounded-2xl border-2 border-stone-300 dark:border-white/20 bg-white dark:bg-white/5 text-sm text-slate-900 dark:text-cream-canvas placeholder:text-stone-400"

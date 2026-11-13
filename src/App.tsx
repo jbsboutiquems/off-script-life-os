@@ -715,7 +715,13 @@ export default function App() {
     );
   }
 
-  const onOpenDashboardDoor = (tab: DashboardTab) => setActiveTab(tab);
+  const onOpenDashboardDoor = (tab: DashboardTab) => {
+    // "Today's mission" and the Daily Flight Log door mean TODAY: reset
+    // the viewed date, otherwise the door reopens whatever date the
+    // Trendline last left behind (Finding 2).
+    if (tab === 'daily') setCurrentDate(localDateKey());
+    setActiveTab(tab);
+  };
 
   // Folder-tab navigation: core sections as planner dividers.
   // Field hidden 2026-11-13 per Amber (FIELD_ENABLED=false) — a stale
@@ -746,6 +752,7 @@ export default function App() {
     // sections still exist — removing those is a separate, flagged decision.
     { id: 'profile', label: 'Profile' },
     { id: 'settings', label: 'Settings' },
+    { id: 'identity', label: 'Identity Base' },
     // 2026-11-01 staged doorway (ungrouped → lands in the menu's MORE
     // section): the Inbetween playtest world. Doorway only, not a sync.
     { id: 'world', label: 'The Inbetween' },
@@ -854,18 +861,25 @@ export default function App() {
               dueCount={dueCount}
               unreadCount={unreadCount}
               onOpen={onOpenDashboardDoor}
-              todayMission={{
-                morningIntention: dailyEntry.morning_intention || '',
-                middayCheckin: dailyEntry.midday_checkin || '',
-                eveningNotes: dailyEntry.evening_notes || '',
-                khaosScore: dailyEntry.khaos_score || 5,
-              }}
+              studioConfigured={studioConfigured === true}
+              todayMission={(() => {
+                const todayKey = localDateKey();
+                const todaysEntry =
+                  allEntries.find((e) => e.entry_date === todayKey) ||
+                  (currentDate === todayKey ? dailyEntry : null);
+                return {
+                  morningIntention: todaysEntry?.morning_intention || '',
+                  middayCheckin: todaysEntry?.midday_checkin || '',
+                  eveningNotes: todaysEntry?.evening_notes || '',
+                  khaosScore: todaysEntry?.khaos_score || 5,
+                };
+              })()}
             />
           )}
 
           {activeTab === 'cover' && (
             <CoverArtView
-              onOpenDaily={() => setActiveTab('daily')}
+              onOpenDaily={() => { setCurrentDate(localDateKey()); setActiveTab('daily'); }}
               wordOfTheYear={user.word_of_the_year}
               khaosName={user.khaos_name}
               slogan={user.slogan || "Boredom=Death"}
@@ -960,7 +974,7 @@ export default function App() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setActiveTab('daily')}
+                  onClick={() => { setCurrentDate(localDateKey()); setActiveTab('daily'); }}
                   className="px-4 py-2 bg-slate-900 dark:bg-amber-400 hover:bg-black dark:hover:bg-amber-300 text-white dark:text-stone-950 text-xs font-bold rounded-xl transition-colors whitespace-nowrap"
                 >
                   Go to Rant Box →
@@ -1093,12 +1107,12 @@ export default function App() {
               user={user}
               onSaveProfile={handleSaveProfile}
               onNavigateToGoals={() => setActiveTab('goals')}
-              onNavigateToDaily={() => setActiveTab('daily')}
+              onNavigateToDaily={() => { setCurrentDate(localDateKey()); setActiveTab('daily'); }}
               onToast={showToast}
             />
           )}
 
-          {activeTab === 'studio' && studioConfigured && (
+          {activeTab === 'studio' && (
             <AiStudioView userId={user.id} />
           )}
 

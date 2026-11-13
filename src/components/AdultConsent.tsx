@@ -30,7 +30,7 @@ export const ExplicitContentBanner: React.FC = () => (
   </p>
 );
 
-export const AdultConsentGate: React.FC<{ onConfirmed: () => void }> = ({ onConfirmed }) => {
+export const AdultConsentGate: React.FC<{ onConfirmed: () => void; onDeclined?: () => void }> = ({ onConfirmed, onDeclined }) => {
   const [checked, setChecked] = useState(false);
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/70 print:hidden" role="dialog" aria-modal="true" aria-labelledby="adult-consent-title">
@@ -52,6 +52,19 @@ export const AdultConsentGate: React.FC<{ onConfirmed: () => void }> = ({ onConf
           I am 18+ — enter
         </button>
         {!checked && <p className="text-xs text-stone-500 mt-2">Tick the box to enter. Under 18s cannot enter this world.</p>}
+        {/* Way out (finding 10): declining never records consent and never
+            enters the world — it just hands the user back to wherever the
+            caller sends them (e.g. the dashboard). The gate itself is
+            unchanged: entry still needs the ticked confirmation. */}
+        {onDeclined && (
+          <button
+            type="button"
+            onClick={onDeclined}
+            className="mt-3 w-full rounded-xl px-4 py-2.5 text-sm font-bold text-stone-600 dark:text-stone-300 hover:text-slate-900 dark:hover:text-white underline underline-offset-2 transition-colors"
+          >
+            Not now — take me back
+          </button>
+        )}
       </div>
     </div>
   );

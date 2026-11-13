@@ -105,17 +105,17 @@
 
 /* ---------- Surfaces: light cards / panels -> deep navy ---------- */
 .dark .bg-white { background-color: #02142e; }
-.dark .bg-stone-50, .dark .bg-stone-50\/50, .dark .bg-stone-50\/60, .dark .bg-stone-50\/80 { background-color: #000a15; }
+.dark .bg-stone-50, .dark .bg-stone-50\/40, .dark .bg-stone-50\/50, .dark .bg-stone-50\/60, .dark .bg-stone-50\/80 { background-color: #000a15; }
 .dark .bg-stone-100 { background-color: #0c2140; }
-.dark .bg-stone-200, .dark .bg-stone-200\/60 { background-color: #0c2140; }
-.dark .bg-stone-300 { background-color: #16304f; }
+.dark .bg-stone-200, .dark .bg-stone-200\/60, .dark .bg-stone-200\/70 { background-color: #0c2140; }
+.dark .bg-stone-300, .dark .bg-stone-300\/70 { background-color: #16304f; }
 .dark .bg-slate-50 { background-color: #000a15; }
 .dark .bg-slate-200 { background-color: #0c2140; }
 /* Paper-tint arbitrary surfaces */
 .dark .bg-\[\#faf7f0\] { background-color: rgba(2, 20, 46, 0.96); }
 .dark .bg-\[\#faf5eb\], .dark .bg-\[\#fdfbf7\], .dark .bg-\[\#fffdf9\], .dark .bg-\[\#fffdfa\], .dark .bg-\[\#f0ece1\] { background-color: #02142e; }
 /* Status tints -> deep translucent tints */
-.dark .bg-amber-50 { background-color: #241c0e; }
+.dark .bg-amber-50, .dark .bg-amber-50\/60, .dark .bg-amber-50\/70, .dark .bg-amber-50\/80 { background-color: #241c0e; }
 .dark .bg-amber-100 { background-color: #2e2410; }
 .dark .bg-amber-300 { background-color: #b45309; }
 .dark .bg-amber-400\/20 { background-color: rgba(245, 197, 27, 0.14); }
@@ -125,8 +125,13 @@
 .dark .bg-rose-100 { background-color: #351824; }
 .dark .bg-sky-50, .dark .bg-sky-50\/60 { background-color: #0a1e2e; }
 .dark .bg-sky-100 { background-color: #0e2a3f; }
+/* Teal/indigo remap to the blue ramp in @theme, so they take the sky dark values. */
+.dark .bg-teal-50, .dark .bg-indigo-50 { background-color: #0a1e2e; }
+.dark .bg-teal-100, .dark .bg-indigo-100 { background-color: #0e2a3f; }
+/* Purple/violet remap to the pink ramp in @theme, so they take the rose dark values. */
+.dark .bg-purple-50, .dark .bg-purple-50\/40 { background-color: #2a141d; }
+.dark .bg-purple-100, .dark .bg-violet-100 { background-color: #351824; }
 .dark .bg-orange-100 { background-color: #2a1c10; }
-.dark .bg-purple-50\/40 { background-color: rgba(42, 33, 69, 0.55); }
 
 /* ---------- Text: ink scale -> cream; accent text -> luminous ---------- */
 .dark .text-slate-950 { color: #f2ecdc; }
@@ -209,6 +214,18 @@
 .dark input::placeholder, .dark textarea::placeholder { color: #6d7488; }
 .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
 .dark input[type="checkbox"], .dark input[type="radio"] { accent-color: #ea4798; }
+/* Money Map $ fields (MonthlyMoneyMapView, read-only here): the number-input
+   spinner renders as an opaque dark slab over the $ field in dark mode, and
+   the blanket `.dark input` background above overrides the field's intended
+   `bg-transparent`. Hide the spinner and let bg-transparent inputs stay
+   transparent so the wrapper's own surface shows through. */
+.dark input[type="number"]::-webkit-outer-spin-button,
+.dark input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.dark input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.dark input.bg-transparent { background-color: transparent; }
 
 /* ---------- Shadows, scrollbars, paper lines ---------- */
 .dark .shadow-xs, .dark .shadow-sm, .dark .shadow-md { --tw-shadow-color: rgba(0, 0, 0, 0.55); }
@@ -267,17 +284,17 @@
 
 /* ---------- Surfaces: light cards / panels -> green-black ---------- */
 .beast .bg-white { background-color: #16200a; }
-.beast .bg-stone-50, .beast .bg-stone-50\/50, .beast .bg-stone-50\/60, .beast .bg-stone-50\/80 { background-color: #0c1206; }
+.beast .bg-stone-50, .beast .bg-stone-50\/40, .beast .bg-stone-50\/50, .beast .bg-stone-50\/60, .beast .bg-stone-50\/80 { background-color: #0c1206; }
 .beast .bg-stone-100 { background-color: #18260c; }
-.beast .bg-stone-200, .beast .bg-stone-200\/60 { background-color: #18260c; }
-.beast .bg-stone-300 { background-color: #223310; }
+.beast .bg-stone-200, .beast .bg-stone-200\/60, .beast .bg-stone-200\/70 { background-color: #18260c; }
+.beast .bg-stone-300, .beast .bg-stone-300\/70 { background-color: #223310; }
 .beast .bg-slate-50 { background-color: #0c1206; }
 .beast .bg-slate-200 { background-color: #18260c; }
 /* Paper-tint arbitrary surfaces */
 .beast .bg-\[\#faf7f0\] { background-color: rgba(22, 32, 10, 0.96); }
 .beast .bg-\[\#faf5eb\], .beast .bg-\[\#fdfbf7\], .beast .bg-\[\#fffdf9\], .beast .bg-\[\#fffdfa\], .beast .bg-\[\#f0ece1\] { background-color: #16200a; }
 /* Status tints -> deep translucent tints */
-.beast .bg-amber-50 { background-color: #232a0c; }
+.beast .bg-amber-50, .beast .bg-amber-50\/60, .beast .bg-amber-50\/70, .beast .bg-amber-50\/80 { background-color: #232a0c; }
 .beast .bg-amber-100 { background-color: #2c330e; }
 .beast .bg-amber-300 { background-color: #9d9c2f; }
 .beast .bg-amber-400\/20 { background-color: rgba(182, 255, 46, 0.14); }
@@ -287,8 +304,12 @@
 .beast .bg-rose-100 { background-color: #2a1020; }
 .beast .bg-sky-50, .beast .bg-sky-50\/60 { background-color: #0b1a12; }
 .beast .bg-sky-100 { background-color: #0e2416; }
+/* Teal/indigo -> blue-ramp dark values; purple/violet -> pink-ramp dark values (see @theme remaps). */
+.beast .bg-teal-50, .beast .bg-indigo-50 { background-color: #0b1a12; }
+.beast .bg-teal-100, .beast .bg-indigo-100 { background-color: #0e2416; }
+.beast .bg-purple-50, .beast .bg-purple-50\/40 { background-color: #1f0d16; }
+.beast .bg-purple-100, .beast .bg-violet-100 { background-color: #2a1020; }
 .beast .bg-orange-100 { background-color: #241a0a; }
-.beast .bg-purple-50\/40 { background-color: rgba(194, 107, 255, 0.18); }
 
 /* ---------- Text: ink scale -> pale green-white; accents -> lime/purple ---------- */
 .beast .text-slate-950 { color: #e9ffd9; }
@@ -372,6 +393,14 @@
 .beast input::placeholder, .beast textarea::placeholder { color: #63814f; }
 .beast input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
 .beast input[type="checkbox"], .beast input[type="radio"] { accent-color: #b6ff2e; }
+/* Same number-spinner / bg-transparent fix as dark mode (Money Map $ fields). */
+.beast input[type="number"]::-webkit-outer-spin-button,
+.beast input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.beast input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.beast input.bg-transparent { background-color: transparent; }
 
 /* ---------- Shadows, scrollbars, paper lines ---------- */
 .beast .shadow-xs, .beast .shadow-sm, .beast .shadow-md { --tw-shadow-color: rgba(0, 0, 0, 0.55); }

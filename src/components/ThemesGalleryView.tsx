@@ -83,10 +83,12 @@ export const ThemesGalleryView: React.FC = () => {
             <div className="text-[10px] font-mono-code uppercase opacity-75">
               Month {String(theme.month).padStart(2, '0')}
             </div>
-            <div className="text-xs font-serif-display font-bold truncate">
+            <div className="text-xs font-serif-display font-bold leading-snug">
               {theme.name}
             </div>
-            <div className={`text-[11px] truncate mt-0.5 ${selectedMonth === theme.month ? 'text-purple-200' : 'text-stone-500'}`}>
+            {/* Full theme title: previously `truncate` cut every non-selected
+                card to "The Khaos of Longing / I…" — the titles wrap now. */}
+            <div className={`text-[11px] leading-snug mt-0.5 ${selectedMonth === theme.month ? 'text-purple-200' : 'text-stone-500'}`}>
               {theme.themeTitle}
             </div>
           </button>

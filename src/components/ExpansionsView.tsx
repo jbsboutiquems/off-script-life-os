@@ -7,6 +7,15 @@ function price(n: number): string {
   return `$${n.toFixed(2).replace(/\.00$/, '')}`;
 }
 
+// Dead link (review 2026-11-13): the Wedding product's link_url in
+// server.ts (PRODUCTS, "wedding" entry) points at a claude.ai share that
+// now reads "This page is no longer shared." Do NOT render it as a live
+// link, and do NOT invent a replacement URL — a working Wedding Party HQ
+// URL from Amber is needed. The server.ts entry itself is outside this
+// file's scope; this guard stops the dead link reaching the user until
+// the product data is fixed at the source.
+const DEAD_WEDDING_HQ_URL = 'https://muse.ai/s/maid-of-honor-duties-xmz6awpxfxbkwi';
+
 function term(days: number): string {
   return days >= 365 ? 'year' : 'month';
 }
@@ -36,7 +45,7 @@ const ProductCard: React.FC<{
         <span className="font-black text-[#ea4798] whitespace-nowrap">{price(product.price)}<span className="text-xs font-bold text-stone-400">/{term(product.days)}</span></span>
       </div>
       <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">{product.blurb}</p>
-      {product.link_url && (
+      {product.link_url && product.link_url !== DEAD_WEDDING_HQ_URL && (
         <a
           href={product.link_url}
           target="_blank"
@@ -45,6 +54,11 @@ const ProductCard: React.FC<{
         >
           <Users className="w-3.5 h-3.5" /> {product.link_label || 'Open'}
         </a>
+      )}
+      {product.link_url === DEAD_WEDDING_HQ_URL && (
+        <p className="mt-1.5 text-xs font-bold text-stone-400 dark:text-stone-500">
+          Wedding Party HQ link coming soon — the shared link is no longer available.
+        </p>
       )}
       <div className="mt-2.5">
         {product.owned ? (

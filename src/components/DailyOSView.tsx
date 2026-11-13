@@ -239,6 +239,14 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
     onDateChange(localDateKey(d));
   };
 
+  // Finding 2: the door reopens whatever date the Trendline last left
+  // behind, and stepping back one day at a time was the only way home.
+  // `localDateKey()` with no arg is today's local key (src/lib/dates).
+  const isViewingToday = currentDate === localDateKey();
+  const goToToday = () => {
+    if (!isViewingToday) onDateChange(localDateKey());
+  };
+
   const wordCount = eveningNotes.trim().split(/\s+/).filter(Boolean).length;
 
   const handlePrint = () => {
@@ -342,6 +350,15 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
               title="Next Day"
             >
               <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={goToToday}
+              disabled={isViewingToday}
+              className="px-3 py-2 text-xs font-bold font-mono-code rounded-lg shadow-xs transition-colors print:hidden disabled:bg-stone-200 disabled:text-stone-400 disabled:cursor-default bg-rose-600 hover:bg-rose-700 text-white"
+              title={isViewingToday ? 'You are already viewing today' : 'Jump back to today'}
+            >
+              Today
             </button>
             {canPrint() && (
             <button

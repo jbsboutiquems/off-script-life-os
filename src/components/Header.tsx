@@ -63,8 +63,13 @@ export const Header: React.FC<HeaderProps> = ({
         </p>
       </div>
 
-      {/* Slim top bar — padded for the status bar on edge-to-edge phones */}
-      <header className="sticky top-0 z-40 bg-cream-canvas/95 dark:bg-[#000a15]/95 backdrop-blur-sm border-b-2 border-stone-800 dark:border-amber-400/30 pt-[env(safe-area-inset-top)]">
+      {/* Slim top bar — padded for the status bar on edge-to-edge phones.
+          Daybreak fix: the old `bg-cream-canvas/95 backdrop-blur-sm` smeared
+          mid-scroll — `/95` never applied (bg-cream-canvas is a plain CSS
+          class, not a Tailwind utility, so the header had no background at
+          all in light mode and the blur bled scrolling content through it).
+          Solid cream-canvas in light mode, no backdrop blur in either theme. */}
+      <header className="sticky top-0 z-40 bg-cream-canvas dark:bg-[#000a15]/95 border-b-2 border-stone-800 dark:border-amber-400/30 pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
           {/* Left: brand + dashboard */}
           <div className="flex items-center gap-2 min-w-0">

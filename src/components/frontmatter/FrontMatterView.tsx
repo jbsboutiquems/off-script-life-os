@@ -12,9 +12,15 @@ import { PeopleSection } from './PeopleSection';
 import type { FrontMatterViewProps } from './props';
 
 /**
- * Front Matter & Operating Manual — the planner's pages 01–14 as in-app
- * sections: manifesto, tour guide, operating manual, one word, vision dump,
- * core values, life audit, permission slip, and the people address book.
+ * Front Matter & Operating Manual — the planner's front-matter pages
+ * ported into the app as interactive sections: 01 Manifesto, Tour Guide
+ * (unnumbered author intro), 02 Manual, 03 One Word, 04 Vision Dump,
+ * 05 Values, 06 Life Audit, 09 Permission Slip, 10 My People.
+ *
+ * Pages 07, 08, 11, 12, 13, 14 have NO in-app content — no section
+ * component and no data in src/data/frontmatter.ts — so there is no tab
+ * for them and the header must not claim "Pages 01–14". That content is
+ * owed from the planner, not a code fix; do not invent tabs for it.
  *
  * Profile-bound fields (word of the year, core values, permission
  * commitment) save through onSaveProfile; everything else persists to
@@ -43,7 +49,7 @@ export const FrontMatterView: React.FC<FrontMatterViewProps> = ({
             </h2>
           </div>
           <span className="text-xs font-mono-code text-stone-500 dark:text-stone-400">
-            Pages 01–14 · Khaos Year Edition
+            Pages 01–06, 09–10 · Khaos Year Edition
           </span>
         </div>
 

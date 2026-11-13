@@ -1,6 +1,9 @@
 /**
- * Front Matter static copy for the Off*Script 2027 Khaos Year Edition
- * (planner pages 01-14, ported into the app as interactive sections).
+ * Front Matter static copy for the Off*Script 2027 Khaos Year Edition.
+ * Ported into the app as interactive sections: pages 01–06, 09, 10, plus
+ * the unnumbered Tour Guide author intro. Pages 07, 08, 11, 12, 13, 14
+ * have no in-app content (no section, no data here) — do not claim the
+ * full 01–14 range and do not invent tabs for them; that content is owed.
  *
  * Brand: "Off*Script" (always with asterisk), slogan "Boredom=Death".
  */
