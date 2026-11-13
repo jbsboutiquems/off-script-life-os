@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BookOpen, Megaphone, Inbox, Sparkles, MapPin, Menu, X, Globe } from 'lucide-react';
-import { FIELD_ENABLED } from '../lib/fieldStaging';
+import { FIELD_ENABLED, SNOOPSTER_ENABLED } from '../lib/fieldStaging';
 
 export type FolderSection = 'daily' | 'wall' | 'dms' | 'mei' | 'field' | 'world';
 
@@ -71,7 +71,8 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
 
   // Field tab hidden 2026-11-13 per Amber (FIELD_ENABLED=false in
   // lib/fieldStaging.ts) — the folder list is filtered, never edited.
-  const visibleFolders = FIELD_ENABLED ? FOLDERS : FOLDERS.filter((f) => f.id !== 'field');
+  // Snoopster exception (2026-11-13): the tab returns for Snoopster alone.
+  const visibleFolders = (FIELD_ENABLED || SNOOPSTER_ENABLED) ? FOLDERS : FOLDERS.filter((f) => f.id !== 'field');
 
   const groupedIds = new Set(MENU_SECTIONS.flatMap((s) => s.ids));
   const ungrouped = menuItems.filter((m) => !groupedIds.has(m.id));

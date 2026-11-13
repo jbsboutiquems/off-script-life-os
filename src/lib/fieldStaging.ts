@@ -24,6 +24,32 @@ export const FIELD_NEARBY_FIXTURES_ENABLED =
  */
 export const FIELD_ENABLED = false;
 
+/**
+ * SNOOPSTER — the ONE familiar cleared to be live, 2026-11-13 per Amber
+ * ("add snoopster as familiar globally"). Amber is his permission holder
+ * (her own dog), so he is EXEMPT from the Field hide above: the Field
+ * tab returns for Snoopster alone, and he appears in the world.
+ * He is NOT zone-tied — he shows up regardless of GPS zone, home base
+ * Kosciusko. Presence ONLY: no sniffing, no cloaking, no Beast Mode
+ * stage tiers — those are unapproved (staged file 2026-11-05).
+ * The epithet / greeting / prompt below are DRAFT copy from that staged
+ * file, never approved — used as-is per the brief; Amber can correct it.
+ * The other five Mississippi familiars stay hidden until permissions
+ * are given (FIELD_ENABLED=false still gates them).
+ */
+export const SNOOPSTER_ENABLED = true;
+
+export const SNOOPSTER = {
+  name: 'Snoopster',
+  epithet: 'The One Who Notices First',
+  greeting: "I already found it. You're welcome.",
+  prompt: 'Sniff out the thing you almost walked past.',
+  city: 'Kosciusko, Mississippi',
+  homeBase: 'Kosciusko, Mississippi',
+  photo: '/snoopster.jpg',
+  colors: { white: '#F5F5F0', black: '#1A1A1A', sage: '#7A9A8A' },
+};
+
 export interface NearbyFixture {
   /** Internal id — never rendered. */
   id: string;

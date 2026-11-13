@@ -4,7 +4,7 @@ import { findCandidateRegions, describeDistance, type RegionMatch } from '../gam
 import { getFamiliar, type RegionId } from '../game/regions';
 import { apiUrl } from '../services/api';
 import { NearbyPlayersLayer } from './NearbyPlayersLayer';
-import { FIELD_NEARBY_FIXTURES_ENABLED } from '../lib/fieldStaging';
+import { FIELD_ENABLED, FIELD_NEARBY_FIXTURES_ENABLED, SNOOPSTER, SNOOPSTER_ENABLED } from '../lib/fieldStaging';
 
 interface FieldCheckIn {
   regionId: RegionId;
@@ -159,6 +159,47 @@ export const FieldView: React.FC = () => {
     setLog(prev => [{ regionId: selectedId, at: Date.now() }, ...prev].slice(0, 100));
     setCheckedIn(true);
   };
+
+  // SNOOPSTER ONLY — 2026-11-13 per Amber. The Field is hidden for the
+  // other familiars (FIELD_ENABLED=false) until permissions are given;
+  // Snoopster is exempt (Amber is his permission holder) and is NOT
+  // zone-tied: he appears everywhere, home base Kosciusko, no GPS
+  // matching, no check-in, no ability. Presence only.
+  // NOTE: epithet / greeting / prompt are DRAFT copy from the staged
+  // file (2026-11-05), never approved — shown as-is for Amber to correct.
+  if (!FIELD_ENABLED && SNOOPSTER_ENABLED) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-black tracking-tight">The Field</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400 max-w-md mx-auto">
+            One Familiar lives here right now — and he&apos;s everywhere, not tied to a zone.
+          </p>
+        </div>
+        <div
+          className="max-w-2xl mx-auto rounded-3xl border-2 p-6 sm:p-8 text-center space-y-3"
+          style={{ borderColor: SNOOPSTER.colors.sage, background: SNOOPSTER.colors.white }}
+        >
+          <img
+            src={SNOOPSTER.photo}
+            alt="Snoopster, Amber's Chihuahua"
+            className="w-40 h-40 mx-auto rounded-3xl object-cover border-2"
+            style={{ borderColor: SNOOPSTER.colors.sage }}
+          />
+          <p className="text-xs font-black uppercase tracking-[0.2em]" style={{ color: SNOOPSTER.colors.sage }}>
+            {SNOOPSTER.homeBase} · Home base · VIP Familiar
+          </p>
+          <h3 className="text-3xl font-black" style={{ color: SNOOPSTER.colors.black }}>{SNOOPSTER.name}</h3>
+          <p className="font-bold" style={{ color: SNOOPSTER.colors.sage }}>{SNOOPSTER.epithet}</p>
+          <p className="italic" style={{ color: SNOOPSTER.colors.black }}>“{SNOOPSTER.greeting}”</p>
+          <p className="font-bold" style={{ color: SNOOPSTER.colors.sage }}>{SNOOPSTER.prompt}</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400 max-w-sm mx-auto">
+            Amber&apos;s own dog — the one Familiar live while the others wait on permissions.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Globe, MapPin, Sparkles, Gamepad2, ScrollText, Users, MessageCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Youtube, HeartHandshake } from 'lucide-react';
 import { AdultConsentGate, ExplicitContentBanner, hasAdultConsent } from './AdultConsent';
 import { getEditionThemeForDate } from '../lib/editionSync';
+import { SNOOPSTER } from '../lib/fieldStaging';
 import { getJanuary2027Day } from '../data/january2027Daily';
 import { getHolidayForDate } from '../data/holidays';
 import { localDateKey } from '../lib/dates';
@@ -364,6 +365,23 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   </div>
   );
 
+  // SNOOPSTER — VIP Familiar, live 2026-11-13 per Amber ("everywhere").
+  // Amber is his permission holder, so he is exempt from the familiar
+  // hide; the other five stay in the Grove panel above, untouched.
+  // Presence ONLY: no shake, no Beast Mode stage-up, no ability.
+  // NOTE: epithet / greeting / prompt are DRAFT copy from the staged
+  // file (2026-11-05), never approved — shown as-is for Amber to correct.
+  const snoopsterPanel = (
+  <div className="rounded-3xl border border-stone-300 dark:border-white/10 p-4">
+    <div className="flex items-center gap-2"><Users className="w-4 h-4" /><h3 className="font-bold">Snoopster — VIP Familiar</h3></div>
+    <img src={SNOOPSTER.photo} alt="Snoopster, Amber's Chihuahua" className="w-32 h-32 rounded-2xl object-cover mt-3 border-2" style={{ borderColor: SNOOPSTER.colors.sage }} />
+    <p className="font-bold mt-2">{SNOOPSTER.name} — {SNOOPSTER.epithet}</p>
+    <p className="text-sm text-stone-600 dark:text-stone-300">{SNOOPSTER.homeBase} · home base · “{SNOOPSTER.greeting}”</p>
+    <p className="text-sm mt-1">{SNOOPSTER.prompt}</p>
+    <p className="text-xs text-stone-500 mt-2">Amber&apos;s own dog — the one Familiar live while the others wait on permissions. He&apos;s everywhere, not tied to a zone. Presence only, for now.</p>
+  </div>
+  );
+
   const guidePanel = (
   <div className="rounded-3xl border border-stone-300 dark:border-white/10 p-4">
     <div className="flex items-center gap-2"><MessageCircle className="w-4 h-4" /><h3 className="font-bold">Talk to the Guide</h3></div>
@@ -661,6 +679,7 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
                 </div>
                 {missionPanel}
                 {familiarPanel}
+                {snoopsterPanel}
                 {gamesPanel}
                 {broadcastPanel}
                 {walkLogPanel}
@@ -718,6 +737,7 @@ export const TorqueWorldView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
         <div className="space-y-4">
           {missionPanel}
           {familiarPanel}
+          {snoopsterPanel}
           {guidePanel}
           {gamesPanel}
           {broadcastPanel}
