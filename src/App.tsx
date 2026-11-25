@@ -8,6 +8,7 @@ import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
 import { FIELD_ENABLED } from './lib/fieldStaging';
+import { WORLD_ENABLED } from './lib/worldStaging';
 import { NotificationBell } from './components/NotificationBell';
 // Perf: tab views load on demand via React.lazy so first paint only ships
 // the dashboard/auth shell. World/Field stay eager (untouched by this
@@ -22,6 +23,7 @@ import { OAuthUsernameStep } from './components/OAuthUsernameStep';
 import { DashboardView, type DashboardTab } from './components/DashboardView';
 import { WorldView } from './components/WorldView';
 import { TorqueWorldView } from './components/TorqueWorldView';
+import { WorldWalledOff } from './components/WorldWalledOff';
 const CosmicCornerView = lazy(() => import('./components/CosmicCornerView').then((m) => ({ default: m.CosmicCornerView })));
 const HolidaysView = lazy(() => import('./components/HolidaysView').then((m) => ({ default: m.HolidaysView })));
 const TourGuideView = lazy(() => import('./components/TourGuideView').then((m) => ({ default: m.TourGuideView })));
@@ -726,6 +728,9 @@ export default function App() {
   // Folder-tab navigation: core sections as planner dividers.
   // Field hidden 2026-11-13 per Amber (FIELD_ENABLED=false) — a stale
   // 'field' tab falls through to 'daily' instead of a hidden tab.
+  // World walled off 2026-11-24 per Amber (WORLD_ENABLED=false) — the
+  // World tab stays visible, but tapping it shows the "Woman at work"
+  // placeholder instead of the world.
   const activeSection: FolderSection =
     activeTab === 'wall' ? 'wall'
     : activeTab === 'inbox' ? 'dms'
@@ -755,6 +760,8 @@ export default function App() {
     { id: 'identity', label: 'Identity Base' },
     // 2026-11-01 staged doorway (ungrouped → lands in the menu's MORE
     // section): the Inbetween playtest world. Doorway only, not a sync.
+    // Walled off 2026-11-24 per Amber — lands on the "Woman at work"
+    // placeholder while WORLD_ENABLED is false.
     { id: 'world', label: 'The Inbetween' },
     { id: 'frontmatter', label: 'FrontMatter' },
     // AI Studio only appears when the server has it configured.
@@ -1132,13 +1139,17 @@ export default function App() {
             <FieldView />
           )}
 
-          {activeTab === 'world' && (
+          {activeTab === 'world' && (WORLD_ENABLED ? (
             <WorldView onBack={() => setActiveTab('dashboard')} />
-          )}
+          ) : (
+            <WorldWalledOff onBack={() => setActiveTab('dashboard')} />
+          ))}
 
-          {activeTab === 'torqueworld' && (
+          {activeTab === 'torqueworld' && (WORLD_ENABLED ? (
             <TorqueWorldView onBack={() => setActiveTab('dashboard')} />
-          )}
+          ) : (
+            <WorldWalledOff onBack={() => setActiveTab('dashboard')} />
+          ))}
 
           {activeTab === 'wall' && (
             <CommunityView user={user} myUserId={user.id} />
