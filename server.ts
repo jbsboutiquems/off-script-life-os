@@ -53,6 +53,9 @@ interface AccountUser {
   /** Phone auth (E.164) + verification. Powers phone login recovery and friend discovery. */
   phone?: string;
   phoneVerified?: boolean;
+  /** Date of birth ("YYYY-MM-DD") — collected at signup, server-verified 18+.
+      Sensitive personal data: NEVER returned in any API response, NEVER logged. */
+  dob?: string;
   googleId?: string;
   facebookId?: string;
   /** ISO timestamps of username changes — 3 lifetime max. */
@@ -83,21 +86,6 @@ interface SessionRecord {
   expires_at: string;
 }
 
-interface StudioMediaItem {
-  id: string;
-  type: "music" | "image" | "video" | "transcript";
-  prompt: string;
-  /** Data URL for audio/image; transcript text stored separately for transcripts. */
-  resultUrl: string;
-  transcript?: string;
-  mimeType?: string;
-  aspectRatio?: string;
-  model?: string;
-  /** Veo long-running operation name — used to resume polling / download. */
-  operationName?: string;
-  createdAt: string;
-}
-
 interface UserData {
   user: any;
   dailyEntries: Record<string, any>;
@@ -110,8 +98,6 @@ interface UserData {
   flightCrew: any[];
   /** pack/product id -> grant record. expires_at null = lifetime (pre-expiry QR grants). */
   userEntitlements: Record<string, { unlocked_at: string; expires_at: string | null }>;
-  /** AI Studio (media studio, Gemini-backed) saved generations. */
-  studioMedia: StudioMediaItem[];
 }
 
 interface ExpansionProduct {
@@ -399,8 +385,7 @@ function freshUserData(userId: string, username: string): UserData {
     moneyMaps: {},
     khaosPoints: [],
     flightCrew: [],
-    userEntitlements: {},
-    studioMedia: []
+    userEntitlements: {}
   };
 }
 
@@ -437,8 +422,7 @@ function normalizeUserData(input: any): UserData {
     moneyMaps: d.moneyMaps && typeof d.moneyMaps === "object" ? d.moneyMaps : {},
     khaosPoints,
     flightCrew: Array.isArray(d.flightCrew) ? d.flightCrew : [],
-    userEntitlements: entitlements,
-    studioMedia: Array.isArray(d.studioMedia) ? d.studioMedia : []
+    userEntitlements: entitlements
   };
 }
 
@@ -1060,6 +1044,10 @@ app.post("/api/auth/oauth/complete", (req, res) => {
   }
   const err = usernameError(String(req.body?.username || ""));
   if (err) return res.status(409).json(err); // keep the pending session so they can retry a suggestion
+  // 18+ age gate: no account without a DOB proving 18+ (server-enforced).
+  // Kept before the pending-session delete so a failed DOB can be retried.
+  const dobCheck = validAdultDob(req.body?.dob ?? req.body?.birthday);
+  if ("error" in dobCheck) return res.status(400).json({ error: dobCheck.error });
   oauthPending.delete(pendingKey);
   const username = String(req.body.username).trim();
 
@@ -1090,6 +1078,7 @@ app.post("/api/auth/oauth/complete", (req, res) => {
     recoveryHash: hashRecoveryCode(recoveryCode),
     email: pend.email || undefined,
     emailVerified: pend.emailVerified || undefined,
+    dob: dobCheck.dob,
     created_at: now,
   };
   if (pend.provider === "google") acct.googleId = pend.providerId;
@@ -1153,6 +1142,49 @@ function resetFormPage(token: string): string {
 </form></div></body></html>`;
 }
 
+// ---------- 18+ age gate (2026-11-24, Amber's call) ----------
+// Nobody under 18 can create an account. The DOB is collected at signup
+// (email + OAuth), validated SERVER-side on every account-creation path,
+// and stored on the account record. It is sensitive personal data: it is
+// NEVER returned in any API response and NEVER logged. The front-end
+// AdultConsent.isAdult() mirrors this check for instant feedback only —
+// the server is the enforcement. Existing accounts without a DOB on file
+// are NOT blocked (new signups only); backfilling them is a separate call.
+const ADULT_AGE = 18;
+
+/** Strict YYYY-MM-DD parse: rejects malformed strings and impossible dates (e.g. 2026-02-30). */
+function parseDob(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!m) return null;
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return dt;
+}
+
+/** Whole-years age on the given day, accounting for month/day (not just year). */
+function ageOn(dob: Date, on: Date): number {
+  let age = on.getUTCFullYear() - dob.getUTCFullYear();
+  const m = on.getUTCMonth() - dob.getUTCMonth();
+  if (m < 0 || (m === 0 && on.getUTCDate() < dob.getUTCDate())) age -= 1;
+  return age;
+}
+
+/**
+ * Returns the normalized "YYYY-MM-DD" DOB when it proves the signer is 18+,
+ * else an error message for the client. Missing / invalid / future / under-18
+ * are all rejected — there is no signup without a DOB.
+ */
+function validAdultDob(value: unknown, today = new Date()): { dob: string } | { error: string } {
+  const parsed = parseDob(value);
+  if (!parsed) return { error: "Birthday is required at signup — this app is 18+ only." };
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  if (parsed.getTime() > todayUtc.getTime()) return { error: "That birthday is in the future. Try again." };
+  if (ageOn(parsed, todayUtc) < ADULT_AGE) return { error: "You must be 18 or older to create an account." };
+  return { dob: parsed.toISOString().slice(0, 10) };
+}
+
 // Email is mandatory at signup (2026-10-14). The legacy username-only
 // /api/auth/register route runs the same email-required handler as
 // /api/auth/email/register, so old clients get a clear 400 ("That doesn't
@@ -1170,6 +1202,9 @@ async function handleEmailRegister(req: any, res: any) {
   const uErr = usernameError(username);
   if (uErr) return res.status(uErr.suggestions ? 409 : 400).json(uErr);
   if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters." });
+  // 18+ age gate: no account without a DOB proving 18+ (server-enforced).
+  const dobCheck = validAdultDob(req.body?.dob ?? req.body?.birthday);
+  if ("error" in dobCheck) return res.status(400).json({ error: dobCheck.error });
   if (db.accounts.some((a) => (a.email || "").toLowerCase() === email)) {
     return res.status(409).json({ error: "That email is already registered. Try logging in — or the forgot-password flow." });
   }
@@ -1186,6 +1221,7 @@ async function handleEmailRegister(req: any, res: any) {
     recoveryHash: hashRecoveryCode(recoveryCode),
     email,
     emailVerified: smtp ? false : true,
+    dob: dobCheck.dob,
     created_at: now,
   };
   db.accounts.push(acct);
@@ -3095,8 +3131,209 @@ app.post("/api/world/inbox/messages", requireAuth, (req, res) => {
   res.json(sanitizeDmMessage(msg));
 });
 
+// ================= LIVE MEI (MESSAGES IMPROVED) =================
+// The app's own Mei bot, live over the Messages Improved conversation API.
+// Docs: https://www.messagesimproved.com/api (v2.1, 70+ endpoints).
+//
+// Contract (from the official docs — build only what they support):
+//   POST https://bot.messagesimproved.com/conversation_api
+//        ?input=<user text>&bot=<BOT_ID>&creator=<admin email>&api_key=<key>
+//   Auth is the API key + the bot's admin email (the "creator"). Access is
+//   NOT granted merely by knowing a bot ID — the key is required.
+//   Get the key in the Messages Improved dashboard: any bot's settings ->
+//   "Generate API Key". Free to start.
+//   The response shape is NOT published in the public docs, so the reply is
+//   extracted tolerantly (see extractMeiReply); if nothing parses, the call
+//   is treated as unavailable and the caller falls back to the local engine.
+//   Confirm the exact response field on the first live call with a real key.
+//
+// Config (all three required; never hardcode a key or bot ID):
+//   MEI_API_KEY     — the sk-... key from the bot's settings
+//   MEI_BOT_ID      — the bot ID (Amber's "User Defined" bot)
+//   MEI_ADMIN_EMAIL — the Messages Improved account email (the "creator")
+//   MEI_API_BASE    — optional override of the conversation host (dev/stub
+//                     testing only; defaults to the real host).
+
+const MEI_API_BASE = (process.env.MEI_API_BASE || "https://bot.messagesimproved.com").replace(/\/$/, "");
+
+interface MeiConfig { apiKey: string; botId: string; adminEmail: string; }
+
+function getMeiConfig(): MeiConfig | null {
+  const apiKey = (process.env.MEI_API_KEY || "").trim();
+  const botId = (process.env.MEI_BOT_ID || "").trim();
+  const adminEmail = (process.env.MEI_ADMIN_EMAIL || "").trim();
+  if (!apiKey || !botId || !adminEmail) return null;
+  return { apiKey, botId, adminEmail };
+}
+
+function meiNotConfigured(res: express.Response) {
+  return res.status(503).json({
+    error: "Mei isn't configured on this server yet — no MEI_API_KEY / MEI_BOT_ID / MEI_ADMIN_EMAIL. Ask Mei stays on the local engine until they're set up.",
+    code: "MEI_NOT_CONFIGURED"
+  });
+}
+
+function requireMeiConsent(res: express.Response) {
+  return res.status(403).json({
+    error: "Mei needs your OK first — enable external-AI analysis in the app to let Mei read your messages.",
+    code: "AI_CONSENT_REQUIRED"
+  });
+}
+
+/**
+ * Pull the bot's reply text out of a conversation_api response. The vendor
+ * does not publish the response shape, so try the common shapes in order
+ * and return null when none matches (caller falls back to the local engine).
+ * Never logs or returns the key — the reply text is the only thing kept.
+ */
+function extractMeiReply(body: unknown): string | null {
+  const fromString = (v: unknown): string | null => {
+    if (typeof v === "string" && v.trim()) return v.trim();
+    return null;
+  };
+  const fromObject = (o: Record<string, unknown>): string | null => {
+    for (const key of ["response", "reply", "message", "text", "output", "answer"]) {
+      const hit = fromString(o[key]);
+      if (hit) return hit;
+    }
+    // { messages: [{ text }] } and OpenAI-style { choices: [{ message: { content } }] }
+    const msgs = o["messages"];
+    if (Array.isArray(msgs)) {
+      const parts = msgs
+        .map((m: any) => (typeof m === "string" ? m : fromString(m?.text) || fromString(m?.content) || ""))
+        .filter(Boolean);
+      if (parts.length) return parts.join("\n").trim();
+    }
+    const choices = o["choices"];
+    if (Array.isArray(choices) && choices[0]) {
+      const c: any = choices[0];
+      const hit = fromString(c?.message?.content) || fromString(c?.text);
+      if (hit) return hit;
+    }
+    const data = o["data"];
+    if (data && typeof data === "object") return fromObject(data as Record<string, unknown>);
+    return null;
+  };
+  if (typeof body === "string") return fromString(body);
+  if (body && typeof body === "object") return fromObject(body as Record<string, unknown>);
+  return null;
+}
+
+/**
+ * Send one user message to the configured Mei bot and return its reply text.
+ * Returns null when Mei gives no usable reply. Throws on transport / HTTP
+ * errors (caller logs the status only and falls back). The API key travels
+ * in the query string per the vendor's documented contract; it is never
+ * logged and never leaves the server.
+ */
+async function callMeiBot(input: string, opts?: { timeoutMs?: number }): Promise<string | null> {
+  const cfg = getMeiConfig();
+  if (!cfg) return null;
+  const url =
+    `${MEI_API_BASE}/conversation_api` +
+    `?input=${encodeURIComponent(input)}` +
+    `&bot=${encodeURIComponent(cfg.botId)}` +
+    `&creator=${encodeURIComponent(cfg.adminEmail)}` +
+    `&api_key=${encodeURIComponent(cfg.apiKey)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts?.timeoutMs ?? 30000);
+  try {
+    const res = await fetch(url, { method: "POST", signal: controller.signal });
+    if (!res.ok) throw new Error(`Mei conversation_api HTTP ${res.status}`);
+    const raw = await res.text();
+    let body: unknown = raw;
+    try { body = JSON.parse(raw); } catch { /* plain-text reply — keep raw */ }
+    const reply = extractMeiReply(body);
+    if (!reply && body && typeof body === "object") {
+      console.error("Mei reply shape unrecognized; top-level keys:", Object.keys(body as Record<string, unknown>).join(","));
+    }
+    return reply;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Ask Mei — live chat with the configured bot. The wiring point for the
+// future Ask Mei chat UI: POST the user's message, get Mei's reply back.
+//   Request:  POST /api/mei/chat  { text: string }
+//   Response: { reply: string, source: "mei" }
+//             403 { code: "AI_CONSENT_REQUIRED" }  → no external-AI consent
+//             503 { code: "MEI_NOT_CONFIGURED" }   → no key/bot/email set
+//             502 { code: "MEI_UNAVAILABLE" }      → Mei errored / no usable reply
+app.post("/api/mei/chat", requireAuth, express.json(), async (req, res) => {
+  if (!aiConsentGranted(req)) return requireMeiConsent(res);
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "text is required." });
+  if (text.length > 4000) return res.status(400).json({ error: "text is too long (max 4000 characters)." });
+  if (!getMeiConfig()) return meiNotConfigured(res);
+  try {
+    const reply = await callMeiBot(text);
+    if (!reply) return res.status(502).json({ error: "Mei didn't return a usable reply.", code: "MEI_UNAVAILABLE" });
+    return res.json({ reply, source: "mei" });
+  } catch (err: any) {
+    console.error("Mei chat error:", err.message);
+    return res.status(502).json({ error: "Mei is unreachable right now.", code: "MEI_UNAVAILABLE" });
+  }
+});
+
+app.get("/api/mei/status", requireAuth, (_req, res) => {
+  res.json({ configured: Boolean(getMeiConfig()) });
+});
+
 // ================= MEI-STYLE NLP DIAGNOSTIC ENGINE =================
 // Analyzes user's relationship with themselves from field notes, rants, and checkins
+
+// Local heuristic diagnostic snapshot — the MEI-STYLE engine's scores,
+// mood, and dares, computed from the evening notes alone. Shared by the
+// local fallback and the live-Mei branch: Mei returns free text, not
+// structured scores, so the scores always come from here.
+function buildLocalDiagnosticSnapshot(input: { entry_date?: string; evening_notes?: string }) {
+  const entryDate = input.entry_date || new Date().toISOString().split("T")[0];
+  const notes = (input.evening_notes || "").toLowerCase();
+  const wordCount = notes.split(/\s+/).filter(Boolean).length;
+  const hasBurnoutWords = /tired|exhaust|drain|fumes|overwhelm|can't|heavy|collapse|numb|burnout|anxious/i.test(notes);
+  const hasDefianceWords = /refuse|no|done|stop|script|quit|hell|fake|pretend|furious|sick of/i.test(notes);
+  const hasControlWords = /plan|schedule|todo|must|should|ought|fix|list|control|perfect/i.test(notes);
+
+  const opennessVal = Math.min(95, Math.max(40, 65 + (wordCount > 50 ? 15 : 5) + (hasDefianceWords ? 10 : 0)));
+  const conscientiousnessVal = Math.min(90, Math.max(30, hasControlWords ? 78 : 55));
+  const neuroticismVal = Math.min(92, Math.max(25, hasBurnoutWords ? 76 : 48));
+  const extraversionVal = Math.min(85, Math.max(20, wordCount > 80 ? 60 : 42));
+  const agreeablenessVal = Math.min(80, Math.max(35, hasDefianceWords ? 42 : 64));
+
+  const burnoutRisk = hasBurnoutWords ? (neuroticismVal > 70 ? "High" : "Moderate") : "Low";
+
+  return {
+    id: `snap_${Date.now()}`,
+    entry_id: `entry_${entryDate}`,
+    snapshot_date: entryDate,
+    openness: opennessVal,
+    conscientiousness: conscientiousnessVal,
+    extraversion: extraversionVal,
+    agreeableness: agreeablenessVal,
+    neuroticism: neuroticismVal,
+    detected_mood: hasBurnoutWords ? "Running on Cognitive Overdrive" : hasDefianceWords ? "Feral & Unfiltered" : "Grounded & Analytical",
+    observed_word: hasBurnoutWords ? "OVERDRIVE" : hasDefianceWords ? "DEFIANT" : hasControlWords ? "ORDERLY" : "BECOMING",
+    burnout_risk: burnoutRisk,
+    self_sabotage_alert: hasControlWords ? "Defaulting to hyper-vigilant scheduling when feeling emotionally depleted." : "Postponing physical comfort until arbitrary productivity quotas are met.",
+    contradiction_callout: "You wrote that you want 'peace and less noise', but you just turned an unread notification into a 4-act internal drama.",
+    ai_feedback: `Here is the honest mirror: You showed up to the page today carrying enough unspoken tension to power a small electric vehicle. Notice how whenever you claim you're 'totally fine', your notes read like an underground interrogation transcript?\n\nYou don't have to optimize every emotional fluctuation into a tidy life lesson. Some days were just full, or wordless, or messy. That isn't inconsistency—that is data. Now close the tabs in your head and stop negotiating with your exhaustion.`,
+    micro_dare: "Tomorrow on your midday walk, take the wrong turn on purpose and do not check Google Maps for a full ten minutes.",
+    sub_traits: [
+      { name: "Imagination", dimension: "Openness", score: Math.min(95, opennessVal + 4), trait_description: "Vivid metaphor generation and speculative thinking." },
+      { name: "Intellect / Reframe", dimension: "Openness", score: opennessVal, trait_description: "Ability to deconstruct assumptions." },
+      { name: "Orderliness", dimension: "Conscientiousness", score: conscientiousnessVal, trait_description: "Tendency to demand predictability." },
+      { name: "Self-Discipline", dimension: "Conscientiousness", score: Math.max(35, conscientiousnessVal - 10), trait_description: "Friction with repetitive tasks." },
+      { name: "Assertiveness", dimension: "Extraversion", score: extraversionVal, trait_description: "Directness in boundary defense." },
+      { name: "Cheerfulness", dimension: "Extraversion", score: 32, trait_description: "Low tolerance for performative pep talks." },
+      { name: "Morality / Honesty", dimension: "Agreeableness", score: 85, trait_description: "Relentless hunger for authenticity over pleasantries." },
+      { name: "Trust", dimension: "Agreeableness", score: agreeablenessVal, trait_description: "Healthy skepticism toward conventional wisdom." },
+      { name: "Anxiety", dimension: "Neuroticism", score: neuroticismVal, trait_description: "Spikes when plans slip out of rigid alignment." },
+      { name: "Vulnerability", dimension: "Neuroticism", score: Math.min(90, neuroticismVal + 2), trait_description: "Depth of emotional exposure on the page." }
+    ],
+    source: "local",
+  };
+}
 
 app.post("/api/diagnose", requireAuth, async (req, res) => {
   const ar = req as AuthedRequest;
@@ -3119,6 +3356,30 @@ Name: ${user_profile?.khaos_name || ar.ud.user.khaos_name}
 Word of Year: ${user_profile?.word_of_the_year || ar.ud.user.word_of_the_year}
 What I'm done pretending about: ${user_profile?.what_done_pretending || ar.ud.user.what_done_pretending}
 `;
+
+  // Live Mei (Messages Improved) — the app's own bot, when configured and
+  // the user consented to external-AI analysis. Mei returns free text, not
+  // structured scores, so the Big-5 scores still come from the local
+  // heuristic engine and Mei's reply becomes the Honest Mirror feedback.
+  // On any Mei failure, fall through to Gemini, then to the local engine.
+  if (getMeiConfig() && aiConsentGranted(req)) {
+    try {
+      const meiPrompt = `You are Mei, the messaging-intelligence inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)". The user's core slogan is "Boredom=Death" — monotony and playing dead in a pre-scripted existence is the ultimate hazard. You are DIRECT, WITTY, SASSY, GROUNDED, and UNAPOLOGETICALLY HONEST. STRICTLY ZERO TOXIC POSITIVITY — no inspirational slogans, no gaslighting calm. Act as an honest mirror calling out self-contradictions. Give a candid 2-3 paragraph "Honest Mirror" assessment of the day below and one concrete, slightly provocative micro-dare to break monotony.\n\n${textToAnalyze}`;
+      const meiReply = await callMeiBot(meiPrompt);
+      if (meiReply) {
+        const snapshot = buildLocalDiagnosticSnapshot({ entry_date, evening_notes });
+        snapshot.ai_feedback = meiReply;
+        snapshot.source = "mei";
+        ar.ud.personalitySnapshots.unshift(snapshot);
+        if (ar.ud.personalitySnapshots.length > 50) ar.ud.personalitySnapshots.pop();
+        saveData(db);
+        return res.json(snapshot);
+      }
+      console.error("Mei returned no usable reply for /api/diagnose; falling through to Gemini/local.");
+    } catch (err: any) {
+      console.error("Mei error on /api/diagnose, falling through:", err.message);
+    }
+  }
 
   // Try calling Gemini API via @google/genai SDK — ONLY with the user's
   // explicit Google Gemini consent (X-AI-Consent: granted). Otherwise fall
@@ -3215,50 +3476,8 @@ ${textToAnalyze}
     }
   }
 
-  // Fallback intelligent heuristic diagnostic engine
-  const notes = (evening_notes || "").toLowerCase();
-  const wordCount = notes.split(/\s+/).filter(Boolean).length;
-  const hasBurnoutWords = /tired|exhaust|drain|fumes|overwhelm|can't|heavy|collapse|numb|burnout|anxious/i.test(notes);
-  const hasDefianceWords = /refuse|no|done|stop|script|quit|hell|fake|pretend|furious|sick of/i.test(notes);
-  const hasControlWords = /plan|schedule|todo|must|should|ought|fix|list|control|perfect/i.test(notes);
-
-  const opennessVal = Math.min(95, Math.max(40, 65 + (wordCount > 50 ? 15 : 5) + (hasDefianceWords ? 10 : 0)));
-  const conscientiousnessVal = Math.min(90, Math.max(30, hasControlWords ? 78 : 55));
-  const neuroticismVal = Math.min(92, Math.max(25, hasBurnoutWords ? 76 : 48));
-  const extraversionVal = Math.min(85, Math.max(20, wordCount > 80 ? 60 : 42));
-  const agreeablenessVal = Math.min(80, Math.max(35, hasDefianceWords ? 42 : 64));
-
-  const burnoutRisk = hasBurnoutWords ? (neuroticismVal > 70 ? "High" : "Moderate") : "Low";
-
-  const fallbackSnapshot = {
-    id: `snap_${Date.now()}`,
-    entry_id: `entry_${entry_date || new Date().toISOString().split("T")[0]}`,
-    snapshot_date: entry_date || new Date().toISOString().split("T")[0],
-    openness: opennessVal,
-    conscientiousness: conscientiousnessVal,
-    extraversion: extraversionVal,
-    agreeableness: agreeablenessVal,
-    neuroticism: neuroticismVal,
-    detected_mood: hasBurnoutWords ? "Running on Cognitive Overdrive" : hasDefianceWords ? "Feral & Unfiltered" : "Grounded & Analytical",
-    observed_word: hasBurnoutWords ? "OVERDRIVE" : hasDefianceWords ? "DEFIANT" : hasControlWords ? "ORDERLY" : "BECOMING",
-    burnout_risk: burnoutRisk,
-    self_sabotage_alert: hasControlWords ? "Defaulting to hyper-vigilant scheduling when feeling emotionally depleted." : "Postponing physical comfort until arbitrary productivity quotas are met.",
-    contradiction_callout: "You wrote that you want 'peace and less noise', but you just turned an unread notification into a 4-act internal drama.",
-    ai_feedback: `Here is the honest mirror: You showed up to the page today carrying enough unspoken tension to power a small electric vehicle. Notice how whenever you claim you're 'totally fine', your notes read like an underground interrogation transcript?\n\nYou don't have to optimize every emotional fluctuation into a tidy life lesson. Some days were just full, or wordless, or messy. That isn't inconsistency—that is data. Now close the tabs in your head and stop negotiating with your exhaustion.`,
-    micro_dare: "Tomorrow on your midday walk, take the wrong turn on purpose and do not check Google Maps for a full ten minutes.",
-    sub_traits: [
-      { name: "Imagination", dimension: "Openness", score: Math.min(95, opennessVal + 4), trait_description: "Vivid metaphor generation and speculative thinking." },
-      { name: "Intellect / Reframe", dimension: "Openness", score: opennessVal, trait_description: "Ability to deconstruct assumptions." },
-      { name: "Orderliness", dimension: "Conscientiousness", score: conscientiousnessVal, trait_description: "Tendency to demand predictability." },
-      { name: "Self-Discipline", dimension: "Conscientiousness", score: Math.max(35, conscientiousnessVal - 10), trait_description: "Friction with repetitive tasks." },
-      { name: "Assertiveness", dimension: "Extraversion", score: extraversionVal, trait_description: "Directness in boundary defense." },
-      { name: "Cheerfulness", dimension: "Extraversion", score: 32, trait_description: "Low tolerance for performative pep talks." },
-      { name: "Morality / Honesty", dimension: "Agreeableness", score: 85, trait_description: "Relentless hunger for authenticity over pleasantries." },
-      { name: "Trust", dimension: "Agreeableness", score: agreeablenessVal, trait_description: "Healthy skepticism toward conventional wisdom." },
-      { name: "Anxiety", dimension: "Neuroticism", score: neuroticismVal, trait_description: "Spikes when plans slip out of rigid alignment." },
-      { name: "Vulnerability", dimension: "Neuroticism", score: Math.min(90, neuroticismVal + 2), trait_description: "Depth of emotional exposure on the page." }
-    ]
-  };
+  // Local heuristic engine (fallback when neither Mei nor Gemini answers).
+  const fallbackSnapshot = buildLocalDiagnosticSnapshot({ entry_date, evening_notes });
 
   ar.ud.personalitySnapshots.unshift(fallbackSnapshot);
   if (ar.ud.personalitySnapshots.length > 50) ar.ud.personalitySnapshots.pop();
@@ -3479,20 +3698,15 @@ ${threadBlocks}`;
   res.json({ insights, analyzed_at });
 });
 
-// ================= AI STUDIO HUB (media generation — Gemini ONLY here) =================
-// Strict scope: GEMINI_API_KEY is used exclusively by these /api/studio/*
-// endpoints. Every other AI route in this server stays on the local engine.
-// The client NEVER calls Google directly and never sees the key.
-// REST shape mirrors the third-party AI Studio Hub (music / image create+edit /
-// video + status/download / transcription), persisted to the JSON data file
-// per user instead of Firestore.
-//
-// GOOGLE GEMINI CONSENT: every Gemini-backed endpoint below (and the
-// /api/mei/media-intent handoff, and the /api/diagnose Gemini fallback)
-// requires the client to send `X-AI-Consent: granted`. That header is only
-// sent after the user explicitly accepts the in-app Google Gemini consent
-// screen. Without it the call is refused and the client falls back to its
-// non-Gemini behavior. Declining never blocks the app.
+// ================= AI CONSENT (Google Gemini) =================
+// The remaining Gemini-backed routes (/api/diagnose and
+// /api/diagnose/interpersonal, plus the Mei handoff) require the client to
+// send `X-AI-Consent: granted`. That header is only sent after the user
+// explicitly accepts the in-app Google Gemini consent screen. Without it
+// the call is refused and the client falls back to its non-Gemini behavior.
+// Declining never blocks the app.
+// (The AI Studio media lab was removed 2026-11-25 per Amber — the app no
+// longer provides its own AI; everyone has one on their phone.)
 
 const AI_CONSENT_HEADER = 'x-ai-consent';
 
@@ -3502,438 +3716,10 @@ function aiConsentGranted(req: express.Request): boolean {
 
 function requireAiConsent(res: express.Response) {
   return res.status(403).json({
-    error: "Google Gemini needs your OK first — enable it in the app's AI Studio to use generation features.",
+    error: "Google Gemini needs your OK first — grant consent in the app to use AI features.",
     code: 'AI_CONSENT_REQUIRED'
   });
 }
-
-const GEMINI_REST = "https://generativelanguage.googleapis.com/v1beta";
-const STUDIO_JSON_LIMIT = "50mb"; // base64 audio/images exceed express's default 100kb
-const studioJson = express.json({ limit: STUDIO_JSON_LIMIT });
-const STUDIO_MEDIA_CAP = 30; // mirrors the source's Firestore fetch limit
-const STUDIO_ITEM_MAX_BYTES = 8 * 1024 * 1024; // don't bloat the data file with giant blobs
-
-function getStudioKey(): string | null {
-  const key = process.env.GEMINI_API_KEY;
-  return key && key.trim() ? key.trim() : null;
-}
-
-function studioNotConfigured(res: express.Response) {
-  return res.status(503).json({
-    error: "AI Studio isn't configured on this server yet — no GEMINI_API_KEY. The media studio stays tucked away until it's set up.",
-    code: "STUDIO_NOT_CONFIGURED"
-  });
-}
-
-/** Extract the first inlineData part from a generateContent REST response. */
-function firstInlineData(resp: any): { mimeType: string; data: string } | null {
-  const candidates = resp?.candidates || [];
-  for (const c of candidates) {
-    for (const part of c?.content?.parts || []) {
-      if (part?.inlineData?.data) {
-        return { mimeType: part.inlineData.mimeType || "", data: part.inlineData.data };
-      }
-    }
-  }
-  return null;
-}
-
-function stripDataUrlPrefix(dataUrl: string): string {
-  return String(dataUrl || "").replace(/^data:[^;]+;base64,/, "");
-}
-
-async function geminiGenerateContent(key: string, model: string, body: any): Promise<any> {
-  const r = await fetch(`${GEMINI_REST}/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify(body)
-  });
-  const json = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const msg = json?.error?.message || `Google API error ${r.status}`;
-    const err: any = new Error(msg);
-    err.status = r.status;
-    throw err;
-  }
-  return json;
-}
-
-function studioMediaOf(ud: UserData): StudioMediaItem[] {
-  if (!Array.isArray((ud as any).studioMedia)) (ud as any).studioMedia = [];
-  return (ud as any).studioMedia as StudioMediaItem[];
-}
-
-function saveStudioItem(userId: string, ud: UserData, item: Omit<StudioMediaItem, "id" | "createdAt">): StudioMediaItem | null {
-  // Keep the data file lean: skip persisting giant blobs, but still return the record.
-  if ((item.resultUrl || "").length > STUDIO_ITEM_MAX_BYTES) return null;
-  const list = studioMediaOf(ud);
-  const record: StudioMediaItem = {
-    ...item,
-    id: `studio_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`,
-    createdAt: new Date().toISOString()
-  };
-  list.unshift(record);
-  while (list.length > STUDIO_MEDIA_CAP) list.pop();
-  saveData(db);
-  return record;
-}
-
-app.get("/api/studio/status", requireAuth, (_req, res) => {
-  res.json({ configured: Boolean(getStudioKey()) });
-});
-
-// ================= STUDIO JOB RUNNERS (internal) =================
-// Shared by the /api/studio/* route handlers below and the media-intent
-// endpoint. Gemini stays media-only and server-side; the client never sees
-// the key. Behavior matches the original inline implementations exactly.
-
-async function runStudioMusicJob(
-  key: string, userId: string, ud: UserData,
-  opts: { prompt?: string; model?: string; imageBase64?: string }
-): Promise<{ audioUrl: string | null; modelUsed: string; prompt?: string; text?: string }> {
-  const { prompt, model = "lyria-3-clip-preview", imageBase64 } = opts;
-  const selectedModel = model === "lyria-3-pro-preview" ? "lyria-3-pro-preview" : "lyria-3-clip-preview";
-  const parts: any[] = [
-    { text: prompt || "A resonant ambient lo-fi soundscape for unhurried morning journaling, subtle analog synth textures and warm vinyl warmth." }
-  ];
-  if (imageBase64) {
-    parts.push({ inlineData: { mimeType: "image/jpeg", data: stripDataUrlPrefix(imageBase64) } });
-  }
-  const resp = await geminiGenerateContent(key, selectedModel, { contents: { parts } });
-  const inline = firstInlineData(resp);
-  if (inline) {
-    const audioUrl = `data:${inline.mimeType || "audio/mp3"};base64,${inline.data}`;
-    saveStudioItem(userId, ud, { type: "music", prompt: String(prompt || ""), resultUrl: audioUrl, mimeType: inline.mimeType, model: selectedModel });
-    return { audioUrl, modelUsed: selectedModel, prompt };
-  }
-  return { text: (resp as any).text || "Music composition generated.", modelUsed: selectedModel, prompt, audioUrl: null };
-}
-
-async function runStudioImageJob(
-  key: string, userId: string, ud: UserData,
-  opts: { prompt?: string; aspectRatio?: string }
-): Promise<{ imageUrl: string; prompt?: string; model: string }> {
-  const { prompt, aspectRatio = "1:1" } = opts;
-  const resp = await geminiGenerateContent(key, "gemini-3.1-flash-image-preview", {
-    contents: { parts: [{ text: String(prompt || "") }] },
-    generationConfig: {
-      responseModalities: ["TEXT", "IMAGE"],
-      imageConfig: { aspectRatio }
-    }
-  });
-  const inline = firstInlineData(resp);
-  if (!inline) {
-    const err: any = new Error("No image generated");
-    err.status = 400;
-    throw err;
-  }
-  const imageUrl = `data:${inline.mimeType || "image/png"};base64,${inline.data}`;
-  saveStudioItem(userId, ud, { type: "image", prompt: String(prompt || ""), resultUrl: imageUrl, mimeType: inline.mimeType, aspectRatio: String(aspectRatio), model: "gemini-3.1-flash-image-preview" });
-  return { imageUrl, prompt, model: "gemini-3.1-flash-image-preview" };
-}
-
-async function runStudioVideoJob(
-  key: string, userId: string, ud: UserData,
-  opts: { prompt?: string; imageBase64?: string; mimeType?: string; aspectRatio?: string }
-): Promise<{ operationName: string; prompt?: string; aspectRatio: string }> {
-  const { prompt, imageBase64, mimeType = "image/png", aspectRatio = "16:9" } = opts;
-  const validAspectRatio = aspectRatio === "9:16" ? "9:16" : "16:9";
-  const instance: any = {
-    prompt: prompt || "A cinematic atmospheric motion sequence of morning sunlight breaking through city fog"
-  };
-  if (imageBase64) {
-    instance.image = { bytesBase64Encoded: stripDataUrlPrefix(imageBase64), mimeType };
-  }
-  const r = await fetch(`${GEMINI_REST}/models/veo-3.1-fast-generate-preview:predictLongRunning`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      instances: [instance],
-      parameters: { sampleCount: 1, aspectRatio: validAspectRatio, resolution: "720p" }
-    })
-  });
-  const json = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(json?.error?.message || `Video request failed (${r.status})`);
-  if (!json?.name) throw new Error("Video request returned no operation name.");
-  saveStudioItem(userId, ud, {
-    type: "video",
-    prompt: String(prompt || ""),
-    resultUrl: "",
-    aspectRatio: validAspectRatio,
-    model: "veo-3.1-fast-generate-preview",
-    operationName: json.name
-  });
-  return { operationName: json.name, prompt, aspectRatio: validAspectRatio };
-}
-
-/** Poll a Veo long-running operation until done or the timeout elapses. */
-async function pollStudioVideoDone(key: string, operationName: string, timeoutMs = 90000, intervalMs = 8000): Promise<{ done: boolean; error?: any }> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const r = await fetch(`${GEMINI_REST}/${operationName}`, { headers: { "x-goog-api-key": key } });
-    const json = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(json?.error?.message || `Status check failed (${r.status})`);
-    if (json.done) return { done: true, error: json.error || null };
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  return { done: false };
-}
-
-// ---- Music (Lyria 3) ----
-app.post("/api/studio/music", requireAuth, studioJson, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  if (!key) return studioNotConfigured(res);
-  const ar = req as AuthedRequest;
-  const { prompt, model, imageBase64 } = req.body || {};
-  try {
-    return res.json(await runStudioMusicJob(key, ar.userId, ar.ud, { prompt, model, imageBase64 }));
-  } catch (err: any) {
-    console.error("Studio music error:", err.message);
-    res.status(500).json({ error: err.message || "Failed to generate music" });
-  }
-});
-
-// ---- Image create ----
-app.post("/api/studio/image", requireAuth, studioJson, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  if (!key) return studioNotConfigured(res);
-  const ar = req as AuthedRequest;
-  const { prompt, aspectRatio } = req.body || {};
-  try {
-    return res.json(await runStudioImageJob(key, ar.userId, ar.ud, { prompt, aspectRatio }));
-  } catch (err: any) {
-    console.error("Studio image error:", err.message);
-    res.status(err.status || 500).json({ error: err.message || "Failed to create image" });
-  }
-});
-
-// ---- Image edit ----
-app.post("/api/studio/image/edit", requireAuth, studioJson, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  if (!key) return studioNotConfigured(res);
-  const ar = req as AuthedRequest;
-  const { imageBase64, prompt, mimeType = "image/png" } = req.body || {};
-  if (!imageBase64) return res.status(400).json({ error: "imageBase64 is required." });
-  try {
-    const resp = await geminiGenerateContent(key, "gemini-3.1-flash-image-preview", {
-      contents: {
-        parts: [
-          { inlineData: { data: stripDataUrlPrefix(imageBase64), mimeType } },
-          { text: String(prompt || "") }
-        ]
-      },
-      generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
-    });
-    const inline = firstInlineData(resp);
-    if (!inline) return res.status(400).json({ error: "No edited image generated", text: (resp as any).text });
-    const imageUrl = `data:${inline.mimeType || "image/png"};base64,${inline.data}`;
-    saveStudioItem(ar.userId, ar.ud, { type: "image", prompt: String(prompt || ""), resultUrl: imageUrl, mimeType: inline.mimeType, model: "gemini-3.1-flash-image-preview" });
-    return res.json({ imageUrl, prompt, model: "gemini-3.1-flash-image-preview" });
-  } catch (err: any) {
-    console.error("Studio image-edit error:", err.message);
-    res.status(500).json({ error: err.message || "Failed to edit image" });
-  }
-});
-
-// ---- Video generate (Veo 3.1 fast, long-running operation) ----
-app.post("/api/studio/video", requireAuth, studioJson, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  if (!key) return studioNotConfigured(res);
-  const ar = req as AuthedRequest;
-  const { prompt, imageBase64, mimeType, aspectRatio } = req.body || {};
-  try {
-    return res.json(await runStudioVideoJob(key, ar.userId, ar.ud, { prompt, imageBase64, mimeType, aspectRatio }));
-  } catch (err: any) {
-    console.error("Studio video error:", err.message);
-    res.status(500).json({ error: err.message || "Failed to generate video" });
-  }
-});
-
-// ---- Video status ----
-app.post("/api/studio/video/status", requireAuth, studioJson, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  if (!key) return studioNotConfigured(res);
-  const { operationName } = req.body || {};
-  if (!operationName) return res.status(400).json({ error: "operationName is required." });
-  try {
-    const r = await fetch(`${GEMINI_REST}/${operationName}`, {
-      headers: { "x-goog-api-key": key }
-    });
-    const json = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(json?.error?.message || `Status check failed (${r.status})`);
-    return res.json({ done: Boolean(json.done), error: json.error || null });
-  } catch (err: any) {
-    console.error("Studio video-status error:", err.message);
-    res.status(500).json({ error: err.message || "Failed to check video status" });
-  }
-});
-
-// ---- Video download (proxies the signed Google file URI; key never reaches the client) ----
-app.post("/api/studio/video/download", requireAuth, studioJson, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  if (!key) return studioNotConfigured(res);
-  const { operationName } = req.body || {};
-  if (!operationName) return res.status(400).json({ error: "operationName is required." });
-  try {
-    const r = await fetch(`${GEMINI_REST}/${operationName}`, {
-      headers: { "x-goog-api-key": key }
-    });
-    const json = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(json?.error?.message || `Status check failed (${r.status})`);
-    const uri = json?.response?.generatedVideos?.[0]?.video?.uri;
-    if (!uri) return res.status(404).json({ error: "Video not ready yet — still rendering.", code: "VIDEO_NOT_READY" });
-    const videoRes = await fetch(uri, { headers: { "x-goog-api-key": key } });
-    if (!videoRes.ok) throw new Error(`Video fetch failed (${videoRes.status})`);
-    res.setHeader("Content-Type", "video/mp4");
-    const buffer = Buffer.from(await videoRes.arrayBuffer());
-    return res.send(buffer);
-  } catch (err: any) {
-    console.error("Studio video-download error:", err.message);
-    res.status(500).json({ error: err.message || "Failed to download video" });
-  }
-});
-
-// ---- Transcription ----
-app.post("/api/studio/transcribe", requireAuth, studioJson, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  if (!key) return studioNotConfigured(res);
-  const ar = req as AuthedRequest;
-  const { audioBase64, mimeType = "audio/webm" } = req.body || {};
-  if (!audioBase64) return res.status(400).json({ error: "audioBase64 is required." });
-  try {
-    const resp = await geminiGenerateContent(key, "gemini-3.5-transcribe", {
-      contents: {
-        parts: [
-          { inlineData: { mimeType, data: stripDataUrlPrefix(audioBase64) } },
-          { text: "Transcribe this audio verbatim. Capture the exact spoken words without commentary or summarization." }
-        ]
-      }
-    });
-    const text = resp?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
-    saveStudioItem(ar.userId, ar.ud, { type: "transcript", prompt: "", resultUrl: "", transcript: text, mimeType });
-    return res.json({ transcription: text, transcript: text });
-  } catch (err: any) {
-    console.error("Studio transcribe error:", err.message);
-    res.status(500).json({ error: err.message || "Transcription failed" });
-  }
-});
-
-// ---- Saved studio library ----
-app.get("/api/studio/media", requireAuth, (req, res) => {
-  const ar = req as AuthedRequest;
-  res.json(studioMediaOf(ar.ud));
-});
-
-app.delete("/api/studio/media/:id", requireAuth, (req, res) => {
-  const ar = req as AuthedRequest;
-  const list = studioMediaOf(ar.ud);
-  const idx = list.findIndex((m) => m.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: "Not found." });
-  list.splice(idx, 1);
-  saveData(db);
-  res.json({ ok: true });
-});
-
-// ================= INTENT ↔ STUDIO ORCHESTRATION =================
-// Lets the Intent hand off generative-media jobs to Gemini mid-conversation,
-// server-side. The Intent remains the conversational front-end;
-// Gemini stays media-only with GEMINI_API_KEY server-side.
-//
-// Intent detection is a simple keyword/pattern router — deliberately NOT a
-// second AI call. Supported trigger phrases (matched case-insensitively):
-//   MUSIC: "make me a hype track", "create a hype track", "compose a theme
-//          song", "write me an anthem", "generate a beat", "hype me up",
-//          "make music for ..."
-//   IMAGE: "design a cover image for my vision board", "create cover art",
-//          "generate an image of ...", "make me a poster", "draw/paint ..."
-//   VIDEO: "generate a video for ...", "create a video of ...", "make a video"
-// There is currently no Intent chat UI in this codebase (Intent surfaces are the
-// diagnostic card, mantra generator, and /api/diagnose), so this endpoint is
-// the wiring point: a future chat UI POSTs the user's utterance here and,
-// when intent is found, delivers the returned media inside the conversation.
-//   Request:  POST /api/mei/media-intent  { text: string }
-//   Response: { intent: null }                                            → not a media ask; the Intent answers normally
-//             { intent: "music"|"image", status: "complete", ...media }     → finished media, deliver it
-//             { intent: "video", status: "complete", ... }                  → video finished within the poll window
-//             { intent: "video", status: "rendering", operationName }      → still rendering; poll /api/studio/video/status
-//             503 { code: "STUDIO_NOT_CONFIGURED" }                        → key absent; the Intent says the studio is backstage
-
-type MediaIntent = "music" | "image" | "video" | null;
-
-const MEDIA_INTENT_RULES: { intent: Exclude<MediaIntent, null>; patterns: RegExp[] }[] = [
-  {
-    intent: "music",
-    patterns: [
-      /\b(make|create|generate|compose|write|produce)\b[\s\S]{0,50}?\b(hype track|theme song|anthem|jingle)\b/i,
-      /\b(make|create|generate|compose|produce)\b[\s\S]{0,50}?\b(song|track|beat)\b/i,
-      /\bhype me up\b/i,
-      /\bmusic for\b/i,
-    ],
-  },
-  {
-    intent: "image",
-    patterns: [
-      /\b(design|create|generate|make)\b[\s\S]{0,50}?\bcover (image|art)\b/i,
-      /\b(design|create|generate|make|draw|paint)\b[\s\S]{0,50}?\b(image|picture|artwork|poster)\b/i,
-      /\bvision board\b/i,
-    ],
-  },
-  {
-    intent: "video",
-    patterns: [
-      /\b(generate|create|make)\b[\s\S]{0,50}?\bvideo\b/i,
-      /\bvideo for\b/i,
-    ],
-  },
-];
-
-function detectMediaIntent(text: string): MediaIntent {
-  const t = String(text || "");
-  if (!t.trim()) return null;
-  for (const rule of MEDIA_INTENT_RULES) {
-    if (rule.patterns.some((p) => p.test(t))) return rule.intent;
-  }
-  return null;
-}
-
-app.post("/api/mei/media-intent", requireAuth, express.json(), async (req, res) => {
-  if (!aiConsentGranted(req)) return requireAiConsent(res);
-  const key = getStudioKey();
-  const ar = req as AuthedRequest;
-  const text = String(req.body?.text || "");
-  const intent = detectMediaIntent(text);
-  if (!intent) return res.json({ intent: null });
-  if (!key) return studioNotConfigured(res);
-  try {
-    if (intent === "music") {
-      const result = await runStudioMusicJob(key, ar.userId, ar.ud, { prompt: text });
-      return res.json({ intent, status: "complete", ...result });
-    }
-    if (intent === "image") {
-      const result = await runStudioImageJob(key, ar.userId, ar.ud, { prompt: text });
-      return res.json({ intent, status: "complete", ...result });
-    }
-    // Video is long-running: start it, poll briefly, hand back either the
-    // finished job or a rendering handle the chat UI can keep polling.
-    const started = await runStudioVideoJob(key, ar.userId, ar.ud, { prompt: text });
-    const polled = await pollStudioVideoDone(key, started.operationName);
-    if (polled.done && !polled.error) {
-      return res.json({ intent, status: "complete", ...started });
-    }
-    if (polled.error) throw new Error(polled.error?.message || "Video render failed");
-    return res.json({ intent, status: "rendering", ...started });
-  } catch (err: any) {
-    console.error("Intent media-intent error:", err.message);
-    res.status(err.status || 500).json({ error: err.message || "Media job failed" });
-  }
-});
 
 // Vite middleware in development & static serve in production
 async function setupViteAndListen() {

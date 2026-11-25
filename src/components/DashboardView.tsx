@@ -6,7 +6,7 @@ import {
   Compass, Star, Flame, Ban, Activity, BookOpen, DollarSign,
   Award, PartyPopper, Trophy, Image as ImageIcon,
   DoorOpen, HeartHandshake, Users,
-  BookMarked, Clapperboard, Globe, ShieldAlert
+  BookMarked, Globe, ShieldAlert
 } from 'lucide-react';
 
 export type DashboardTab =
@@ -14,7 +14,7 @@ export type DashboardTab =
   | 'weekly' | 'money' | 'themes' | 'holidays' | 'points' | 'crew'
   | 'backup' | 'unlock' | 'cover' | 'identity' | 'tourguide'
   | 'wall' | 'inbox' | 'reminders' | 'search'
-  | 'frontmatter' | 'studio' | 'field' | 'expansions' | 'faq' | 'admin'
+  | 'frontmatter' | 'field' | 'expansions' | 'faq' | 'admin'
   | 'torqueworld' | 'profile' | 'settings' | 'world';
 
 interface DoorDef {
@@ -44,14 +44,9 @@ interface DashboardViewProps {
   onOpen: (tab: DashboardTab) => void;
   /** Today's Launch / Orbit / Landing summary, if the caller has it. */
   todayMission?: TodayMissionSummary | null;
-  /** Whether the server has the AI Studio configured. Defaults true so
-      existing callers don't break; pass false to hide the AI Studio door
-      (the studio view itself only renders when configured, so an
-      unconditional door would open a blank page). */
-  studioConfigured?: boolean;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal, goalsCount, crewCount, streak, dueCount, unreadCount, onOpen, todayMission, studioConfigured = true }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal, goalsCount, crewCount, streak, dueCount, unreadCount, onOpen, todayMission }) => {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const yearScheme = getYearScheme(new Date().getFullYear());
 
@@ -98,10 +93,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
     { id: 'identity', name: 'Identity Base', description: 'Who is flying this thing — plus your birthday, for the stars.', icon: ShieldAlert, accent: 'from-pink-500 to-pink-700' },
     { id: 'tourguide', name: 'Meet Your Tour Guide', description: 'The human behind the khaos. Come say hi to Amber.', icon: HeartHandshake, accent: 'from-rose-500 to-amber-600' },
     { id: 'frontmatter', name: 'Front Matter Codex', description: 'The planner\u2019s front matter, pages 01–06, 09–10 \u2014 manifesto, one word, audit, permission slip, and your people.', icon: BookMarked, accent: 'from-pink-500 to-teal-600' },
-    // AI Studio door only when the server has it configured (finding: the
-    // studio view renders only when studioConfigured, so an unconditional
-    // door opened a blank page). App.tsx must pass studioConfigured.
-    ...(studioConfigured ? [{ id: 'studio', name: 'AI Studio', description: 'Backstage media lab: hype tracks, cover art, video renders.', icon: Clapperboard, accent: 'from-fuchsia-500 to-teal-600' } as DoorDef] : []),
     // 2026-11-01 staged doorway: the Inbetween playtest world, embedded.
     // A doorway, NOT a connection — live playtest, app not connected.
     // No existing door was removed to make room for it.

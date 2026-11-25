@@ -1,9 +1,8 @@
 // Google Gemini consent — explicit opt-in before any Gemini-powered feature.
 //
 // Covered surfaces:
-//   - AI Studio (music / image / video / transcription generation)
-//   - The media-intent handoff (/api/mei/media-intent)
-//   - The /api/diagnose Gemini fallback
+//   - The /api/diagnose Gemini fallback (personality diagnostic)
+//   - The /api/diagnose/interpersonal Gemini fallback
 // Everything else in the app stays on the local engine and never needs this.
 //
 // The decision is persisted per user under the existing

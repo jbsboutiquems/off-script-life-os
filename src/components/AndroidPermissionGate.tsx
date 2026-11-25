@@ -2,8 +2,8 @@
 //
 // Only renders on native Android. Shows ONE friendly card naming the two
 // permissions the app genuinely uses — camera (scanning the QR code printed
-// with your physical planner in the Unlock screen) and microphone (voice-note
-// transcription in the AI Studio) — then triggers the OS prompt via
+// with your physical planner in the Unlock screen) and microphone (dictating
+// your daily entries by voice) — then triggers the OS prompt via
 // getUserMedia (Capacitor forwards this to the Android runtime permission
 // flow).
 //
@@ -121,8 +121,8 @@ export const AndroidPermissionGate: React.FC<Props> = ({ userId }) => {
               <Mic size={18} />
             </span>
             <span className="text-sm text-slate-600 dark:text-stone-300">
-              <strong className="text-slate-900 dark:text-stone-100">Microphone</strong> — records
-              voice notes for transcription in the AI&nbsp;Studio.
+              <strong className="text-slate-900 dark:text-stone-100">Microphone</strong> — lets you
+              dictate your daily entries by voice.
             </span>
           </li>
         </ul>

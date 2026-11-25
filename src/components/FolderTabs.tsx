@@ -33,7 +33,7 @@ const FOLDERS: { id: FolderSection; label: string; icon: React.ComponentType<{ c
 const MENU_SECTIONS: { title: string; ids: string[] }[] = [
   { title: 'Your Day', ids: ['reminders'] },
   { title: 'Your Stuff', ids: ['backup', 'frontmatter'] },
-  { title: 'Get More', ids: ['studio', 'expansions', 'unlock'] },
+  { title: 'Get More', ids: ['expansions', 'unlock'] },
   { title: 'People & Help', ids: ['crew', 'faq'] },
   { title: 'Admin', ids: ['admin'] },
 ];

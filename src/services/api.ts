@@ -403,11 +403,11 @@ export const api = {
     return { google: false, facebook: false, email: true, smtp: false };
   },
 
-  async emailRegister(email: string, username: string, password: string): Promise<AuthResult & { emailVerified: boolean; verificationEmailed: boolean }> {
+  async emailRegister(email: string, username: string, password: string, dob: string): Promise<AuthResult & { emailVerified: boolean; verificationEmailed: boolean }> {
     const res = await fetch(apiUrl('/api/auth/email/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, username, password })
+      body: JSON.stringify({ email, username, password, dob })
     });
     const body = await res.json().catch(() => ({} as any));
     if (!res.ok) {
@@ -585,11 +585,11 @@ export const api = {
     return res.json().catch(() => ({} as any));
   },
 
-  async completeOAuthSignup(pendingKey: string, username: string): Promise<AuthResult> {
+  async completeOAuthSignup(pendingKey: string, username: string, dob: string): Promise<AuthResult> {
     const res = await fetch(apiUrl('/api/auth/oauth/complete'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pendingKey, username })
+      body: JSON.stringify({ pendingKey, username, dob })
     });
     const body = await res.json().catch(() => ({} as any));
     if (!res.ok) {
@@ -1191,6 +1191,40 @@ export const api = {
     const existingSnapshots = await this.getSnapshots().catch(() => [] as PersonalitySnapshot[]);
     lsSet('snapshots', [snapshot, ...existingSnapshots.slice(0, 49)]);
     return snapshot;
+  },
+
+  // ---- Ask Mei (live Messages Improved bot) ----
+  // The wiring point for the future Ask Mei chat UI: POST the user's
+  // message to the configured Mei bot and get its reply back. Returns null
+  // when Mei isn't configured on the server or the user hasn't consented
+  // to external-AI analysis — the caller falls back to local behavior.
+  async askMei(text: string): Promise<{ reply: string; source: 'mei' } | null> {
+    try {
+      const res = await req('/api/mei/chat', {
+        method: 'POST',
+        headers: aiConsentHeaders(),
+        body: JSON.stringify({ text })
+      });
+      if (res.ok) return await res.json();
+      return null;
+    } catch (e) {
+      if (e instanceof AuthError) throw e;
+      console.warn('Ask Mei unavailable, falling back to local', e);
+      return null;
+    }
+  },
+
+  async meiConfigured(): Promise<boolean> {
+    try {
+      const res = await req('/api/mei/status');
+      if (res.ok) {
+        const body = await res.json();
+        return body.configured === true;
+      }
+    } catch (e) {
+      if (e instanceof AuthError) throw e;
+    }
+    return false;
   },
 
   async getSnapshots(): Promise<PersonalitySnapshot[]> {

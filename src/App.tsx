@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { UserProfile, DailyEntry, PersonalitySnapshot, Goal, AntiGoal, WeeklyFlightDebrief, MonthlyMoneyMap, KhaosPointEntry, FlightCrewContact } from './types';
 import { api, AuthError } from './services/api';
 import { initTheme, getTheme, cycleTheme, type KhaosTheme } from './theme';
-import { isDevMode } from './lib/devmode';
 import { TRIAL_DEMO, DEMO_USER, APK_DOWNLOAD_URL, promptAppDownload } from './lib/trialDemo';
 import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
@@ -50,8 +49,6 @@ const RemindersView = lazy(() => import('./components/RemindersView').then((m) =
 const SearchView = lazy(() => import('./components/SearchView').then((m) => ({ default: m.SearchView })));
 const InboxView = lazy(() => import('./components/InboxView').then((m) => ({ default: m.InboxView })));
 const FrontMatterView = lazy(() => import('./components/frontmatter').then((m) => ({ default: m.FrontMatterView })));
-const AiStudioView = lazy(() => import('./components/studio/AiStudioView').then((m) => ({ default: m.AiStudioView })));
-import { studioApi } from './components/studio/studioApi';
 import { AdminView } from './components/AdminView';
 import { syncNativeReminders } from './lib/nativeNotifications';
 import { InstallBanner } from './components/InstallBanner';
@@ -62,7 +59,6 @@ import { AndroidPermissionGate } from './components/AndroidPermissionGate';
 import { TestModeNotice } from './components/TestModeNotice';
 import LaunchDarklyBanner from './components/LaunchDarklyBanner';
 import { TrialDownloadPrompt } from './components/TrialDownloadPrompt';
-const PackageAppModal = lazy(() => import('./components/PackageAppModal').then((m) => ({ default: m.PackageAppModal })));
 import { computeStreak } from './lib/streaks';
 import { localDateKey } from './lib/dates';
 import { App as CapApp } from '@capacitor/app';
@@ -106,7 +102,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [stickersModalOpen, setStickersModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [packageModalOpen, setPackageModalOpen] = useState(false);
   const [shareContext, setShareContext] = useState<ShareContextType>('daily');
   const [allEntries, setAllEntries] = useState<DailyEntry[]>([]);
 
@@ -122,10 +117,6 @@ export default function App() {
   const [debriefs, setDebriefs] = useState<WeeklyFlightDebrief[]>([]);
   const [moneyMaps, setMoneyMaps] = useState<MonthlyMoneyMap[]>([]);
   const [dueCount, setDueCount] = useState(0);
-  // AI Studio hides from the menu until the server reports it configured.
-  // Showing a "set an env var" admin note to paying customers is a refund
-  // waiting to happen (found 2026-10-10).
-  const [studioConfigured, setStudioConfigured] = useState<boolean | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [tourDismissed, setTourDismissed] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -314,14 +305,8 @@ export default function App() {
   // Buddy: load on login; first-run creation flow.
   useEffect(() => {
     if (!user) {
-      setStudioConfigured(null);
       return;
     }
-    // AI Studio menu visibility follows the server's configured flag.
-    studioApi.status().then(
-      (s) => setStudioConfigured(s.configured),
-      () => setStudioConfigured(false)
-    );
     // Re-schedule on-device reminder notifications from the stored settings.
     void syncNativeReminders({
       dailyEnabled: !!(user as any).reminder_daily_enabled,
@@ -409,10 +394,10 @@ export default function App() {
   // three presses inside two seconds, from anywhere. A lone press on the
   // dashboard shows the hint instead of exiting. The refs keep the
   // once-registered listener reading live state.
-  const backStateRef = useRef({ activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen });
+  const backStateRef = useRef({ activeTab, stickersModalOpen, shareModalOpen, buddyCreatorOpen });
   useEffect(() => {
-    backStateRef.current = { activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen };
-  }, [activeTab, stickersModalOpen, shareModalOpen, packageModalOpen, buddyCreatorOpen]);
+    backStateRef.current = { activeTab, stickersModalOpen, shareModalOpen, buddyCreatorOpen };
+  }, [activeTab, stickersModalOpen, shareModalOpen, buddyCreatorOpen]);
 
   const backPressesRef = useRef<number[]>([]);
 
@@ -430,7 +415,6 @@ export default function App() {
       const s = backStateRef.current;
       if (s.stickersModalOpen) { setStickersModalOpen(false); return; }
       if (s.shareModalOpen) { setShareModalOpen(false); return; }
-      if (s.packageModalOpen) { setPackageModalOpen(false); return; }
       if (s.buddyCreatorOpen) { setBuddyCreatorOpen(false); return; }
       if (s.activeTab !== 'dashboard') { setActiveTab('dashboard'); return; }
       setToastMessage('Tap back 3 times to close the app');
@@ -764,8 +748,6 @@ export default function App() {
     // placeholder while WORLD_ENABLED is false.
     { id: 'world', label: 'The Inbetween' },
     { id: 'frontmatter', label: 'FrontMatter' },
-    // AI Studio only appears when the server has it configured.
-    ...(studioConfigured ? [{ id: 'studio', label: 'AI Studio' }] : []),
     { id: 'expansions', label: 'Expansions' },
     { id: 'faq', label: 'FAQ' },
     // Admin panel: only for admins (server-gated via is_admin).
@@ -868,7 +850,6 @@ export default function App() {
               dueCount={dueCount}
               unreadCount={unreadCount}
               onOpen={onOpenDashboardDoor}
-              studioConfigured={studioConfigured === true}
               todayMission={(() => {
                 const todayKey = localDateKey();
                 const todaysEntry =
@@ -1119,10 +1100,6 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'studio' && (
-            <AiStudioView userId={user.id} />
-          )}
-
           {activeTab === 'expansions' && (
             <ExpansionsView />
           )}
@@ -1212,12 +1189,6 @@ export default function App() {
         onShareFired={() => awardPoints('share_fired', `share_fired:${currentDate}`, `Shared the Khaos · ${currentDate}`)}
       />
 
-      <PackageAppModal
-        isOpen={packageModalOpen}
-        onClose={() => setPackageModalOpen(false)}
-        onToast={showToast}
-      />
-
       <OfflineIndicator />
       <BeastHost buddy={buddy} />
       <BuddyCreator
@@ -1260,14 +1231,6 @@ export default function App() {
           <div className="text-stone-400 dark:text-stone-500">
             The Intent · Natural Language Personality Engine · No Toxic Positivity
           </div>
-          {isDevMode() && (
-            <button
-              onClick={() => setPackageModalOpen(true)}
-              className="text-[11px] font-mono-code font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors underline underline-offset-2"
-            >
-              Package the Android app
-            </button>
-          )}
         </div>
       </footer>
     </div>

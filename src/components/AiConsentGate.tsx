@@ -65,10 +65,10 @@ export const AiConsentGate: React.FC<Props> = ({ userId }) => {
         <div className="space-y-3 text-sm text-slate-600 dark:text-stone-300">
           <p>
             A few features in this app are powered by <strong className="text-slate-900 dark:text-stone-100">Google&nbsp;Gemini</strong>:
-            the AI&nbsp;Studio (music, images, video, transcription) and parts of The Intent.
+            parts of The Intent — the personality diagnostic fallback.
           </p>
           <p>
-            If you say yes, the prompts and content you submit for generation are sent to Google&nbsp;Gemini
+            If you say yes, the writing you submit for analysis is sent to Google&nbsp;Gemini
             so it can do the work. Everything else in the app keeps running on the local engine either way.
           </p>
           <p>

@@ -56,14 +56,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
       } else if (mode === 'register') {
         // 18+ gate (2026-11-03, Amber's call): birthday is REQUIRED at
         // signup and the user must be 18+, plus consent to explicit music/
-        // language. Front-end validation only for now — the server must
-        // store/verify birthday before this goes live (see AdultConsent.tsx).
+        // language. Front-end validation here is for instant feedback — the
+        // server re-validates the birthday and stores it on the account
+        // (server.ts validAdultDob), so a forged request can't get in.
         if (!birthday) throw new Error('Birthday is required at signup — this app is 18+ only.');
         if (!isAdult(birthday)) throw new Error('You must be 18 or older to create an account.');
         if (!adultConsent) throw new Error('Tick the 18+ explicit-content consent box to sign up.');
         // Email is mandatory at signup (2026-10-14): every account gets an
         // email for verification + password reset. No username-only path.
-        const result = await api.emailRegister(email.trim(), username.trim(), password);
+        const result = await api.emailRegister(email.trim(), username.trim(), password, birthday);
         // Hold the session: the user only enters the app after saving the code.
         setPendingUser(result.user);
         setFreshCode(result.recoveryCode || null);
