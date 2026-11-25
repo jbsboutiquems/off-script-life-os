@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Megaphone, Inbox, Sparkles, MapPin, Menu, X, Globe } from 'lucide-react';
+import { BookOpen, Megaphone, Inbox, Sparkles, MapPin, Menu, X } from 'lucide-react';
 import { FIELD_ENABLED } from '../lib/fieldStaging';
 
-export type FolderSection = 'daily' | 'wall' | 'dms' | 'mei' | 'field' | 'world';
+export type FolderSection = 'daily' | 'wall' | 'dms' | 'mei' | 'field';
 
 interface FolderTabsProps {
   activeSection: FolderSection;
@@ -22,7 +22,6 @@ const FOLDERS: { id: FolderSection; label: string; icon: React.ComponentType<{ c
   { id: 'dms', label: 'DMs', icon: Inbox },
   { id: 'mei', label: 'Intent', icon: Sparkles },
   { id: 'field', label: 'Field', icon: MapPin },
-  { id: 'world', label: 'World', icon: Globe },
 ];
 
 /**

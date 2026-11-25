@@ -6,7 +6,7 @@ import {
   Compass, Star, Flame, Ban, Activity, BookOpen, DollarSign,
   Award, PartyPopper, Trophy, Image as ImageIcon,
   DoorOpen, HeartHandshake, Users,
-  BookMarked, Globe, ShieldAlert
+  BookMarked, ShieldAlert
 } from 'lucide-react';
 
 export type DashboardTab =
@@ -15,7 +15,7 @@ export type DashboardTab =
   | 'backup' | 'unlock' | 'cover' | 'identity' | 'tourguide'
   | 'wall' | 'inbox' | 'reminders' | 'search'
   | 'frontmatter' | 'field' | 'expansions' | 'faq' | 'admin'
-  | 'torqueworld' | 'profile' | 'settings' | 'world';
+  | 'profile' | 'settings';
 
 interface DoorDef {
   id: DashboardTab;
@@ -93,10 +93,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
     { id: 'identity', name: 'Identity Base', description: 'Who is flying this thing — plus your birthday, for the stars.', icon: ShieldAlert, accent: 'from-pink-500 to-pink-700' },
     { id: 'tourguide', name: 'Meet Your Tour Guide', description: 'The human behind the khaos. Come say hi to Amber.', icon: HeartHandshake, accent: 'from-rose-500 to-amber-600' },
     { id: 'frontmatter', name: 'Front Matter Codex', description: 'The planner\u2019s front matter, pages 01–06, 09–10 \u2014 manifesto, one word, audit, permission slip, and your people.', icon: BookMarked, accent: 'from-pink-500 to-teal-600' },
-    // 2026-11-01 staged doorway: the Inbetween playtest world, embedded.
-    // A doorway, NOT a connection — live playtest, app not connected.
-    // No existing door was removed to make room for it.
-    { id: 'world', name: 'The Inbetween', description: 'Step into the playtest world. Solo, local-only — not connected to the app yet.', icon: Globe, accent: 'from-teal-500 to-rose-600', badge: 'PLAYTEST' },
   ];
 
   return (

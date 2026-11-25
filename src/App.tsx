@@ -7,11 +7,12 @@ import { Header } from './components/Header';
 import { FolderTabs, type FolderSection } from './components/FolderTabs';
 import { FieldView } from './components/FieldView';
 import { FIELD_ENABLED } from './lib/fieldStaging';
-import { WORLD_ENABLED } from './lib/worldStaging';
 import { NotificationBell } from './components/NotificationBell';
 // Perf: tab views load on demand via React.lazy so first paint only ships
-// the dashboard/auth shell. World/Field stay eager (untouched by this
-// pass); every other door splits into its own chunk, fetched when opened.
+// the dashboard/auth shell. Field stays eager (untouched by this pass);
+// every other door splits into its own chunk, fetched when opened.
+// (World views removed 2026-11-25 per Amber — doors removed, Clubhouse
+// is a standalone Horizon game, separate from the app.)
 // No copy or behaviour changes — Suspense fallbacks are blank while a
 // chunk loads.
 const CommunityView = lazy(() => import('./components/CommunityView').then((m) => ({ default: m.CommunityView })));
@@ -20,9 +21,6 @@ const FaqView = lazy(() => import('./components/FaqView').then((m) => ({ default
 import { AuthScreen } from './components/AuthScreen';
 import { OAuthUsernameStep } from './components/OAuthUsernameStep';
 import { DashboardView, type DashboardTab } from './components/DashboardView';
-import { WorldView } from './components/WorldView';
-import { TorqueWorldView } from './components/TorqueWorldView';
-import { WorldWalledOff } from './components/WorldWalledOff';
 const CosmicCornerView = lazy(() => import('./components/CosmicCornerView').then((m) => ({ default: m.CosmicCornerView })));
 const HolidaysView = lazy(() => import('./components/HolidaysView').then((m) => ({ default: m.HolidaysView })));
 const TourGuideView = lazy(() => import('./components/TourGuideView').then((m) => ({ default: m.TourGuideView })));
@@ -712,15 +710,13 @@ export default function App() {
   // Folder-tab navigation: core sections as planner dividers.
   // Field hidden 2026-11-13 per Amber (FIELD_ENABLED=false) — a stale
   // 'field' tab falls through to 'daily' instead of a hidden tab.
-  // World walled off 2026-11-24 per Amber (WORLD_ENABLED=false) — the
-  // World tab stays visible, but tapping it shows the "Woman at work"
-  // placeholder instead of the world.
+  // World doors removed 2026-11-25 per Amber — the Clubhouse/world is a
+  // standalone Horizon game, separate from the app; no world tab remains.
   const activeSection: FolderSection =
     activeTab === 'wall' ? 'wall'
     : activeTab === 'inbox' ? 'dms'
     : activeTab === 'diagnostic' ? 'mei'
     : activeTab === 'field' && FIELD_ENABLED ? 'field'
-    : activeTab === 'torqueworld' ? 'world'
     : 'daily';
 
   const handleSelectSection = (s: FolderSection) => {
@@ -729,7 +725,6 @@ export default function App() {
       : s === 'dms' ? 'inbox'
       : s === 'mei' ? 'diagnostic'
       : s === 'field' ? (FIELD_ENABLED ? 'field' : 'dashboard')
-      : s === 'world' ? 'torqueworld'
       : 'dashboard',
     );
   };
@@ -742,11 +737,6 @@ export default function App() {
     { id: 'profile', label: 'Profile' },
     { id: 'settings', label: 'Settings' },
     { id: 'identity', label: 'Identity Base' },
-    // 2026-11-01 staged doorway (ungrouped → lands in the menu's MORE
-    // section): the Inbetween playtest world. Doorway only, not a sync.
-    // Walled off 2026-11-24 per Amber — lands on the "Woman at work"
-    // placeholder while WORLD_ENABLED is false.
-    { id: 'world', label: 'The Inbetween' },
     { id: 'frontmatter', label: 'FrontMatter' },
     { id: 'expansions', label: 'Expansions' },
     { id: 'faq', label: 'FAQ' },
@@ -1115,18 +1105,6 @@ export default function App() {
           {activeTab === 'field' && FIELD_ENABLED && (
             <FieldView />
           )}
-
-          {activeTab === 'world' && (WORLD_ENABLED ? (
-            <WorldView onBack={() => setActiveTab('dashboard')} />
-          ) : (
-            <WorldWalledOff onBack={() => setActiveTab('dashboard')} />
-          ))}
-
-          {activeTab === 'torqueworld' && (WORLD_ENABLED ? (
-            <TorqueWorldView onBack={() => setActiveTab('dashboard')} />
-          ) : (
-            <WorldWalledOff onBack={() => setActiveTab('dashboard')} />
-          ))}
 
           {activeTab === 'wall' && (
             <CommunityView user={user} myUserId={user.id} />
