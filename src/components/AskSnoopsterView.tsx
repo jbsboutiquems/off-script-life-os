@@ -24,7 +24,7 @@
 //   - Trial demo: the demo visitor has no account, so the chat is
 //     replaced with a sign-up note instead of failing sends.
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Volume2, Square } from 'lucide-react';
 import { api, AuthError } from '../services/api';
 import {
   AI_CONSENT_CHANGED_EVENT,
@@ -34,6 +34,7 @@ import {
   type AiConsentState,
 } from '../services/aiConsent';
 import { TRIAL_DEMO } from '../lib/trialDemo';
+import { isSpeechSupported, speakSnoopster, stopSnoopster } from '../lib/snoopsterVoice';
 
 // Snoopster's face — cropped from his own photo (public/snoopster.jpg).
 // BASE_URL so it resolves in the web build and the Capacitor mobile build.
@@ -60,6 +61,12 @@ export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tap-to-hear: which reply (by message index) is speaking right now.
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const [speechSupported] = useState(() => isSpeechSupported());
+  // Guards the onEnd/onError callbacks so a cancelled utterance can't
+  // clear the state of a newer one that started after it.
+  const speakTokenRef = useRef(0);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -76,6 +83,9 @@ export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, sending]);
+
+  // Stop any speech when the chat unmounts.
+  useEffect(() => () => stopSnoopster(), []);
 
   const send = async (rawText: string) => {
     const text = rawText.trim();
@@ -100,6 +110,26 @@ export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
     } finally {
       setSending(false);
       inputRef.current?.focus();
+    }
+  };
+
+  // Tap-to-hear: speak one Snoopster reply in his high, playful voice.
+  // Tapping the same reply stops it; tapping another stops the first
+  // and starts the new one. Never auto-plays — Snoopster only talks
+  // when asked.
+  const speak = (index: number, text: string) => {
+    if (speakingIndex === index) {
+      speakTokenRef.current += 1;
+      stopSnoopster();
+      setSpeakingIndex(null);
+      return;
+    }
+    const token = ++speakTokenRef.current;
+    const clear = () => {
+      if (speakTokenRef.current === token) setSpeakingIndex(null);
+    };
+    if (speakSnoopster(text, { onEnd: clear, onError: clear })) {
+      setSpeakingIndex(index);
     }
   };
 
@@ -188,8 +218,19 @@ export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
                 ) : (
                   <div key={i} className="flex items-start gap-2">
                     <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-7 w-7 shrink-0 rounded-lg object-cover mt-0.5 snoopster-avatar-happy" />
-                    <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-bl-sm bg-stone-100 dark:bg-white/5 text-stone-800 dark:text-stone-100 text-sm whitespace-pre-wrap break-words">
-                      {m.text}
+                    <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-bl-sm bg-stone-100 dark:bg-white/5 text-stone-800 dark:text-stone-100 text-sm">
+                      <div className="whitespace-pre-wrap break-words">{m.text}</div>
+                      {speechSupported && (
+                        <button
+                          type="button"
+                          onClick={() => speak(i, m.text)}
+                          aria-label={speakingIndex === i ? 'Stop Snoopster speaking' : 'Hear Snoopster say this'}
+                          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-[#0b6b8a] dark:text-[#60d0f8] hover:opacity-70"
+                        >
+                          {speakingIndex === i ? <Square className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                          {speakingIndex === i ? 'Stop' : 'Hear him say it'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ),
