@@ -26,6 +26,7 @@ const HolidaysView = lazy(() => import('./components/HolidaysView').then((m) => 
 const TourGuideView = lazy(() => import('./components/TourGuideView').then((m) => ({ default: m.TourGuideView })));
 const DailyOSView = lazy(() => import('./components/DailyOSView').then((m) => ({ default: m.DailyOSView })));
 const IntentCard = lazy(() => import('./components/IntentCard').then((m) => ({ default: m.IntentCard })));
+const AskMeiView = lazy(() => import('./components/AskMeiView').then((m) => ({ default: m.AskMeiView })));
 const Big6GoalsTracker = lazy(() => import('./components/Big6GoalsTracker').then((m) => ({ default: m.Big6GoalsTracker })));
 const IdentityProfileView = lazy(() => import('./components/IdentityProfileView').then((m) => ({ default: m.IdentityProfileView })));
 const ProfileView = lazy(() => import('./components/ProfileView').then((m) => ({ default: m.ProfileView })));
@@ -940,6 +941,12 @@ export default function App() {
                 buddy={buddy}
                 onEditBuddy={() => setBuddyCreatorOpen(true)}
               />
+
+              {/* Ask Mei — chat with the home-grown local engine. Lives here
+                  on the Intent screen (the 'mei' folder tab), where Mei
+                  already lives; no dashboard door, per the 2026-11-01
+                  red-X cleanup that took the Intent off the doors grid. */}
+              <AskMeiView userId={user.id} />
 
               {/* Quick Jump back to write notes */}
               <div className="bg-white dark:bg-[#02142e] border border-stone-300 dark:border-white/10 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
