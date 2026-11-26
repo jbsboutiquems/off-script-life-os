@@ -2,7 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BookOpen, Megaphone, Inbox, Sparkles, MapPin, Menu, X } from 'lucide-react';
 import { FIELD_ENABLED } from '../lib/fieldStaging';
 
-export type FolderSection = 'daily' | 'wall' | 'dms' | 'mei' | 'field';
+// Snoopster's face — same avatar as the chat screen.
+const SNOOPSTER_AVATAR = `${import.meta.env.BASE_URL}snoopster-avatar.jpg`;
+
+export type FolderSection = 'daily' | 'wall' | 'dms' | 'snoopster' | 'field';
 
 interface FolderTabsProps {
   activeSection: FolderSection;
@@ -16,11 +19,11 @@ interface FolderTabsProps {
   rightSlot?: React.ReactNode;
 }
 
-const FOLDERS: { id: FolderSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const FOLDERS: { id: FolderSection; label: string; icon: React.ComponentType<{ className?: string }>; avatar?: string }[] = [
   { id: 'daily', label: 'Daily', icon: BookOpen },
   { id: 'wall', label: 'Wall', icon: Megaphone },
   { id: 'dms', label: 'DMs', icon: Inbox },
-  { id: 'mei', label: 'Intent', icon: Sparkles },
+  { id: 'snoopster', label: 'Snoopster', icon: Sparkles, avatar: SNOOPSTER_AVATAR },
   { id: 'field', label: 'Field', icon: MapPin },
 ];
 
@@ -89,7 +92,7 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
     <div className="border-b-2 border-stone-200 dark:border-white/10 bg-cream-canvas/80 dark:bg-transparent print:hidden">
       <div className="relative" ref={menuRef}>
       <div className="max-w-7xl mx-auto px-2 sm:px-6 flex items-end gap-1 pt-2 overflow-x-auto scroll-smooth scroll-px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {visibleFolders.map(({ id, label, icon: Icon }) => {
+        {visibleFolders.map(({ id, label, icon: Icon, avatar }) => {
           const active = activeSection === id;
           return (
             <button
@@ -102,7 +105,9 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
                   : 'pb-2 bg-stone-200/70 dark:bg-white/5 text-stone-500 dark:text-stone-400 hover:bg-stone-300/70 dark:hover:bg-white/10 hover:text-stone-700 dark:hover:text-stone-200'
                 }`}
             >
-              <Icon className="w-4 h-4" />
+              {avatar
+                ? <img src={avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                : <Icon className="w-4 h-4" />}
               {label}
               {id === 'dms' && unreadCount > 0 && (
                 <span className={`ml-0.5 min-w-[20px] h-5 px-1 rounded-full text-[11px] font-black flex items-center justify-center ${active ? 'bg-white text-[#ea4798]' : 'bg-[#ea4798] text-white'}`}>

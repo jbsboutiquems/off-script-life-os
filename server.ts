@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import { smtpConfigured, baseUrl, sendMail, verificationEmail, resetEmail } from "./email";
 import { smsConfigured, normalizePhone, sendSms, generateSmsCode } from "./sms";
 import { computeDueReminders, type ReminderSettings } from "./src/lib/reminders";
-import { answerLocalMei, type LocalMeiContext } from "./src/lib/localMei";
+import { answerLocalSnoopster, type LocalSnoopsterContext } from "./src/lib/localSnoopster";
 import {
   worldCatalog,
   sanitizeWallPost,
@@ -100,39 +100,43 @@ interface UserData {
   /** pack/product id -> grant record. expires_at null = lifetime (pre-expiry QR grants). */
   userEntitlements: Record<string, { unlocked_at: string; expires_at: string | null }>;
   /**
-   * Ask Mei conversation history — per-user, stored in this server-side
+   * Ask Snoopster conversation history — per-user, stored in this server-side
    * data file only. Locked: users never touch the file, and the ONLY way
-   * to delete it is DELETE /api/mei/history from inside the app.
+   * to delete it is DELETE /api/snoopster/history from inside the app.
    */
-  meiHistory?: MeiTurn[];
+  snoopsterHistory?: SnoopsterTurn[];
 }
 
-/** One Ask Mei turn: what the user said + what the local engine answered. */
-interface MeiTurn {
+/** One Ask Snoopster turn: what the user said + what the local engine answered. */
+interface SnoopsterTurn {
   at: string;
   user: string;
-  mei: string;
+  snoopster: string;
 }
 
 /** Turns kept per user in the data file (pruned oldest-first on save). */
-const MEI_HISTORY_MAX_STORED = 100;
+const SNOOPSTER_HISTORY_MAX_STORED = 100;
 /** Turns passed to the engine as context on each new message. */
-const MEI_CONTEXT_TURNS = 20;
+const SNOOPSTER_CONTEXT_TURNS = 20;
 
-/** Validate + cap stored Mei history; bad or missing data becomes []. */
-function sanitizeMeiHistory(input: any): MeiTurn[] {
+/** Validate + cap stored Snoopster history; bad or missing data becomes []. */
+function sanitizeSnoopsterHistory(input: any): SnoopsterTurn[] {
   if (!Array.isArray(input)) return [];
-  const out: MeiTurn[] = [];
+  const out: SnoopsterTurn[] = [];
   for (const t of input) {
-    if (t && typeof t === "object" && typeof t.user === "string" && typeof t.mei === "string") {
+    // Accept the current `snoopster` field and the pre-rename `mei` field.
+    const reply = t && typeof t === "object"
+      ? (typeof t.snoopster === "string" ? t.snoopster : typeof t.mei === "string" ? t.mei : null)
+      : null;
+    if (t && typeof t === "object" && typeof t.user === "string" && reply !== null) {
       out.push({
         at: typeof t.at === "string" ? t.at : new Date().toISOString(),
         user: t.user.slice(0, 4000),
-        mei: t.mei.slice(0, 4000),
+        snoopster: reply.slice(0, 4000),
       });
     }
   }
-  return out.slice(-MEI_HISTORY_MAX_STORED);
+  return out.slice(-SNOOPSTER_HISTORY_MAX_STORED);
 }
 
 interface ExpansionProduct {
@@ -421,7 +425,7 @@ function freshUserData(userId: string, username: string): UserData {
     khaosPoints: [],
     flightCrew: [],
     userEntitlements: {},
-    meiHistory: []
+    snoopsterHistory: []
   };
 }
 
@@ -459,7 +463,7 @@ function normalizeUserData(input: any): UserData {
     khaosPoints,
     flightCrew: Array.isArray(d.flightCrew) ? d.flightCrew : [],
     userEntitlements: entitlements,
-    meiHistory: sanitizeMeiHistory(d.meiHistory)
+    snoopsterHistory: sanitizeSnoopsterHistory(d.snoopsterHistory ?? d.meiHistory)
   };
 }
 
@@ -543,7 +547,10 @@ function loadData(): DataStore {
         if (!store.worldSync || typeof store.worldSync !== "object") store.worldSync = {};
         for (const id of Object.keys(store.users)) {
           const u = (store.users as any)[id];
-          if (u && typeof u === "object") u.meiHistory = sanitizeMeiHistory(u.meiHistory);
+          if (u && typeof u === "object") {
+            u.snoopsterHistory = sanitizeSnoopsterHistory(u.snoopsterHistory ?? u.meiHistory);
+            delete u.meiHistory;
+          }
         }
         for (const a of store.accounts) if (typeof a.recoveryHash !== "string") a.recoveryHash = "";
         return store;
@@ -3092,7 +3099,7 @@ app.get("/api/world/inbox/threads/:partnerUsername", requireAuth, (req, res) => 
 // own user-chosen public words/tags (khaos_name, word_of_the_year, slogan
 // — the public persona in ProfileView). It NEVER returns the full
 // assessment, a live score, an alignment %, raw entries, snapshots, or
-// debrief text, and it NEVER calls /api/mei/* or Gemini. The $1/month
+// debrief text, and it NEVER calls /api/snoopster/* or Gemini. The $1/month
 // Intent viewer add-on (single alignment % for a PAYING viewer only) has
 // NO endpoint, NO metric, and NO owner-consent decision yet — so in v1
 // the world shows a paying viewer NOTHING of the assessment, exactly like
@@ -3172,8 +3179,8 @@ app.post("/api/world/inbox/messages", requireAuth, (req, res) => {
   res.json(sanitizeDmMessage(msg));
 });
 
-// ================= LOCAL MEI =================
-// Ask Mei runs on OUR OWN engine (src/lib/localMei.ts) — built 2026-11-25
+// ================= LOCAL SNOOPSTER =================
+// Ask Snoopster runs on OUR OWN engine (src/lib/localSnoopster.ts) — built 2026-11-25
 // per Amber: "Don't use theirs. We're not going to use them. They want
 // more than Google." The Messages Improved external API is gone: no
 // MEI_API_KEY / MEI_BOT_ID / MEI_ADMIN_EMAIL, no outside calls, no data
@@ -3185,7 +3192,7 @@ app.post("/api/world/inbox/messages", requireAuth, (req, res) => {
 // Build the local engine's context from the authed user's planner data.
 // Defensive throughout: missing data just means plainer replies, never a
 // crash. "Today" is America/Chicago, the user's timezone.
-function buildLocalMeiContext(ud: UserData): LocalMeiContext {
+function buildLocalSnoopsterContext(ud: UserData): LocalSnoopsterContext {
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date());
@@ -3202,12 +3209,12 @@ function buildLocalMeiContext(ud: UserData): LocalMeiContext {
   const user: any = ud.user || {};
   // Memory: the recent conversation, oldest first. The engine only gets
   // what the user actually said — it never invents past turns.
-  const history = Array.isArray(ud.meiHistory) ? ud.meiHistory : [];
+  const history = Array.isArray(ud.snoopsterHistory) ? ud.snoopsterHistory : [];
   return {
     username: user.username,
     khaosName: user.khaos_name,
     wordOfYear: user.word_of_the_year,
-    recentHistory: history.slice(-MEI_CONTEXT_TURNS).map((t) => ({ user: t.user, mei: t.mei })),
+    recentHistory: history.slice(-SNOOPSTER_CONTEXT_TURNS).map((t) => ({ user: t.user, snoopster: t.snoopster })),
     latestSnapshot: snap ? {
       detected_mood: snap.detected_mood,
       burnout_risk: snap.burnout_risk,
@@ -3230,55 +3237,55 @@ function buildLocalMeiContext(ud: UserData): LocalMeiContext {
   };
 }
 
-function requireMeiConsent(res: express.Response) {
+function requireSnoopsterConsent(res: express.Response) {
   return res.status(403).json({
-    error: "Mei needs your OK first — enable external-AI analysis in the app to let Mei read your messages.",
+    error: "Snoopster needs your OK first — enable external-AI analysis in the app to let Snoopster read your messages.",
     code: "AI_CONSENT_REQUIRED"
   });
 }
 
-// Ask Mei — the local engine answers. The wiring point for the Ask Mei
+// Ask Snoopster — the local engine answers. The wiring point for the Ask Snoopster
 // chat UI: POST the user's message, get a reply back.
-//   Request:  POST /api/mei/chat  { text: string }
+//   Request:  POST /api/snoopster/chat  { text: string }
 //   Response: { reply: string, source: "local" }
 //             403 { code: "AI_CONSENT_REQUIRED" }  → no external-AI consent
-//             502 { code: "MEI_UNAVAILABLE" }      → local engine errored
-app.post("/api/mei/chat", requireAuth, express.json(), async (req, res) => {
-  if (!aiConsentGranted(req)) return requireMeiConsent(res);
+//             502 { code: "SNOOPSTER_UNAVAILABLE" }      → local engine errored
+app.post("/api/snoopster/chat", requireAuth, express.json(), async (req, res) => {
+  if (!aiConsentGranted(req)) return requireSnoopsterConsent(res);
   const text = String(req.body?.text || "").trim();
   if (!text) return res.status(400).json({ error: "text is required." });
   if (text.length > 4000) return res.status(400).json({ error: "text is too long (max 4000 characters)." });
   try {
     const ar = req as AuthedRequest;
-    const { reply } = answerLocalMei(text, buildLocalMeiContext(ar.ud));
+    const { reply } = answerLocalSnoopster(text, buildLocalSnoopsterContext(ar.ud));
     // Memory: save this turn to the user's own history in the server-side
     // data file only — locked, never leaves this server. Prune oldest.
-    const history = Array.isArray(ar.ud.meiHistory) ? ar.ud.meiHistory : (ar.ud.meiHistory = []);
-    history.push({ at: new Date().toISOString(), user: text, mei: reply });
-    if (history.length > MEI_HISTORY_MAX_STORED) history.splice(0, history.length - MEI_HISTORY_MAX_STORED);
+    const history = Array.isArray(ar.ud.snoopsterHistory) ? ar.ud.snoopsterHistory : (ar.ud.snoopsterHistory = []);
+    history.push({ at: new Date().toISOString(), user: text, snoopster: reply });
+    if (history.length > SNOOPSTER_HISTORY_MAX_STORED) history.splice(0, history.length - SNOOPSTER_HISTORY_MAX_STORED);
     saveData(db);
     return res.json({ reply, source: "local" });
   } catch (err: any) {
-    console.error("Local Mei error:", err?.message || err);
-    return res.status(502).json({ error: "Mei is unreachable right now.", code: "MEI_UNAVAILABLE" });
+    console.error("Local Snoopster error:", err?.message || err);
+    return res.status(502).json({ error: "Snoopster is unreachable right now.", code: "SNOOPSTER_UNAVAILABLE" });
   }
 });
 
-// Delete your own Ask Mei history — the ONLY way to delete it. Same auth
+// Delete your own Ask Snoopster history — the ONLY way to delete it. Same auth
 // + AI-consent as chatting. Deletes only the requesting user's own
 // history; there is no admin override and no file access for users.
-app.delete("/api/mei/history", requireAuth, async (req, res) => {
-  if (!aiConsentGranted(req)) return requireMeiConsent(res);
+app.delete("/api/snoopster/history", requireAuth, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireSnoopsterConsent(res);
   const ar = req as AuthedRequest;
-  const deleted = Array.isArray(ar.ud.meiHistory) ? ar.ud.meiHistory.length : 0;
-  ar.ud.meiHistory = [];
+  const deleted = Array.isArray(ar.ud.snoopsterHistory) ? ar.ud.snoopsterHistory.length : 0;
+  ar.ud.snoopsterHistory = [];
   saveData(db);
   return res.json({ cleared: true, deleted });
 });
 
-// Ask Mei availability — the local engine is always available; there is no
+// Ask Snoopster availability — the local engine is always available; there is no
 // external service to configure anymore.
-app.get("/api/mei/status", requireAuth, (_req, res) => {
+app.get("/api/snoopster/status", requireAuth, (_req, res) => {
   res.json({ engine: "local", available: true });
 });
 
@@ -3457,7 +3464,7 @@ ${textToAnalyze}
     }
   }
 
-  // Local heuristic engine (fallback when neither Mei nor Gemini answers).
+  // Local heuristic engine (fallback when Gemini doesn't answer).
   const fallbackSnapshot = buildLocalDiagnosticSnapshot({ entry_date, evening_notes });
 
   ar.ud.personalitySnapshots.unshift(fallbackSnapshot);
@@ -3681,7 +3688,7 @@ ${threadBlocks}`;
 
 // ================= AI CONSENT (Google Gemini) =================
 // The remaining Gemini-backed routes (/api/diagnose and
-// /api/diagnose/interpersonal, plus the Mei handoff) require the client to
+// /api/diagnose/interpersonal, plus the Snoopster handoff) require the client to
 // send `X-AI-Consent: granted`. That header is only sent after the user
 // explicitly accepts the in-app Google Gemini consent screen. Without it
 // the call is refused and the client falls back to its non-Gemini behavior.

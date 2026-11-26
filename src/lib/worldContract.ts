@@ -282,13 +282,13 @@ export function worldCatalog() {
         "Account emails, account enumeration / user lists",
         "App Secrets, tokens, credentials",
         "Khaos Points, streaks, or unlocks (until a real, agreed sync defines them)",
-        "Intent assessment, live score, alignment %, raw entries/snapshots/debriefs, /api/mei/* internals, Gemini keys (never, in any payload)",
+        "Intent assessment, live score, alignment %, raw entries/snapshots/debriefs, /api/snoopster/* internals, Gemini keys (never, in any payload)",
       ],
       intent: {
         ownerSees: "Only their own user-chosen public words/tags (khaos_name, word_of_the_year, slogan) via GET /api/world/intent, owner-only, sync-enabled.",
         payingViewerSees: "NOTHING in v1. The $1/month Intent viewer % (single % only, never the full assessment) has no endpoint, no metric, and no owner-consent decision yet — do not fake a %.",
         nonPayingVisitorSees: "Nothing of the assessment, score, or %.",
-        never: "Full assessment, live score, entries, snapshots, debrief text, /api/mei/* internals, Gemini keys or fallback output.",
+        never: "Full assessment, live score, entries, snapshots, debrief text, /api/snoopster/* internals, Gemini keys or fallback output.",
       },
       entitlements: {
         endpoint: "GET /api/world/entitlements, owner-only, sync-enabled. Returns only the caller's own expansion grants: product_id, kind, title, price, days, owned, expired, expires_at, days_left.",

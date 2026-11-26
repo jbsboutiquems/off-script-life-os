@@ -1,10 +1,14 @@
-// ================= LOCAL MEI =================
-// The home-grown conversation engine behind Ask Mei. Built 2026-11-25 per
-// Amber: "Don't use theirs. We're not going to use them. They want more
-// than Google." The external Messages Improved API is GONE — this file IS
-// Mei now. No network calls, no keys, no outside service, no new
-// dependencies. Everything runs on this server from the user's own planner
-// data (latest personality snapshot, today's entry, recent entries, goals).
+// ================= LOCAL SNOOPSTER =================
+// The home-grown conversation engine behind Ask Snoopster. Built
+// 2026-11-25 as the local "Mei" (per Amber: "Don't use theirs. We're not
+// going to use them. They want more than Google.") and renamed 2026-11-26
+// per Amber: "Make it Snoopster." The external Messages Improved API is
+// GONE — this file IS Snoopster now. No network calls, no keys, no
+// outside service, no new dependencies. Everything runs on this server
+// from the user's own planner data (latest personality snapshot, today's
+// entry, recent entries, goals). Snoopster is Amber's chihuahua — white
+// fur, black eye patch, red collar — and his face is the chat avatar
+// (public/snoopster-avatar.jpg, cropped from his photo).
 //
 // How it works:
 //   1. The message is normalized and scored against a list of intents.
@@ -28,7 +32,7 @@
 //   - Memory: it keeps the recent conversation — the last 20 turns come in
 //     as context (up to 100 turns stored) — in the app's own server-side
 //     data file. Locked: never leaves the server, never sent anywhere, and
-//     deletable only from inside the app (Settings → Ask Mei). It never
+//     deletable only from inside the app (Settings → Ask Snoopster). It never
 //     claims to remember things it wasn't given, and it quotes past
 //     messages instead of paraphrasing them.
 //   - It never calls any outside service and never sends the user's words
@@ -37,7 +41,7 @@
 //     stays steady, reflects the user's own words, and offers the plain
 //     choice: keep talking or be left alone.
 
-export interface LocalMeiContext {
+export interface LocalSnoopsterContext {
   username?: string;
   khaosName?: string;
   wordOfYear?: string;
@@ -62,14 +66,14 @@ export interface LocalMeiContext {
   recentKhaosAvg?: number | null;
   openGoalCount?: number;
   /**
-   * Recent Ask Mei turns, oldest first, most recent last — the user's own
-   * words plus Mei's replies, from the server-side history. Only what the
+   * Recent Ask Snoopster turns, oldest first, most recent last — the user's own
+   * words plus Snoopster's replies, from the server-side history. Only what the
    * server passes in; never invented, never paraphrased as fact.
    */
-  recentHistory?: Array<{ user: string; mei: string }>;
+  recentHistory?: Array<{ user: string; snoopster: string }>;
 }
 
-export interface LocalMeiReply {
+export interface LocalSnoopsterReply {
   reply: string;
   intent: string;
 }
@@ -97,16 +101,16 @@ function chicagoNow(): Date {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Chicago" }));
 }
 
-function nameOf(ctx: LocalMeiContext): string {
+function nameOf(ctx: LocalSnoopsterContext): string {
   return (ctx.khaosName || ctx.username || "").trim();
 }
 
-function moodLine(ctx: LocalMeiContext): string {
+function moodLine(ctx: LocalSnoopsterContext): string {
   const m = ctx.latestSnapshot?.detected_mood;
   return m ? ` Last snapshot had you at "${m}".` : "";
 }
 
-function burnoutLine(ctx: LocalMeiContext): string {
+function burnoutLine(ctx: LocalSnoopsterContext): string {
   const b = ctx.latestSnapshot?.burnout_risk;
   if (b === "High" || b === "Critical") return ` Your last snapshot put burnout at ${b} — that's not a vibe, that's a bill coming due.`;
   if (b === "Moderate") return ` Burnout's sitting at Moderate — not a crisis, not nothing.`;
@@ -117,7 +121,7 @@ function burnoutLine(ctx: LocalMeiContext): string {
 // Concrete, slightly provocative, doable. The dare list is the engine's
 // "do-first" muscle: every stuck/plan/bored reply can pull one.
 
-export const LOCAL_MEI_DARES: readonly string[] = [
+export const LOCAL_SNOOPSTER_DARES: readonly string[] = [
   "Text one person you actually like and tell them one true thing.",
   "Do the smallest piece of the thing you're avoiding — two minutes, badly, then stop.",
   "Take a different route on your next errand, even if it's longer.",
@@ -145,7 +149,7 @@ export const LOCAL_MEI_DARES: readonly string[] = [
 ];
 
 function dareFor(seed: string): string {
-  return pick(LOCAL_MEI_DARES, seed);
+  return pick(LOCAL_SNOOPSTER_DARES, seed);
 }
 
 // ---------- sentiment (fallback tone only) ----------
@@ -194,7 +198,7 @@ const HISTORY_STOPWORDS = new Set([
 // Find the most recent earlier user message that shares a meaningful word
 // with the current message, and return a line quoting it. Null when the
 // message is genuinely new — never invent a connection.
-function continuityLine(norm: string, ctx: LocalMeiContext): string | null {
+function continuityLine(norm: string, ctx: LocalSnoopsterContext): string | null {
   const hist = ctx.recentHistory || [];
   if (!hist.length) return null;
   const words = norm.split(" ").filter((w) => w.length >= 5 && !HISTORY_STOPWORDS.has(w));
@@ -212,7 +216,7 @@ function continuityLine(norm: string, ctx: LocalMeiContext): string | null {
 // word boundaries so "planner" doesn't trip the "plan" intent, and "later"
 // alone doesn't trip "goodbye".
 
-type Ctx = LocalMeiContext;
+type Ctx = LocalSnoopsterContext;
 type ReplyFn = (c: Ctx, seed: string) => string;
 
 interface IntentDef {
@@ -224,9 +228,9 @@ interface IntentDef {
 const INTENTS: IntentDef[] = [
   {
     id: "whoAreYou",
-    patterns: [/\bwho are you\b/, /\bwhat are you\b/, /\bare you mei\b/, /\bare you ai\b/, /\bare you real\b/, /\bare you a robot\b/, /\bare you human\b/, /\bwhat is mei\b/],
+    patterns: [/\bwho are you\b/, /\bwhat are you\b/, /\bare you snoopster\b/, /\bwho is snoopster\b/, /\bare you ai\b/, /\bare you real\b/, /\bare you a robot\b/, /\bare you human\b/, /\bwhat is snoopster\b/],
     reply: () =>
-      "I'm the local Mei — home-grown, built into this app. No outside service, no data leaves this server. I'm pattern-matching, not a mind reader: I read the shape of what you say and answer from your own planner — your mood, your priorities, today's mission. I can't reason like the big models. I do keep our recent chats on this server so I can pick up threads — that's your history, locked in the app, and the only way to delete it is the button in Settings. What I can do: help you plan, push you when you're stuck, and tell you the truth without the pep talk.",
+      "I'm Snoopster — Amber's chihuahua, home-grown right into this app. No outside service, no data leaves this server. I'm pattern-matching, not a mind reader: I read the shape of what you say and answer from your own planner — your mood, your priorities, today's mission. I can't reason like the big models. I do keep our recent chats on this server so I can pick up threads — that's your history, locked in the app, and the only way to delete it is the button in Settings. What I can do: help you plan, push you when you're stuck, and tell you the truth without the pep talk. Oh — and hey, do you want to play?",
   },
   {
     id: "remember",
@@ -472,7 +476,7 @@ const FALLBACK_NEUTRAL: readonly string[] = [
  * when the server passes it in); no network, no side effects. Returns the
  * reply and the intent that won.
  */
-export function answerLocalMei(text: string, ctx: LocalMeiContext = {}): LocalMeiReply {
+export function answerLocalSnoopster(text: string, ctx: LocalSnoopsterContext = {}): LocalSnoopsterReply {
   const raw = (text || "").trim();
   const norm = normalize(raw);
   if (!norm) return { reply: "Say something first — even just one honest sentence.", intent: "empty" };

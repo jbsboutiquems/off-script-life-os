@@ -1,16 +1,18 @@
-// Ask Mei — the chat screen for the home-grown local Mei engine.
+// Ask Snoopster — the chat screen for the home-grown local Snoopster
+// engine (formerly "Mei", renamed 2026-11-26 per Amber: "Make it
+// Snoopster"). Snoopster is Amber's chihuahua — his face is the avatar.
 //
-// The chat lives on the Intent screen (the 'mei' folder tab), where Mei
-// already lives. The engine itself is fully local: messages go to
-// POST /api/mei/chat and the reply comes back from the app's own server —
-// nothing is sent to an outside AI.
+// The chat lives on the Intent screen (the 'snoopster' folder tab), where
+// Snoopster already lives. The engine itself is fully local: messages go
+// to POST /api/snoopster/chat and the reply comes back from the app's own
+// server — nothing is sent to an outside AI.
 //
-// Memory: the server keeps each user's recent turns (meiHistory) and
-// passes the last 20 to the engine, so Mei can pick up threads. There is
-// no GET endpoint for that history, so this screen shows the current
-// session only — and says plainly that Mei remembers, with a pointer to
-// Settings → Ask Mei history where the history can be cleared. Deletion
-// lives ONLY there.
+// Memory: the server keeps each user's recent turns (snoopsterHistory)
+// and passes the last 20 to the engine, so Snoopster can pick up threads.
+// There is no GET endpoint for that history, so this screen shows the
+// current session only — and says plainly that Snoopster remembers, with
+// a pointer to Settings → Ask Snoopster history where the history can be
+// cleared. Deletion lives ONLY there.
 //
 // Gates (existing flows, nothing invented):
 //   - AI consent (X-AI-Consent) is required server-side, so without it
@@ -22,7 +24,7 @@
 //   - Trial demo: the demo visitor has no account, so the chat is
 //     replaced with a sign-up note instead of failing sends.
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageSquareText, Send, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import { api, AuthError } from '../services/api';
 import {
   AI_CONSENT_CHANGED_EVENT,
@@ -33,8 +35,12 @@ import {
 } from '../services/aiConsent';
 import { TRIAL_DEMO } from '../lib/trialDemo';
 
+// Snoopster's face — cropped from his own photo (public/snoopster.jpg).
+// BASE_URL so it resolves in the web build and the Capacitor mobile build.
+const SNOOPSTER_AVATAR = `${import.meta.env.BASE_URL}snoopster-avatar.jpg`;
+
 interface ChatMessage {
-  role: 'user' | 'mei';
+  role: 'user' | 'snoopster';
   text: string;
 }
 
@@ -48,7 +54,7 @@ const STARTERS = [
   'Give me a dare',
 ];
 
-export const AskMeiView: React.FC<Props> = ({ userId }) => {
+export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
   const [consent, setConsent] = useState<AiConsentState>(() => getAiConsent(userId));
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -79,17 +85,17 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
     setMessages((prev) => [...prev, { role: 'user', text }]);
     setSending(true);
     try {
-      const out = await api.askMei(text);
+      const out = await api.askSnoopster(text);
       if (!out) {
-        setError('Mei couldn\'t answer that one — check your connection and try again.');
+        setError('Snoopster couldn\'t answer that one — check your connection and try again.');
         return;
       }
-      setMessages((prev) => [...prev, { role: 'mei', text: out.reply }]);
+      setMessages((prev) => [...prev, { role: 'snoopster', text: out.reply }]);
     } catch (e) {
       if (e instanceof AuthError) {
         setError('Your session ended — sign in again to keep chatting.');
       } else {
-        setError('Mei couldn\'t answer that one — check your connection and try again.');
+        setError('Snoopster couldn\'t answer that one — check your connection and try again.');
       }
     } finally {
       setSending(false);
@@ -100,21 +106,19 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
   return (
     <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-3xl p-5 sm:p-6 shadow-sm">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#ea4798] to-[#60d0f8] text-white">
-          <MessageSquareText className="w-5 h-5" />
-        </span>
+        <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
         <div>
           <div className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-rose-600">
-            Ask Mei · Chat
+            Ask Snoopster · Chat
           </div>
           <h3 className="text-lg font-bold font-serif-display text-slate-900 dark:text-cream-canvas">
-            Talk it out with Mei
+            Talk it out with Snoopster
           </h3>
           <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
-            Your own local Mei — pattern-matching, not a mind reader, and your
-            words never leave the app. Mei remembers your recent chats so it
-            can pick up threads; clear that memory anytime in Settings → Ask
-            Mei history.
+            Your own local Snoopster — pattern-matching, not a mind reader, and
+            your words never leave the app. Snoopster remembers your recent
+            chats so he can pick up threads; clear that memory anytime in
+            Settings → Ask Snoopster history.
           </p>
         </div>
       </div>
@@ -123,10 +127,10 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
         {TRIAL_DEMO ? (
           <div className="rounded-2xl border border-stone-300 dark:border-white/10 bg-stone-50 dark:bg-white/5 p-5 text-center">
             <p className="text-sm font-bold text-slate-900 dark:text-cream-canvas">
-              Ask Mei needs a free account.
+              Ask Snoopster needs a free account.
             </p>
             <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">
-              You&rsquo;re browsing the demo — chatting with Mei, and the memory
+              You&rsquo;re browsing the demo — chatting with Snoopster, and the memory
               that comes with it, lives on your own account. Sign up free and
               come back here.
             </p>
@@ -134,11 +138,11 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
         ) : consent !== 'granted' ? (
           <div className="rounded-2xl border border-stone-300 dark:border-white/10 bg-stone-50 dark:bg-white/5 p-5 text-center">
             <p className="text-sm font-bold text-slate-900 dark:text-cream-canvas">
-              {consent === 'declined' ? 'Ask Mei is off.' : 'One quick yes-or-no first.'}
+              {consent === 'declined' ? 'Ask Snoopster is off.' : 'One quick yes-or-no first.'}
             </p>
             <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">
               {consent === 'declined'
-                ? 'You said no to AI features, so Mei sits quietly. Change your mind anytime.'
+                ? 'You said no to AI features, so Snoopster sits quietly. Change your mind anytime.'
                 : 'Before you chat, the app asks once whether AI features are okay with you. Saying no is completely fine — the rest of the app works exactly the same.'}
             </p>
             <button
@@ -146,13 +150,13 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
               onClick={() => (consent === 'declined' ? reaskAiConsent(userId) : requestAiConsent())}
               className="mt-4 px-5 py-2.5 bg-gradient-to-r from-[#ea4798] to-[#60d0f8] hover:brightness-110 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
             >
-              {consent === 'declined' ? 'Turn Ask Mei on' : 'Decide'}
+              {consent === 'declined' ? 'Turn Ask Snoopster on' : 'Decide'}
             </button>
           </div>
         ) : (
           <>
             {/* Message list — this session only. Stored history lives
-                server-side and shapes Mei's replies; it is not fetched
+                server-side and shapes Snoopster's replies; it is not fetched
                 here (no GET endpoint by design). */}
             <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3">
               {messages.length === 0 && !sending && (
@@ -183,9 +187,7 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
                   </div>
                 ) : (
                   <div key={i} className="flex items-start gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#ea4798] to-[#60d0f8] text-white mt-0.5">
-                      <Sparkles className="w-4 h-4" />
-                    </span>
+                    <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-7 w-7 shrink-0 rounded-lg object-cover mt-0.5" />
                     <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-bl-sm bg-stone-100 dark:bg-white/5 text-stone-800 dark:text-stone-100 text-sm whitespace-pre-wrap break-words">
                       {m.text}
                     </div>
@@ -194,12 +196,10 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
               )}
               {sending && (
                 <div className="flex items-start gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#ea4798] to-[#60d0f8] text-white mt-0.5">
-                    <Sparkles className="w-4 h-4" />
-                  </span>
+                  <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-7 w-7 shrink-0 rounded-lg object-cover mt-0.5" />
                   <div className="px-4 py-2.5 rounded-2xl rounded-bl-sm bg-stone-100 dark:bg-white/5 text-sm text-stone-500 dark:text-stone-400 flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Mei is thinking…
+                    Snoopster is thinking…
                   </div>
                 </div>
               )}
@@ -231,7 +231,7 @@ export const AskMeiView: React.FC<Props> = ({ userId }) => {
                 }}
                 disabled={sending}
                 placeholder="Type a message…"
-                aria-label="Message Mei"
+                aria-label="Message Snoopster"
                 maxLength={2000}
                 className="flex-1 min-w-0 px-4 py-2.5 rounded-xl border-2 border-stone-300 dark:border-white/15 bg-white dark:bg-[#000a15] text-sm text-slate-900 dark:text-cream-canvas placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-[#60d0f8] disabled:opacity-50"
               />

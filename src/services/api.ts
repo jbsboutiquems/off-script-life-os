@@ -1193,13 +1193,13 @@ export const api = {
     return snapshot;
   },
 
-  // ---- Ask Mei (local engine) ----
-  // POST the user's message to the home-grown local Mei engine and get its
+  // ---- Ask Snoopster (local engine) ----
+  // POST the user's message to the home-grown local Snoopster engine and get its
   // reply back. Returns null when the user hasn't consented to AI analysis
   // or the call fails — the caller falls back to local behavior.
-  async askMei(text: string): Promise<{ reply: string; source: 'mei' | 'local' } | null> {
+  async askSnoopster(text: string): Promise<{ reply: string; source: 'snoopster' | 'local' } | null> {
     try {
-      const res = await req('/api/mei/chat', {
+      const res = await req('/api/snoopster/chat', {
         method: 'POST',
         headers: aiConsentHeaders(),
         body: JSON.stringify({ text })
@@ -1208,14 +1208,14 @@ export const api = {
       return null;
     } catch (e) {
       if (e instanceof AuthError) throw e;
-      console.warn('Ask Mei unavailable, falling back to local', e);
+      console.warn('Ask Snoopster unavailable, falling back to local', e);
       return null;
     }
   },
 
-  async meiConfigured(): Promise<boolean> {
+  async snoopsterConfigured(): Promise<boolean> {
     try {
-      const res = await req('/api/mei/status');
+      const res = await req('/api/snoopster/status');
       if (res.ok) {
         const body = await res.json();
         return body.available === true;
@@ -1226,16 +1226,16 @@ export const api = {
     return false;
   },
 
-  // Delete your own Ask Mei history — the only way to delete it. The
+  // Delete your own Ask Snoopster history — the only way to delete it. The
   // history lives in the app's server-side files; this is the one button
   // that clears it. Returns how many turns were cleared.
-  async clearMeiHistory(): Promise<{ cleared: boolean; deleted: number }> {
-    const res = await req('/api/mei/history', {
+  async clearSnoopsterHistory(): Promise<{ cleared: boolean; deleted: number }> {
+    const res = await req('/api/snoopster/history', {
       method: 'DELETE',
       headers: aiConsentHeaders(),
     });
     const body = await res.json().catch(() => ({} as any));
-    if (!res.ok) throw new Error(body.error || 'Could not clear Ask Mei history.');
+    if (!res.ok) throw new Error(body.error || 'Could not clear Ask Snoopster history.');
     return { cleared: body.cleared === true, deleted: typeof body.deleted === 'number' ? body.deleted : 0 };
   },
 
