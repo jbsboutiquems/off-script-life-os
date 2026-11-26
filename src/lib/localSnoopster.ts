@@ -8,7 +8,13 @@
 // from the user's own planner data (latest personality snapshot, today's
 // entry, recent entries, goals). Snoopster is Amber's chihuahua — white
 // fur, black eye patch, red collar — and his face is the chat avatar
-// (public/snoopster-avatar.jpg, cropped from his photo).
+// (public/snoopster-avatar.jpg, cropped from his photo). Personality
+// (per Amber 2026-11-26: "Make him nosey"): playful, direct, warm,
+// do-first — and nosey. He asks follow-ups, digs a little deeper, and
+// wants to know more, because he's curious and wants to play. Never
+// pushy, never interrogating — and never prying into grief or
+// survival-mode heaviness (the sad/survival replies stay steady and
+// restrained by design).
 //
 // How it works:
 //   1. The message is normalized and scored against a list of intents.
@@ -230,7 +236,7 @@ const INTENTS: IntentDef[] = [
     id: "whoAreYou",
     patterns: [/\bwho are you\b/, /\bwhat are you\b/, /\bare you snoopster\b/, /\bwho is snoopster\b/, /\bare you ai\b/, /\bare you real\b/, /\bare you a robot\b/, /\bare you human\b/, /\bwhat is snoopster\b/],
     reply: () =>
-      "I'm Snoopster — Amber's chihuahua, home-grown right into this app. No outside service, no data leaves this server. I'm pattern-matching, not a mind reader: I read the shape of what you say and answer from your own planner — your mood, your priorities, today's mission. I can't reason like the big models. I do keep our recent chats on this server so I can pick up threads — that's your history, locked in the app, and the only way to delete it is the button in Settings. What I can do: help you plan, push you when you're stuck, and tell you the truth without the pep talk. Oh — and hey, do you want to play?",
+      "I'm Snoopster — Amber's chihuahua, home-grown right into this app. No outside service, no data leaves this server. I'm pattern-matching, not a mind reader: I read the shape of what you say and answer from your own planner — your mood, your priorities, today's mission. I can't reason like the big models. I do keep our recent chats on this server so I can pick up threads — that's your history, locked in the app, and the only way to delete it is the button in Settings. What I can do: help you plan, push you when you're stuck, and tell you the truth without the pep talk. Oh — and hey, do you want to play? So — what are you up to today?",
   },
   {
     id: "remember",
@@ -268,9 +274,9 @@ const INTENTS: IntentDef[] = [
       if (t?.holiday_title || t?.holiday_adventure) {
         const title = t.holiday_title ? `Today's mission: ${t.holiday_title}. ` : "";
         const adv = t.holiday_adventure ? `${t.holiday_adventure} ` : "";
-        return `${title}${adv}Do-first order: lead task, then the adventure, then the soul questions. Start with the lead task — badly counts.`;
+        return `${title}${adv}Do-first order: lead task, then the adventure, then the soul questions. Start with the lead task — badly counts. What are you tackling first?`;
       }
-      return "No mission on the books for today. Make one: one lead task, one adventure, one soul question. That's the whole day — everything else is noise.";
+      return "No mission on the books for today. Make one: one lead task, one adventure, one soul question. That's the whole day — everything else is noise. So what would you actually want today to be about?";
     },
   },
   {
@@ -297,9 +303,9 @@ const INTENTS: IntentDef[] = [
       const p = c.todayEntry?.priorities?.filter(Boolean) || [];
       if (p.length) {
         const list = p.map((x, i) => `${i + 1}) ${x}`).join("\n");
-        return `Today's top ${p.length}:\n${list}\n\nDo-first order. Lead task first — start it badly if you have to, starting beats planning.`;
+        return `Today's top ${p.length}:\n${list}\n\nDo-first order. Lead task first — start it badly if you have to, starting beats planning. Which one are you starting with?`;
       }
-      return "No entry for today yet. Write your top 3 on today's page — lead task first, then the adventure, then one soul question. Then do the lead task. Planning without the doing is just a prettier way to stall.";
+      return "No entry for today yet. Write your top 3 on today's page — lead task first, then the adventure, then one soul question. Then do the lead task. Planning without the doing is just a prettier way to stall. So — what are your top 3? Tell me, I'll keep you honest about them.";
     },
   },
   {
@@ -307,8 +313,8 @@ const INTENTS: IntentDef[] = [
     patterns: [/\bpriorities\b/, /\btop 3\b/, /\bmost important\b/, /\bwhat matters most\b/, /\bwhat are my priorities\b/],
     reply: (c) => {
       const p = c.todayEntry?.priorities?.filter(Boolean) || [];
-      if (p.length) return `Your priorities today: ${p.join(" • ")}. Three max — that's the rule. If everything's a priority, nothing is.`;
-      return "No priorities set for today. Three max — lead task, adventure, soul question. Pick them, write them down, then do the first one.";
+      if (p.length) return `Your priorities today: ${p.join(" • ")}. Three max — that's the rule. If everything's a priority, nothing is. Which one matters most — the real one, not the loudest one?`;
+      return "No priorities set for today. Three max — lead task, adventure, soul question. Pick them, write them down, then do the first one. What are they? Tell me and I'll hold you to them.";
     },
   },
   {
@@ -339,7 +345,7 @@ const INTENTS: IntentDef[] = [
     id: "stuck",
     patterns: [/\bstuck\b/, /\bcan't start\b/, /\bcant start\b/, /\bcan't get going\b/, /\bprocrastinat/, /\bcan't focus\b/, /\bcant focus\b/, /\bcan't get myself to\b/],
     reply: (_c, seed) =>
-      `Stuck isn't a character flaw, it's a starting problem. Shrink it to a stupid-small first move — hands, not head. ${dareFor(seed)} Two minutes, badly. That's the whole assignment.`,
+      `Stuck isn't a character flaw, it's a starting problem. Shrink it to a stupid-small first move — hands, not head. ${dareFor(seed)} Two minutes, badly. That's the whole assignment. So — what's the thing you're circling? The real one, not the story about it.`,
   },
   {
     id: "overwhelmed",
@@ -347,7 +353,7 @@ const INTENTS: IntentDef[] = [
     reply: (c) => {
       const p = c.todayEntry?.priorities?.filter(Boolean) || [];
       const lead = p.length ? ` Your first priority today is "${p[0]}" — start there, nothing else.` : "";
-      return `Too much at once is a list problem, not a you problem. Dump it out — every thread — then circle ONE lead task. Just one. The rest waits.${lead}`;
+      return `Too much at once is a list problem, not a you problem. Dump it out — every thread — then circle ONE lead task. Just one. The rest waits.${lead} What's the loudest thread right now — the one actually screaming?`;
     },
   },
   {
@@ -381,14 +387,14 @@ const INTENTS: IntentDef[] = [
     id: "bored",
     patterns: [/\bbored\b/, /\bboring\b/, /\bboredom\b/, /\bnothing to do\b/, /\bnothing going on\b/],
     reply: (_c, seed) =>
-      `Boredom=Death — you know the slogan. Boredom is the signal, not the sentence. Break the script with one small thing: ${dareFor(seed)}`,
+      `Boredom=Death — you know the slogan. Boredom is the signal, not the sentence. Break the script with one small thing: ${dareFor(seed)} So what sounds fun — even a little? Tell me and we'll make it the plan.`,
   },
   {
     id: "motivation",
     patterns: [/\bmotivat/, /\binspire me\b/, /\bgive up\b/, /\bquitting\b/, /\bi quit\b/, /\bno point\b/, /\bwhat's the point\b/, /\bwhy bother\b/],
     reply: (c, seed) => {
       const w = c.wordOfYear ? ` Your word is ${c.wordOfYear}. What would ${c.wordOfYear} do right now?` : "";
-      return `Motivation is a myth that sells planners. You don't need to feel like it — you need a first move. ${dareFor(seed)} Do it badly. Done beats inspired.${w}`;
+      return `Motivation is a myth that sells planners. You don't need to feel like it — you need a first move. ${dareFor(seed)} Do it badly. Done beats inspired.${w} So what's the thing — the real goal, not the 'should'?`;
     },
   },
   {
@@ -417,14 +423,14 @@ const INTENTS: IntentDef[] = [
     id: "thanks",
     patterns: [/\bthank you\b/, /\bthanks\b/, /\bthx\b/, /\bappreciate you\b/],
     reply: (_c, seed) =>
-      pick(["Anytime. Go do the thing.", "You're welcome. Now go be off-script.", "Of course. One thing at a time."], `thanks:${seed}`),
+      pick(["Anytime. Go do the thing — and tell me how it goes.", "You're welcome. Now go be off-script. What are you tackling next?", "Of course. One thing at a time. What's the one thing?"], `thanks:${seed}`),
   },
   {
     id: "goodbye",
     patterns: [/\bgood ?night\b/, /\bgoodbye\b/, /\bbye\b/, /\bsee you\b/, /\bsee ya\b/, /\btalk later\b/, /\bgtg\b/],
     reply: (_c, seed) =>
       pick(
-        ["Later. The planner will be here when you are.", "Go rest. Tomorrow's page is blank until you write it.", "Okay. One thing at a time, whenever you're back."],
+        ["Later. So what did you actually get done today?", "Go rest. Tomorrow's page is blank until you write it — what are you putting on it?", "Okay. One thing at a time, whenever you're back. Tell me how it went."],
         `bye:${seed}`,
       ),
   },
@@ -432,7 +438,7 @@ const INTENTS: IntentDef[] = [
     id: "appHelp",
     patterns: [/\bhow does this app work\b/, /\bhow do i use\b/, /\bwhat can you do\b/, /\bwhat can i ask\b/, /\bhelp me\b/, /\bwhat is life os\b/, /\bwhat is off ?script\b/, /\bhow do i\b/],
     reply: () =>
-      "Here's what I can do: help you plan the day, give you a dare, check your audit, talk through what's stuck. Ask me about today, your mission, your priorities — or just tell me what's on your mind. I run entirely inside the app — nothing you say leaves this server.",
+      "Here's what I can do: help you plan the day, give you a dare, check your audit, talk through what's stuck. Ask me about today, your mission, your priorities — or just tell me what's on your mind. I run entirely inside the app — nothing you say leaves this server. So what do you want to do first?",
   },
   {
     id: "planner",
@@ -444,7 +450,7 @@ const INTENTS: IntentDef[] = [
     id: "shortAck",
     patterns: [/^(ok|okay|yeah|yes|yep|no|nope|lol|haha|hmm|k|cool|nice|alright|right|got it|i see)\.?$/],
     reply: (_c, seed) =>
-      pick(["Mm-hm.", "Got it. What's next?", "Alright. One thing at a time.", "Okay — say more when you're ready."], `ack:${seed}`),
+      pick(["Mm-hm. And then what?", "Got it. What's next — the real next thing?", "Alright. One thing at a time. What's the thing?", "Okay — say more when you're ready. I'm listening."], `ack:${seed}`),
   },
 ];
 
@@ -460,12 +466,14 @@ const FALLBACK_POSITIVE: readonly string[] = [
   "Good. What's making today work?",
   "Nice — hold onto that. What's next on the page?",
   "Love to hear it. What are you doing with that energy?",
+  "Good. So what's the story behind it?",
 ];
 
 const FALLBACK_NEUTRAL: readonly string[] = [
   "Say more — I work best with the real version, not the short version. What's actually going on?",
   "Got it. What do you want from me on this — a plan, a push, or just to talk it out?",
   "Hmm. Give me one more sentence — the honest one.",
+  "I'm nosey — what's the part you're not saying yet?",
 ];
 
 // ---------- main entry ----------
