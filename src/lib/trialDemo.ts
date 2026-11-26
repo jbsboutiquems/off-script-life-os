@@ -23,7 +23,7 @@ export const TRIAL_DEMO: boolean = (import.meta as any).env?.VITE_TRIAL_DEMO ===
  * the Facebook Page "Learn More" buttons and the marketing site use.
  */
 export const APK_DOWNLOAD_URL =
-  'https://github.com/jbsboutiquems/off-script-life-os/releases/latest/download/app-release.apk';
+  'https://github.com/jbsboutiquems/off-script-life-os/releases/latest/download/OffScript-LifeOS-latest.apk';
 
 export const TRIAL_DOWNLOAD_PROMPT_EVENT = 'offscript:trial-download-prompt';
 
