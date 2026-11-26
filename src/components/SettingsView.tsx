@@ -17,7 +17,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { api } from '../services/api';
-import { ShieldAlert, Mail, KeyRound, Smartphone, BadgeCheck } from 'lucide-react';
+import { ShieldAlert, Mail, KeyRound, Smartphone, BadgeCheck, MessageSquareText } from 'lucide-react';
 
 interface SettingsViewProps {
   user: UserProfile;
@@ -69,6 +69,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user }) => {
 
   // Phone
   const [phone, setPhone] = useState('');
+
+  // Ask Mei history — deletion lives ONLY here. The history is stored in
+  // the app's own server-side files (locked, never leaves the server) and
+  // this button is the one way to clear it. Two taps on purpose.
+  const [meiClearArmed, setMeiClearArmed] = useState(false);
+  const [meiClearBusy, setMeiClearBusy] = useState(false);
+  const clearMeiHistory = async () => {
+    setMsg(null); setErr(null);
+    if (!meiClearArmed) { setMeiClearArmed(true); return; }
+    setMeiClearBusy(true);
+    try {
+      const out = await api.clearMeiHistory();
+      setMsg(out.deleted > 0
+        ? `Ask Mei history cleared — ${out.deleted} message${out.deleted === 1 ? '' : 's'} deleted. It starts fresh from here.`
+        : 'Ask Mei history was already empty — nothing to delete.');
+      setMeiClearArmed(false);
+    } catch (e: any) { setErr(e.message || 'Could not clear Ask Mei history.'); }
+    finally { setMeiClearBusy(false); }
+  };
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [phoneLoaded, setPhoneLoaded] = useState(false);
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
@@ -190,6 +209,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user }) => {
         ) : (
           <p className="text-xs text-stone-400 font-mono-code">Loading phone status…</p>
         )}
+      </section>
+
+      {/* Ask Mei history */}
+      <section className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 space-y-3">
+        <h3 className="font-bold text-sm uppercase flex items-center gap-2"><MessageSquareText className="w-4 h-4 text-rose-600" /> Ask Mei history</h3>
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          Ask Mei remembers your recent chats so it can pick up threads. That
+          history lives in the app&apos;s own server-side files — locked, never
+          leaves the server — and this button is the only way to delete it.
+          Clearing it is permanent and starts Mei fresh.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={clearMeiHistory} disabled={meiClearBusy}
+            className={`px-4 py-2 text-white text-xs font-bold rounded-xl disabled:opacity-50 ${meiClearArmed ? 'bg-rose-700 hover:bg-rose-600' : 'bg-slate-900 hover:bg-black'}`}>
+            {meiClearBusy ? 'Clearing…' : meiClearArmed ? 'Tap again to delete all Ask Mei history' : 'Clear Ask Mei history'}
+          </button>
+          {meiClearArmed && !meiClearBusy && (
+            <button type="button" onClick={() => setMeiClearArmed(false)}
+              className="px-3 py-2 text-xs font-bold text-stone-600 dark:text-stone-300 underline">
+              Never mind
+            </button>
+          )}
+        </div>
       </section>
 
       {/* Contact */}

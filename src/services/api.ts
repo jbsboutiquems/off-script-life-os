@@ -1226,6 +1226,19 @@ export const api = {
     return false;
   },
 
+  // Delete your own Ask Mei history — the only way to delete it. The
+  // history lives in the app's server-side files; this is the one button
+  // that clears it. Returns how many turns were cleared.
+  async clearMeiHistory(): Promise<{ cleared: boolean; deleted: number }> {
+    const res = await req('/api/mei/history', {
+      method: 'DELETE',
+      headers: aiConsentHeaders(),
+    });
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) throw new Error(body.error || 'Could not clear Ask Mei history.');
+    return { cleared: body.cleared === true, deleted: typeof body.deleted === 'number' ? body.deleted : 0 };
+  },
+
   async getSnapshots(): Promise<PersonalitySnapshot[]> {
     try {
       const res = await req('/api/snapshots');

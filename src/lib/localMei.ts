@@ -24,8 +24,13 @@
 //
 // Honest limits (stated when asked, never pretended otherwise):
 //   - It matches patterns; it does not understand like a model. It can't
-//     reason about things it has no pattern for, and it has no memory of
-//     past chats — each message is answered fresh from the planner data.
+//     reason about things it has no pattern for.
+//   - Memory: it keeps the recent conversation — the last 20 turns come in
+//     as context (up to 100 turns stored) — in the app's own server-side
+//     data file. Locked: never leaves the server, never sent anywhere, and
+//     deletable only from inside the app (Settings → Ask Mei). It never
+//     claims to remember things it wasn't given, and it quotes past
+//     messages instead of paraphrasing them.
 //   - It never calls any outside service and never sends the user's words
 //     anywhere. What you type stays on this server.
 //   - It is not a therapist, doctor, or crisis line. For heavy stuff it
@@ -56,6 +61,12 @@ export interface LocalMeiContext {
   /** Average khaos score (1-10) across recent entries, when available. */
   recentKhaosAvg?: number | null;
   openGoalCount?: number;
+  /**
+   * Recent Ask Mei turns, oldest first, most recent last — the user's own
+   * words plus Mei's replies, from the server-side history. Only what the
+   * server passes in; never invented, never paraphrased as fact.
+   */
+  recentHistory?: Array<{ user: string; mei: string }>;
 }
 
 export interface LocalMeiReply {
@@ -155,6 +166,47 @@ function sentiment(text: string): "positive" | "negative" | "neutral" {
   return "neutral";
 }
 
+// ---------- memory helpers ----------
+// History is quoted, never paraphrased as fact — the engine only knows
+// what the server passed in, and it says so when there's nothing there.
+
+function excerpt(s: string, max = 120): string {
+  const t = (s || "").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 40 ? cut.slice(0, lastSpace) : cut) + "…";
+}
+
+// Words too generic to prove two messages are about the same thing.
+const HISTORY_STOPWORDS = new Set([
+  "about", "really", "today", "going", "think", "thing", "things", "would",
+  "could", "should", "there", "their", "this", "that", "with", "from",
+  "when", "what", "want", "need", "feel", "feeling", "just", "like",
+  "know", "said", "says", "told", "tell", "again", "before", "after",
+  "other", "some", "more", "much", "many", "very", "been", "were",
+  "your", "yours", "mine", "ours", "them", "they", "then", "than",
+  "also", "into", "over", "under", "while", "which", "where", "does",
+  "doing", "done", "have", "has", "had", "will", "can't", "cant",
+  "don't", "dont", "it's", "maybe", "probably", "actually", "stuff",
+]);
+
+// Find the most recent earlier user message that shares a meaningful word
+// with the current message, and return a line quoting it. Null when the
+// message is genuinely new — never invent a connection.
+function continuityLine(norm: string, ctx: LocalMeiContext): string | null {
+  const hist = ctx.recentHistory || [];
+  if (!hist.length) return null;
+  const words = norm.split(" ").filter((w) => w.length >= 5 && !HISTORY_STOPWORDS.has(w));
+  if (!words.length) return null;
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const prior = normalize(hist[i].user);
+    const hit = words.find((w) => new RegExp(`\\b${w}\\b`).test(prior));
+    if (hit) return `That connects to what you said before: "${excerpt(hist[i].user)}" `;
+  }
+  return null;
+}
+
 // ---------- intents ----------
 // Listed most-specific first: ties go to the earlier intent. Patterns use
 // word boundaries so "planner" doesn't trip the "plan" intent, and "later"
@@ -174,7 +226,20 @@ const INTENTS: IntentDef[] = [
     id: "whoAreYou",
     patterns: [/\bwho are you\b/, /\bwhat are you\b/, /\bare you mei\b/, /\bare you ai\b/, /\bare you real\b/, /\bare you a robot\b/, /\bare you human\b/, /\bwhat is mei\b/],
     reply: () =>
-      "I'm the local Mei — home-grown, built into this app. No outside service, no data leaves this server. I'm pattern-matching, not a mind reader: I read the shape of what you say and answer from your own planner — your mood, your priorities, today's mission. I can't reason like the big models, and I don't remember past chats. What I can do: help you plan, push you when you're stuck, and tell you the truth without the pep talk.",
+      "I'm the local Mei — home-grown, built into this app. No outside service, no data leaves this server. I'm pattern-matching, not a mind reader: I read the shape of what you say and answer from your own planner — your mood, your priorities, today's mission. I can't reason like the big models. I do keep our recent chats on this server so I can pick up threads — that's your history, locked in the app, and the only way to delete it is the button in Settings. What I can do: help you plan, push you when you're stuck, and tell you the truth without the pep talk.",
+  },
+  {
+    id: "remember",
+    patterns: [/\bdo you remember\b/, /\bwhat did i say\b/, /\bwhat did i tell you\b/, /\bwhat did we talk about\b/, /\bwhat were we talking about\b/, /\byou remember\b/, /\bearlier i said\b/, /\blast time\b/, /\bremember what i\b/, /\bwhat did i mention\b/],
+    reply: (c) => {
+      const h = c.recentHistory || [];
+      if (!h.length) return "I don't have anything saved from before — looks like this is our first chat. When we talk, I keep it on this server so I can pick up threads, and you can wipe it from Settings whenever you want. Only from there — that's the only way to delete it.";
+      const last = h[h.length - 1];
+      const prev = h.length > 1 ? h[h.length - 2] : null;
+      let s = `Last thing you said to me: "${excerpt(last.user)}"`;
+      if (prev) s += ` Before that: "${excerpt(prev.user)}"`;
+      return `${s} Want to pick one of those back up, or start fresh?`;
+    },
   },
   {
     id: "datetime",
@@ -329,14 +394,13 @@ const INTENTS: IntentDef[] = [
       const n = nameOf(c);
       const hour = chicagoNow().getHours();
       const part = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-      return pick(
-        [
-          `Hey${n ? ` ${n}` : ""}. What's actually on your mind?`,
-          `Good ${part}. One thing at a time — what's first?`,
-          `Hey. I'm here. What do you need — a plan, a push, or just to talk it out?`,
-        ],
-        `greet:${part}:${n}`,
-      );
+      const variants = [
+        `Hey${n ? ` ${n}` : ""}. What's actually on your mind?`,
+        `Good ${part}. One thing at a time — what's first?`,
+        `Hey. I'm here. What do you need — a plan, a push, or just to talk it out?`,
+      ];
+      if ((c.recentHistory || []).length) variants.push(`Hey again. Pick up where you left off — what's on your mind?`);
+      return pick(variants, `greet:${part}:${n}`);
     },
   },
   {
@@ -404,8 +468,9 @@ const FALLBACK_NEUTRAL: readonly string[] = [
 
 /**
  * Answer one user message with the local engine. Pure function of the
- * message + the user's planner context; no network, no stored chat
- * history, no side effects. Returns the reply and the intent that won.
+ * message + the user's planner context (including recent chat history,
+ * when the server passes it in); no network, no side effects. Returns the
+ * reply and the intent that won.
  */
 export function answerLocalMei(text: string, ctx: LocalMeiContext = {}): LocalMeiReply {
   const raw = (text || "").trim();
@@ -440,5 +505,8 @@ export function answerLocalMei(text: string, ctx: LocalMeiContext = {}): LocalMe
 
   const s = sentiment(norm);
   const pool = s === "negative" ? FALLBACK_NEGATIVE : s === "positive" ? FALLBACK_POSITIVE : FALLBACK_NEUTRAL;
-  return { reply: pick(pool, norm), intent: "fallback" };
+  // Continuity: if the message is about something from an earlier turn,
+  // say so by quoting it — never by inventing a link.
+  const cont = continuityLine(norm, ctx);
+  return { reply: (cont || "") + pick(pool, norm), intent: "fallback" };
 }

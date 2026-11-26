@@ -99,6 +99,40 @@ interface UserData {
   flightCrew: any[];
   /** pack/product id -> grant record. expires_at null = lifetime (pre-expiry QR grants). */
   userEntitlements: Record<string, { unlocked_at: string; expires_at: string | null }>;
+  /**
+   * Ask Mei conversation history — per-user, stored in this server-side
+   * data file only. Locked: users never touch the file, and the ONLY way
+   * to delete it is DELETE /api/mei/history from inside the app.
+   */
+  meiHistory?: MeiTurn[];
+}
+
+/** One Ask Mei turn: what the user said + what the local engine answered. */
+interface MeiTurn {
+  at: string;
+  user: string;
+  mei: string;
+}
+
+/** Turns kept per user in the data file (pruned oldest-first on save). */
+const MEI_HISTORY_MAX_STORED = 100;
+/** Turns passed to the engine as context on each new message. */
+const MEI_CONTEXT_TURNS = 20;
+
+/** Validate + cap stored Mei history; bad or missing data becomes []. */
+function sanitizeMeiHistory(input: any): MeiTurn[] {
+  if (!Array.isArray(input)) return [];
+  const out: MeiTurn[] = [];
+  for (const t of input) {
+    if (t && typeof t === "object" && typeof t.user === "string" && typeof t.mei === "string") {
+      out.push({
+        at: typeof t.at === "string" ? t.at : new Date().toISOString(),
+        user: t.user.slice(0, 4000),
+        mei: t.mei.slice(0, 4000),
+      });
+    }
+  }
+  return out.slice(-MEI_HISTORY_MAX_STORED);
 }
 
 interface ExpansionProduct {
@@ -386,7 +420,8 @@ function freshUserData(userId: string, username: string): UserData {
     moneyMaps: {},
     khaosPoints: [],
     flightCrew: [],
-    userEntitlements: {}
+    userEntitlements: {},
+    meiHistory: []
   };
 }
 
@@ -423,7 +458,8 @@ function normalizeUserData(input: any): UserData {
     moneyMaps: d.moneyMaps && typeof d.moneyMaps === "object" ? d.moneyMaps : {},
     khaosPoints,
     flightCrew: Array.isArray(d.flightCrew) ? d.flightCrew : [],
-    userEntitlements: entitlements
+    userEntitlements: entitlements,
+    meiHistory: sanitizeMeiHistory(d.meiHistory)
   };
 }
 
@@ -505,6 +541,10 @@ function loadData(): DataStore {
         if (!store.fieldPresence || typeof store.fieldPresence !== "object") store.fieldPresence = {};
         if (!store.fieldGames || typeof store.fieldGames !== "object") store.fieldGames = {};
         if (!store.worldSync || typeof store.worldSync !== "object") store.worldSync = {};
+        for (const id of Object.keys(store.users)) {
+          const u = (store.users as any)[id];
+          if (u && typeof u === "object") u.meiHistory = sanitizeMeiHistory(u.meiHistory);
+        }
         for (const a of store.accounts) if (typeof a.recoveryHash !== "string") a.recoveryHash = "";
         return store;
       }
@@ -3160,10 +3200,14 @@ function buildLocalMeiContext(ud: UserData): LocalMeiContext {
     : null;
   const snap = (ud.personalitySnapshots || [])[0] || null;
   const user: any = ud.user || {};
+  // Memory: the recent conversation, oldest first. The engine only gets
+  // what the user actually said — it never invents past turns.
+  const history = Array.isArray(ud.meiHistory) ? ud.meiHistory : [];
   return {
     username: user.username,
     khaosName: user.khaos_name,
     wordOfYear: user.word_of_the_year,
+    recentHistory: history.slice(-MEI_CONTEXT_TURNS).map((t) => ({ user: t.user, mei: t.mei })),
     latestSnapshot: snap ? {
       detected_mood: snap.detected_mood,
       burnout_risk: snap.burnout_risk,
@@ -3207,11 +3251,29 @@ app.post("/api/mei/chat", requireAuth, express.json(), async (req, res) => {
   try {
     const ar = req as AuthedRequest;
     const { reply } = answerLocalMei(text, buildLocalMeiContext(ar.ud));
+    // Memory: save this turn to the user's own history in the server-side
+    // data file only — locked, never leaves this server. Prune oldest.
+    const history = Array.isArray(ar.ud.meiHistory) ? ar.ud.meiHistory : (ar.ud.meiHistory = []);
+    history.push({ at: new Date().toISOString(), user: text, mei: reply });
+    if (history.length > MEI_HISTORY_MAX_STORED) history.splice(0, history.length - MEI_HISTORY_MAX_STORED);
+    saveData(db);
     return res.json({ reply, source: "local" });
   } catch (err: any) {
     console.error("Local Mei error:", err?.message || err);
     return res.status(502).json({ error: "Mei is unreachable right now.", code: "MEI_UNAVAILABLE" });
   }
+});
+
+// Delete your own Ask Mei history — the ONLY way to delete it. Same auth
+// + AI-consent as chatting. Deletes only the requesting user's own
+// history; there is no admin override and no file access for users.
+app.delete("/api/mei/history", requireAuth, async (req, res) => {
+  if (!aiConsentGranted(req)) return requireMeiConsent(res);
+  const ar = req as AuthedRequest;
+  const deleted = Array.isArray(ar.ud.meiHistory) ? ar.ud.meiHistory.length : 0;
+  ar.ud.meiHistory = [];
+  saveData(db);
+  return res.json({ cleared: true, deleted });
 });
 
 // Ask Mei availability — the local engine is always available; there is no
