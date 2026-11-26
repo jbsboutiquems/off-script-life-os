@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { smtpConfigured, baseUrl, sendMail, verificationEmail, resetEmail } from "./email";
 import { smsConfigured, normalizePhone, sendSms, generateSmsCode } from "./sms";
 import { computeDueReminders, type ReminderSettings } from "./src/lib/reminders";
+import { answerLocalMei, type LocalMeiContext } from "./src/lib/localMei";
 import {
   worldCatalog,
   sanitizeWallPost,
@@ -1823,10 +1824,10 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 // OS-003: was a hardcoded constant pointing at an old debug APK. Now
 // overridable via env so a release never ships stale pointers:
 // LATEST_APK_VERSION_CODE / LATEST_APK_URL. Fallbacks keep today's behavior.
-const LATEST_APK_VERSION_CODE = Number(process.env.LATEST_APK_VERSION_CODE || "5");
+const LATEST_APK_VERSION_CODE = Number(process.env.LATEST_APK_VERSION_CODE || "6");
 const LATEST_APK_URL =
   process.env.LATEST_APK_URL ||
-  "https://github.com/jbsboutiquems/off-script-life-os/releases/download/apk-test-build-2026-10-07/OffScript-LifeOS-app-debug-latest.apk";
+  "https://github.com/jbsboutiquems/off-script-life-os/releases/latest/download/OffScript-LifeOS-latest.apk";
 
 app.get("/api/app-version", (_req, res) => {
   res.json({ versionCode: LATEST_APK_VERSION_CODE, url: LATEST_APK_URL });
@@ -3131,46 +3132,58 @@ app.post("/api/world/inbox/messages", requireAuth, (req, res) => {
   res.json(sanitizeDmMessage(msg));
 });
 
-// ================= LIVE MEI (MESSAGES IMPROVED) =================
-// The app's own Mei bot, live over the Messages Improved conversation API.
-// Docs: https://www.messagesimproved.com/api (v2.1, 70+ endpoints).
-//
-// Contract (from the official docs — build only what they support):
-//   POST https://bot.messagesimproved.com/conversation_api
-//        ?input=<user text>&bot=<BOT_ID>&creator=<admin email>&api_key=<key>
-//   Auth is the API key + the bot's admin email (the "creator"). Access is
-//   NOT granted merely by knowing a bot ID — the key is required.
-//   Get the key in the Messages Improved dashboard: any bot's settings ->
-//   "Generate API Key". Free to start.
-//   The response shape is NOT published in the public docs, so the reply is
-//   extracted tolerantly (see extractMeiReply); if nothing parses, the call
-//   is treated as unavailable and the caller falls back to the local engine.
-//   Confirm the exact response field on the first live call with a real key.
-//
-// Config (all three required; never hardcode a key or bot ID):
-//   MEI_API_KEY     — the sk-... key from the bot's settings
-//   MEI_BOT_ID      — the bot ID (Amber's "User Defined" bot)
-//   MEI_ADMIN_EMAIL — the Messages Improved account email (the "creator")
-//   MEI_API_BASE    — optional override of the conversation host (dev/stub
-//                     testing only; defaults to the real host).
+// ================= LOCAL MEI =================
+// Ask Mei runs on OUR OWN engine (src/lib/localMei.ts) — built 2026-11-25
+// per Amber: "Don't use theirs. We're not going to use them. They want
+// more than Google." The Messages Improved external API is gone: no
+// MEI_API_KEY / MEI_BOT_ID / MEI_ADMIN_EMAIL, no outside calls, no data
+// leaves this server. The engine answers from the user's own planner data
+// (latest snapshot, today's entry, recent entries, goals) with local
+// intent matching. Route names, auth, AI-consent, and the 18+ age gate
+// are unchanged — only the implementation behind them is local now.
 
-const MEI_API_BASE = (process.env.MEI_API_BASE || "https://bot.messagesimproved.com").replace(/\/$/, "");
-
-interface MeiConfig { apiKey: string; botId: string; adminEmail: string; }
-
-function getMeiConfig(): MeiConfig | null {
-  const apiKey = (process.env.MEI_API_KEY || "").trim();
-  const botId = (process.env.MEI_BOT_ID || "").trim();
-  const adminEmail = (process.env.MEI_ADMIN_EMAIL || "").trim();
-  if (!apiKey || !botId || !adminEmail) return null;
-  return { apiKey, botId, adminEmail };
-}
-
-function meiNotConfigured(res: express.Response) {
-  return res.status(503).json({
-    error: "Mei isn't configured on this server yet — no MEI_API_KEY / MEI_BOT_ID / MEI_ADMIN_EMAIL. Ask Mei stays on the local engine until they're set up.",
-    code: "MEI_NOT_CONFIGURED"
-  });
+// Build the local engine's context from the authed user's planner data.
+// Defensive throughout: missing data just means plainer replies, never a
+// crash. "Today" is America/Chicago, the user's timezone.
+function buildLocalMeiContext(ud: UserData): LocalMeiContext {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const entries = ud.dailyEntries || {};
+  const todayEntry = entries[today] || null;
+  const recent = Object.values(entries)
+    .filter((e: any) => e && typeof e.khaos_score === "number")
+    .sort((a: any, b: any) => String(b.entry_date || "").localeCompare(String(a.entry_date || "")))
+    .slice(0, 7);
+  const recentKhaosAvg = recent.length
+    ? recent.reduce((s: number, e: any) => s + e.khaos_score, 0) / recent.length
+    : null;
+  const snap = (ud.personalitySnapshots || [])[0] || null;
+  const user: any = ud.user || {};
+  return {
+    username: user.username,
+    khaosName: user.khaos_name,
+    wordOfYear: user.word_of_the_year,
+    latestSnapshot: snap ? {
+      detected_mood: snap.detected_mood,
+      burnout_risk: snap.burnout_risk,
+      micro_dare: snap.micro_dare,
+      contradiction_callout: snap.contradiction_callout,
+      observed_word: snap.observed_word,
+    } : null,
+    todayEntry: todayEntry ? {
+      entry_date: todayEntry.entry_date,
+      morning_intention: todayEntry.morning_intention,
+      today_i_am: todayEntry.today_i_am,
+      priorities: Array.isArray(todayEntry.priorities) ? todayEntry.priorities : undefined,
+      midday_checkin: todayEntry.midday_checkin,
+      khaos_score: todayEntry.khaos_score,
+      holiday_title: todayEntry.holiday_title,
+      holiday_adventure: todayEntry.holiday_adventure,
+    } : null,
+    recentKhaosAvg,
+    openGoalCount: (ud.goals || []).length,
+  };
 }
 
 function requireMeiConsent(res: express.Response) {
@@ -3180,113 +3193,40 @@ function requireMeiConsent(res: express.Response) {
   });
 }
 
-/**
- * Pull the bot's reply text out of a conversation_api response. The vendor
- * does not publish the response shape, so try the common shapes in order
- * and return null when none matches (caller falls back to the local engine).
- * Never logs or returns the key — the reply text is the only thing kept.
- */
-function extractMeiReply(body: unknown): string | null {
-  const fromString = (v: unknown): string | null => {
-    if (typeof v === "string" && v.trim()) return v.trim();
-    return null;
-  };
-  const fromObject = (o: Record<string, unknown>): string | null => {
-    for (const key of ["response", "reply", "message", "text", "output", "answer"]) {
-      const hit = fromString(o[key]);
-      if (hit) return hit;
-    }
-    // { messages: [{ text }] } and OpenAI-style { choices: [{ message: { content } }] }
-    const msgs = o["messages"];
-    if (Array.isArray(msgs)) {
-      const parts = msgs
-        .map((m: any) => (typeof m === "string" ? m : fromString(m?.text) || fromString(m?.content) || ""))
-        .filter(Boolean);
-      if (parts.length) return parts.join("\n").trim();
-    }
-    const choices = o["choices"];
-    if (Array.isArray(choices) && choices[0]) {
-      const c: any = choices[0];
-      const hit = fromString(c?.message?.content) || fromString(c?.text);
-      if (hit) return hit;
-    }
-    const data = o["data"];
-    if (data && typeof data === "object") return fromObject(data as Record<string, unknown>);
-    return null;
-  };
-  if (typeof body === "string") return fromString(body);
-  if (body && typeof body === "object") return fromObject(body as Record<string, unknown>);
-  return null;
-}
-
-/**
- * Send one user message to the configured Mei bot and return its reply text.
- * Returns null when Mei gives no usable reply. Throws on transport / HTTP
- * errors (caller logs the status only and falls back). The API key travels
- * in the query string per the vendor's documented contract; it is never
- * logged and never leaves the server.
- */
-async function callMeiBot(input: string, opts?: { timeoutMs?: number }): Promise<string | null> {
-  const cfg = getMeiConfig();
-  if (!cfg) return null;
-  const url =
-    `${MEI_API_BASE}/conversation_api` +
-    `?input=${encodeURIComponent(input)}` +
-    `&bot=${encodeURIComponent(cfg.botId)}` +
-    `&creator=${encodeURIComponent(cfg.adminEmail)}` +
-    `&api_key=${encodeURIComponent(cfg.apiKey)}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), opts?.timeoutMs ?? 30000);
-  try {
-    const res = await fetch(url, { method: "POST", signal: controller.signal });
-    if (!res.ok) throw new Error(`Mei conversation_api HTTP ${res.status}`);
-    const raw = await res.text();
-    let body: unknown = raw;
-    try { body = JSON.parse(raw); } catch { /* plain-text reply — keep raw */ }
-    const reply = extractMeiReply(body);
-    if (!reply && body && typeof body === "object") {
-      console.error("Mei reply shape unrecognized; top-level keys:", Object.keys(body as Record<string, unknown>).join(","));
-    }
-    return reply;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Ask Mei — live chat with the configured bot. The wiring point for the
-// future Ask Mei chat UI: POST the user's message, get Mei's reply back.
+// Ask Mei — the local engine answers. The wiring point for the Ask Mei
+// chat UI: POST the user's message, get a reply back.
 //   Request:  POST /api/mei/chat  { text: string }
-//   Response: { reply: string, source: "mei" }
+//   Response: { reply: string, source: "local" }
 //             403 { code: "AI_CONSENT_REQUIRED" }  → no external-AI consent
-//             503 { code: "MEI_NOT_CONFIGURED" }   → no key/bot/email set
-//             502 { code: "MEI_UNAVAILABLE" }      → Mei errored / no usable reply
+//             502 { code: "MEI_UNAVAILABLE" }      → local engine errored
 app.post("/api/mei/chat", requireAuth, express.json(), async (req, res) => {
   if (!aiConsentGranted(req)) return requireMeiConsent(res);
   const text = String(req.body?.text || "").trim();
   if (!text) return res.status(400).json({ error: "text is required." });
   if (text.length > 4000) return res.status(400).json({ error: "text is too long (max 4000 characters)." });
-  if (!getMeiConfig()) return meiNotConfigured(res);
   try {
-    const reply = await callMeiBot(text);
-    if (!reply) return res.status(502).json({ error: "Mei didn't return a usable reply.", code: "MEI_UNAVAILABLE" });
-    return res.json({ reply, source: "mei" });
+    const ar = req as AuthedRequest;
+    const { reply } = answerLocalMei(text, buildLocalMeiContext(ar.ud));
+    return res.json({ reply, source: "local" });
   } catch (err: any) {
-    console.error("Mei chat error:", err.message);
+    console.error("Local Mei error:", err?.message || err);
     return res.status(502).json({ error: "Mei is unreachable right now.", code: "MEI_UNAVAILABLE" });
   }
 });
 
+// Ask Mei availability — the local engine is always available; there is no
+// external service to configure anymore.
 app.get("/api/mei/status", requireAuth, (_req, res) => {
-  res.json({ configured: Boolean(getMeiConfig()) });
+  res.json({ engine: "local", available: true });
 });
 
 // ================= MEI-STYLE NLP DIAGNOSTIC ENGINE =================
 // Analyzes user's relationship with themselves from field notes, rants, and checkins
 
 // Local heuristic diagnostic snapshot — the MEI-STYLE engine's scores,
-// mood, and dares, computed from the evening notes alone. Shared by the
-// local fallback and the live-Mei branch: Mei returns free text, not
-// structured scores, so the scores always come from here.
+// mood, and dares, computed from the evening notes alone. The scores
+// always come from here (the Gemini branch, when it answers, returns
+// free-text feedback only).
 function buildLocalDiagnosticSnapshot(input: { entry_date?: string; evening_notes?: string }) {
   const entryDate = input.entry_date || new Date().toISOString().split("T")[0];
   const notes = (input.evening_notes || "").toLowerCase();
@@ -3357,29 +3297,8 @@ Word of Year: ${user_profile?.word_of_the_year || ar.ud.user.word_of_the_year}
 What I'm done pretending about: ${user_profile?.what_done_pretending || ar.ud.user.what_done_pretending}
 `;
 
-  // Live Mei (Messages Improved) — the app's own bot, when configured and
-  // the user consented to external-AI analysis. Mei returns free text, not
-  // structured scores, so the Big-5 scores still come from the local
-  // heuristic engine and Mei's reply becomes the Honest Mirror feedback.
-  // On any Mei failure, fall through to Gemini, then to the local engine.
-  if (getMeiConfig() && aiConsentGranted(req)) {
-    try {
-      const meiPrompt = `You are Mei, the messaging-intelligence inside the planner companion app "2027 Life OS: Off*Script (Khaos Year Edition)". The user's core slogan is "Boredom=Death" — monotony and playing dead in a pre-scripted existence is the ultimate hazard. You are DIRECT, WITTY, SASSY, GROUNDED, and UNAPOLOGETICALLY HONEST. STRICTLY ZERO TOXIC POSITIVITY — no inspirational slogans, no gaslighting calm. Act as an honest mirror calling out self-contradictions. Give a candid 2-3 paragraph "Honest Mirror" assessment of the day below and one concrete, slightly provocative micro-dare to break monotony.\n\n${textToAnalyze}`;
-      const meiReply = await callMeiBot(meiPrompt);
-      if (meiReply) {
-        const snapshot = buildLocalDiagnosticSnapshot({ entry_date, evening_notes });
-        snapshot.ai_feedback = meiReply;
-        snapshot.source = "mei";
-        ar.ud.personalitySnapshots.unshift(snapshot);
-        if (ar.ud.personalitySnapshots.length > 50) ar.ud.personalitySnapshots.pop();
-        saveData(db);
-        return res.json(snapshot);
-      }
-      console.error("Mei returned no usable reply for /api/diagnose; falling through to Gemini/local.");
-    } catch (err: any) {
-      console.error("Mei error on /api/diagnose, falling through:", err.message);
-    }
-  }
+  // (The external Mei bot was removed 2026-11-25 per Amber — diagnose
+  // goes Gemini-with-consent, then the local heuristic engine below.)
 
   // Try calling Gemini API via @google/genai SDK — ONLY with the user's
   // explicit Google Gemini consent (X-AI-Consent: granted). Otherwise fall

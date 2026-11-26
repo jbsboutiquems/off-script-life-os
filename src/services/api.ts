@@ -1193,12 +1193,11 @@ export const api = {
     return snapshot;
   },
 
-  // ---- Ask Mei (live Messages Improved bot) ----
-  // The wiring point for the future Ask Mei chat UI: POST the user's
-  // message to the configured Mei bot and get its reply back. Returns null
-  // when Mei isn't configured on the server or the user hasn't consented
-  // to external-AI analysis — the caller falls back to local behavior.
-  async askMei(text: string): Promise<{ reply: string; source: 'mei' } | null> {
+  // ---- Ask Mei (local engine) ----
+  // POST the user's message to the home-grown local Mei engine and get its
+  // reply back. Returns null when the user hasn't consented to AI analysis
+  // or the call fails — the caller falls back to local behavior.
+  async askMei(text: string): Promise<{ reply: string; source: 'mei' | 'local' } | null> {
     try {
       const res = await req('/api/mei/chat', {
         method: 'POST',
@@ -1219,7 +1218,7 @@ export const api = {
       const res = await req('/api/mei/status');
       if (res.ok) {
         const body = await res.json();
-        return body.configured === true;
+        return body.available === true;
       }
     } catch (e) {
       if (e instanceof AuthError) throw e;

@@ -168,7 +168,7 @@ export interface PersonalitySnapshot {
   contradiction_callout: string;
   ai_feedback: string; // The direct, witty, sassy "Honest Mirror" feedback
   micro_dare: string; // Recommended antidote dare for the next cycle
-  /** Which engine produced this snapshot: live Mei, Gemini, or the local heuristic. Absent on older snapshots. */
+  /** Which engine produced this snapshot: Gemini, or the local heuristic. 'mei' is a legacy value from the removed external Messages Improved bot — no longer produced. Absent on older snapshots. */
   source?: 'mei' | 'gemini' | 'local';
 }
 
