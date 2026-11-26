@@ -509,6 +509,40 @@
   50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
 }
 
+/* Snoopster's face — animated so he feels alive (2026-11-26, Amber:
+   "Make him animated"). Pure CSS on the existing photo; no new assets.
+   - idle: a slow, subtle breathe for the header / tab / modal.
+   - thinking: a quick head-tilt wag while he composes a reply.
+   - happy: a one-shot bounce when a new reply lands.
+   All off under prefers-reduced-motion. */
+@keyframes snoopster-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.04) translateY(-1px); }
+}
+@keyframes snoopster-wag {
+  0%, 100% { transform: rotate(-7deg) translateY(0); }
+  25% { transform: rotate(5deg) translateY(-2px); }
+  50% { transform: rotate(-5deg) translateY(0); }
+  75% { transform: rotate(6deg) translateY(-2px); }
+}
+@keyframes snoopster-happy {
+  0% { transform: scale(0.82) translateY(4px); }
+  55% { transform: scale(1.1) translateY(-3px); }
+  100% { transform: scale(1) translateY(0); }
+}
+.snoopster-avatar-idle { animation: snoopster-breathe 3.2s ease-in-out infinite; }
+.snoopster-avatar-thinking {
+  animation: snoopster-wag 0.6s ease-in-out infinite;
+  transform-origin: 50% 85%;
+}
+.snoopster-avatar-happy { animation: snoopster-happy 0.45s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .snoopster-avatar-idle,
+  .snoopster-avatar-thinking,
+  .snoopster-avatar-happy { animation: none; }
+}
+
 .stamp-border {
   border: 2px dashed var(--pink);
 }

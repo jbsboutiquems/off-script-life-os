@@ -106,7 +106,7 @@ export const FolderTabs: React.FC<FolderTabsProps> = ({
                 }`}
             >
               {avatar
-                ? <img src={avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                ? <img src={avatar} alt="" className="w-5 h-5 rounded-full object-cover snoopster-avatar-idle" />
                 : <Icon className="w-4 h-4" />}
               {label}
               {id === 'dms' && unreadCount > 0 && (

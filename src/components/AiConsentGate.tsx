@@ -60,7 +60,7 @@ export const AiConsentGate: React.FC<Props> = ({ userId }) => {
     >
       <div className="w-full max-w-md rounded-2xl border-2 border-[#ea4798]/40 bg-[#faf7f0] dark:bg-[#000a15] p-6 shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
-          <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-10 w-10 rounded-xl object-cover" />
+          <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-10 w-10 rounded-xl object-cover snoopster-avatar-idle" />
           <h2 id="ai-consent-title" className="text-lg font-black text-slate-900 dark:text-stone-100">
             A quick yes-or-no about Snoopster
           </h2>

@@ -106,7 +106,7 @@ export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
   return (
     <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-3xl p-5 sm:p-6 shadow-sm">
       <div className="flex items-start gap-3">
-        <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+        <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-10 w-10 shrink-0 rounded-xl object-cover snoopster-avatar-idle" />
         <div>
           <div className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-rose-600">
             Ask Snoopster · Chat
@@ -187,7 +187,7 @@ export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
                   </div>
                 ) : (
                   <div key={i} className="flex items-start gap-2">
-                    <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-7 w-7 shrink-0 rounded-lg object-cover mt-0.5" />
+                    <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-7 w-7 shrink-0 rounded-lg object-cover mt-0.5 snoopster-avatar-happy" />
                     <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-bl-sm bg-stone-100 dark:bg-white/5 text-stone-800 dark:text-stone-100 text-sm whitespace-pre-wrap break-words">
                       {m.text}
                     </div>
@@ -196,7 +196,7 @@ export const AskSnoopsterView: React.FC<Props> = ({ userId }) => {
               )}
               {sending && (
                 <div className="flex items-start gap-2">
-                  <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-7 w-7 shrink-0 rounded-lg object-cover mt-0.5" />
+                  <img src={SNOOPSTER_AVATAR} alt="Snoopster" className="h-7 w-7 shrink-0 rounded-lg object-cover mt-0.5 snoopster-avatar-thinking" />
                   <div className="px-4 py-2.5 rounded-2xl rounded-bl-sm bg-stone-100 dark:bg-white/5 text-sm text-stone-500 dark:text-stone-400 flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Snoopster is thinking…
