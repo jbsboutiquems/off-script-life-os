@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile } from '../types';
 import { getYearScheme } from '../lib/yearScheme';
+import { getEditionThemeForDate } from '../lib/editionSync';
+import { localDateKey } from '../lib/dates';
 import { apiUrl } from '../services/api';
 import {
   Compass, Star, Flame, Ban, Activity, BookOpen, DollarSign,
@@ -49,6 +51,10 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal, goalsCount, crewCount, streak, dueCount, unreadCount, onOpen, todayMission }) => {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const yearScheme = getYearScheme(new Date().getFullYear());
+  // Edition sync (Amber, Nov 27, 2026): everything matches Q4 2026 for now.
+  // The month theme here comes from the date's edition, so November 2026
+  // shows Imagine (Q4), not a 2027 theme. 2027 Q1 starts 1/1/2027.
+  const editionTheme = getEditionThemeForDate(localDateKey());
 
   // User count (2026-11-06, staged for Amber's review): registered accounts
   // from the public stats endpoint. Fails gracefully — if the endpoint is
@@ -121,7 +127,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
               )}
             </p>
             <p className="text-[11px] text-stone-400 mt-1">
-              {yearScheme.label} scheme: {yearScheme.paletteLabel}
+              {yearScheme.label} scheme: {yearScheme.paletteLabel} · {editionTheme.monthName} · {editionTheme.themeTitle} ({editionTheme.keyword})
             </p>
           </div>
           <button

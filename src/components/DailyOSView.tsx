@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DailyEntry, UserProfile, KhaosHoliday } from '../types';
 import { getHolidayForDate } from '../data/holidays';
+import { getEditionThemeForDate } from '../lib/editionSync';
 import { Sun, Compass, Moon, Sparkles, CheckCircle2, Circle, Flame, AlertCircle, Save, ArrowLeft, ArrowRight, Wand2, Mic, MicOff, Radio, Volume2, Printer, Share2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { MorningMantraGenerator } from './MorningMantraGenerator';
@@ -187,6 +188,12 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
 
   const holiday: KhaosHoliday = getHolidayForDate(currentDate);
 
+  // Edition sync (Amber, Nov 27, 2026): everything matches the date's
+  // edition — Q4 2026 (Think/Imagine/Do) for 2026 dates, 2027 Q1 from
+  // 1/1/2027. This is what makes the daily page show current 2026
+  // info instead of 2027 while testers are in 2026.
+  const editionTheme = getEditionThemeForDate(currentDate);
+
   // Day counter = DAY-OF-YEAR of the displayed date (Amber's call, OS-013):
   // Jan 1 is Day 1 in every year, and the total is 365 or 366 (leap).
   // Computed on UTC-normalized date parts so DST can never skew the count.
@@ -260,7 +267,7 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-mono-code font-bold uppercase tracking-widest text-rose-700">
-              LIFE OS · OFF*SCRIPT 2027 · DAILY LIVING FLIGHT LOG
+              LIFE OS · OFF*SCRIPT {editionTheme.editionLabel} · DAILY LIVING FLIGHT LOG
             </span>
             <h1 className="text-2xl font-bold font-serif-display text-slate-900 mt-0.5">
               {new Date(currentDate + "T00:00:00").toLocaleDateString('en-US', {
@@ -316,6 +323,9 @@ export const DailyOSView: React.FC<DailyOSViewProps> = ({
             <div className="mt-1 flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
                 ✦ Unofficial Holiday: {holiday.title}
+              </span>
+              <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                {editionTheme.monthName} · {editionTheme.themeTitle} ({editionTheme.keyword})
               </span>
               <span className="text-xs text-stone-600 hidden md:inline">"{holiday.tagline}"</span>
               <button
