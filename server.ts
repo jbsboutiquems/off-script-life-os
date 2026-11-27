@@ -733,14 +733,10 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
   }
   (req as AuthedRequest).userId = userId;
   (req as AuthedRequest).ud = db.users[userId];
-  // Email verification gate: accounts registered with an email address must
-  // verify it before using the API. Username-only and OAuth accounts pass
-  // through (OAuth emails arrive pre-verified from the provider).
-  const acct = db.accounts.find((a: any) => a.id === userId);
-  const verifyExempt = ["/api/auth/email/resend-verification", "/api/auth/logout"];
-  if (acct && acct.email && !acct.emailVerified && !verifyExempt.includes(req.path)) {
-    return res.status(403).json({ error: "Verify your email first — check your inbox for the link.", code: "EMAIL_UNVERIFIED" });
-  }
+  // Email verification is NOT a login/use gate (Amber, Nov 27, 2026):
+  // accounts can log in and use the API without verifying. Verification
+  // emails are still sent at signup and the verify endpoints still work;
+  // emailVerified is tracked but no longer blocks anything.
   next();
 }
 
@@ -826,9 +822,8 @@ function handleLogin(req: any, res: any) {
     recordLoginFailure(identifier, req);
     return res.status(401).json({ error: "Wrong email or password." });
   }
-  if (!acct.emailVerified) {
-    return res.status(403).json({ error: "Verify your email first — check your inbox for the link.", code: "EMAIL_UNVERIFIED" });
-  }
+  // No email-verification gate on login (Amber, Nov 27, 2026): unverified
+  // accounts can log in. Verification emails are still sent at signup.
   loginAttempts.delete(loginThrottleKey(identifier, req));
   if (!db.users[acct.id]) db.users[acct.id] = freshUserData(acct.id, acct.username);
   const token = createSession(acct.id);
