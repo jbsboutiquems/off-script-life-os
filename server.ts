@@ -912,6 +912,9 @@ function oauthConfig(provider: "google" | "facebook"): OAuthProviderConfig | nul
       redirectUri: process.env.GOOGLE_REDIRECT_URI || `${baseUrl()}/api/auth/oauth/google/callback`,
     };
   }
+  // Facebook login removed for now (Amber, Nov 27, 2026). Restore by deleting
+  // this early return — the credentials stay in Railway, so it comes back as-is.
+  return null;
   const clientId = process.env.FACEBOOK_APP_ID || "";
   const clientSecret = process.env.FACEBOOK_APP_SECRET || "";
   if (!clientId || !clientSecret) return null;
