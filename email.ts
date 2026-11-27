@@ -63,6 +63,10 @@ export async function sendMail(email: OutboundEmail): Promise<void> {
     port: cfg.port,
     secure: cfg.secure,
     auth: cfg.user ? { user: cfg.user, pass: cfg.pass } : undefined,
+    // IPv4 only (Amber, Nov 27, 2026): Railway's SMTP send to Gmail was
+    // timing out after 20s — the same IPv6 hang as the Gradle/Android
+    // quirk. Forcing IPv4 avoids the stalled IPv6 connection attempt.
+    family: 4,
   });
   // OS-001: never hang forever on SMTP — a stuck connection used to hang
   // signup (and any other await sendMail) indefinitely. 20s cap; callers

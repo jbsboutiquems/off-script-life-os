@@ -1326,7 +1326,12 @@ app.post("/api/auth/email/resend-verification", requireAuth, async (req, res) =>
   if (acct.emailVerified) return res.json({ already: true });
   if (!smtpConfigured()) return res.status(503).json({ error: "Email sending isn't configured on this instance." });
   const token = issueEmailToken(acct.id, "verify", acct.email, 24 * 3600 * 1000);
-  await sendMail(verificationEmail(acct.email, `${baseUrl()}/api/auth/email/verify?token=${token}`));
+  try {
+    await sendMail(verificationEmail(acct.email, `${baseUrl()}/api/auth/email/verify?token=${token}`));
+  } catch (e: any) {
+    console.warn("Verification email failed:", e?.message);
+    return res.status(503).json({ error: "Email sending failed — try again in a bit." });
+  }
   res.json({ sent: true });
 });
 
