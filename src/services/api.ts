@@ -7,11 +7,12 @@ import { getVoiceProfile } from '../tone';
 
 // ================= Auth + session =================
 
-// OS-006: the auth token used to live in localStorage, where it persisted
-// indefinitely and was readable by any script on the page. It now lives in
-// sessionStorage (cleared when the tab/app session ends). One-time
-// migration: a pre-OS-006 localStorage token is moved over on first read
-// so existing sessions aren't force-logged-out by the upgrade.
+// Auth token storage (Amber, Nov 27, 2026): the token lives in localStorage
+// so the session survives the app being minimized / killed in the background.
+// OS-006 had moved it to sessionStorage for XSS hygiene, but sessionStorage
+// is wiped when Android reclaims the backgrounded WebView, logging users out.
+// One-time migration: a sessionStorage token is moved to localStorage on
+// first read so existing sessions aren't force-logged-out by the upgrade.
 const TOKEN_KEY = 'lifeos:auth:token';
 let cachedUserId: string | null = null;
 let authFailureHandler: (() => void) | null = null;
@@ -35,13 +36,13 @@ export class EmailUnverifiedError extends Error {
 
 function getToken(): string | null {
   try {
-    const t = sessionStorage.getItem(TOKEN_KEY);
+    const t = localStorage.getItem(TOKEN_KEY);
     if (t) return t;
-    const legacy = localStorage.getItem(TOKEN_KEY);
-    if (legacy) {
-      try { sessionStorage.setItem(TOKEN_KEY, legacy); } catch { /* ignore */ }
-      try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
-      return legacy;
+    const sess = sessionStorage.getItem(TOKEN_KEY);
+    if (sess) {
+      try { localStorage.setItem(TOKEN_KEY, sess); } catch { /* ignore */ }
+      try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+      return sess;
     }
     return null;
   } catch {
@@ -51,13 +52,13 @@ function getToken(): string | null {
 
 function setToken(token: string) {
   try {
-    sessionStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(TOKEN_KEY, token);
   } catch {
     // ignore
   }
-  // Never leave a copy in localStorage.
+  // Never leave a copy in sessionStorage.
   try {
-    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
   } catch {
     // ignore
   }
