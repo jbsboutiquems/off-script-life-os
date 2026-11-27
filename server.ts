@@ -828,7 +828,11 @@ function handleLogin(req: any, res: any) {
   if (!db.users[acct.id]) db.users[acct.id] = freshUserData(acct.id, acct.username);
   const token = createSession(acct.id);
   saveData(db);
-  res.json({ token, user: db.users[acct.id].user });
+  // Include the account email on the user object (Amber, Nov 27, 2026):
+  // the email lives on the account record, not the stored user profile,
+  // so a bare login response left user.email empty and Settings showed
+  // "No email on this account." /api/auth/me already does this.
+  res.json({ token, user: { ...db.users[acct.id].user, email: acct.email || null, emailVerified: !!acct.emailVerified } });
 }
 
 app.post("/api/auth/login", handleLogin);
@@ -1290,7 +1294,7 @@ async function handleEmailRegister(req: any, res: any) {
   }
   const token = createSession(id);
   saveData(db);
-  res.json({ token, user: db.users[id].user, recoveryCode, emailVerified: acct.emailVerified, verificationEmailed: emailed });
+  res.json({ token, user: { ...db.users[id].user, email: acct.email || null, emailVerified: !!acct.emailVerified }, recoveryCode, emailVerified: acct.emailVerified, verificationEmailed: emailed });
 }
 
 app.post("/api/auth/register", handleEmailRegister);
