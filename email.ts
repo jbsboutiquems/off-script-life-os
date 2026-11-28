@@ -99,14 +99,32 @@ async function sendMailViaGmailApi(email: OutboundEmail): Promise<void> {
   const cfg = getGmailApiConfig();
   if (!cfg) throw new Error("Gmail API is not configured.");
   const accessToken = await getGmailAccessToken(cfg);
+  // Spam fix (Amber, Nov 27, 2026): verification/reset emails were landing
+  // in spam. Two causes: (1) the message was HTML-only — spam filters
+  // heavily penalize HTML-only mail, so send a multipart/alternative with
+  // a real plain-text part; (2) the From header was a bare address with no
+  // display name, which reads as spoofed. Both fixed here.
+  const boundary = `offscript-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const from = `"Off*Script Life OS" <${cfg.from}>`;
   const raw = [
-    `From: ${cfg.from}`,
+    `From: ${from}`,
     `To: ${email.to}`,
     `Subject: ${email.subject}`,
     "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    email.text,
+    `--${boundary}`,
     "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: 7bit",
     "",
     email.html,
+    `--${boundary}--`,
+    "",
   ].join("\r\n");
   const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
@@ -130,6 +148,10 @@ export interface OutboundEmail {
   to: string;
   subject: string;
   html: string;
+  // Plain-text twin of the HTML body. Required: HTML-only mail is a strong
+  // spam signal, and these are password/verification emails — the exact
+  // template phishers use — so the text part is what keeps us in the inbox.
+  text: string;
 }
 
 export async function sendMail(email: OutboundEmail): Promise<void> {
@@ -169,7 +191,13 @@ export async function sendMail(email: OutboundEmail): Promise<void> {
     setTimeout(() => reject(new Error("SMTP send timed out after 20s.")), 20000)
   );
   await Promise.race([
-    transporter.sendMail({ from: cfg.from, to: email.to, subject: email.subject, html: email.html }),
+    transporter.sendMail({
+      from: `"Off*Script Life OS" <${cfg.from}>`,
+      to: email.to,
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
+    }),
     timeout,
   ]);
 }
@@ -190,6 +218,17 @@ export function verificationEmail(to: string, link: string): OutboundEmail {
   return {
     to,
     subject: "[Off*Script] Confirm your email — Off*Script Life OS",
+    text: [
+      "One click and you're in for real.",
+      "",
+      "You signed up for the Off*Script Life OS with this email. Click the link below to prove it's actually yours:",
+      "",
+      link,
+      "",
+      "Didn't sign up? Ignore this — the account can't do anything until it's verified... well, it can, but we'd rather you clicked.",
+      "",
+      "Structure without the cage. — The Off*Script Life OS",
+    ].join("\n"),
     html: shell(
       "One click and you're in for real.",
       `<p>You signed up for the Off*Script Life OS with this email. Click below to prove it's actually yours.</p>
@@ -203,6 +242,17 @@ export function resetEmail(to: string, link: string): OutboundEmail {
   return {
     to,
     subject: "[Off*Script] Reset your password — Off*Script Life OS",
+    text: [
+      "Locked out? Let's fix that.",
+      "",
+      "Someone (hopefully you) asked to reset the password on your Off*Script account. Click the link below to set a new one. The link expires in 1 hour:",
+      "",
+      link,
+      "",
+      "Didn't ask for this? Ignore it — your password stays exactly as it is.",
+      "",
+      "Structure without the cage. — The Off*Script Life OS",
+    ].join("\n"),
     html: shell(
       "Locked out? Let's fix that.",
       `<p>Someone (hopefully you) asked to reset the password on your Off*Script account. Click below to set a new one. The link expires in 1 hour.</p>
