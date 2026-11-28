@@ -3,12 +3,20 @@
  * & The Intent Personality Diagnostic Engine
  */
 
+export interface UserUpload {
+  id: string;
+  /** Picture dataURL (JPEG, square-cropped, capped — see lib/profilePicture). */
+  dataUrl: string;
+  label?: string;
+  created_at: string;
+}
+
 export interface BuddyProfile {
   creatureId: string;
   name: string;
   color: string;
-  /** Device-upload portrait as a dataURL. Only set when creatureId === 'custom'. */
-  customImage?: string;
+  /** Device-upload portrait as a dataURL. Only set when creatureId === 'custom'. Null = cleared. */
+  customImage?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +44,18 @@ export interface UserProfile {
   /** Email from email/OAuth signup. Present on the /api/auth/me response. */
   email?: string | null;
   emailVerified?: boolean;
+  /**
+   * Profile picture (Amber, Nov 27, 2026): a square 256px JPEG dataURL,
+   * stored SERVER-side in the user record — never localStorage alone, or
+   * it vanishes the way Jason's buddy photo did. Null/undefined = none set,
+   * and the UI falls back to the initial. Cleared by saving null.
+   */
+  profile_picture?: string | null;
+  /**
+   * Standalone uploaded pictures, shown in My Pictures alongside the
+   * profile + buddy photos. Kept as dataURLs in the user record.
+   */
+  uploads?: UserUpload[];
   /** First-run onboarding tour completed (or dismissed forever). */
   onboarding_seen?: boolean;
   /** Reminder: daily flight-log nudge. */

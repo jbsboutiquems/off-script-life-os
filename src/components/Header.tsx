@@ -3,9 +3,12 @@ import { Zap, Home, LogOut, Sun, Moon, Flame, User, Search, Inbox, Bell, Chevron
 import type { KhaosTheme } from '../theme';
 import type { BuddyProfile } from '../types';
 import { BuddyAvatar } from './BuddyAvatar';
+import { UserAvatar } from './UserAvatar';
 
 interface HeaderProps {
   username: string;
+  /** Stored profile picture dataURL — shown in the user menu; initial fallback when none. */
+  profilePicture?: string | null;
   pointsTotal: number;
   activeTab: string;
   theme: KhaosTheme;
@@ -24,7 +27,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  username, pointsTotal, activeTab, theme, dueCount, unreadCount,
+  username, profilePicture, pointsTotal, activeTab, theme, dueCount, unreadCount,
   toggleTheme, onDashboard, onOpenProfile, onOpenPoints,
   onOpenSearch, onOpenInbox, onOpenReminders, onLogout,
   buddy, onOpenBuddy
@@ -154,6 +157,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-stone-200 dark:bg-white/10 text-stone-700 dark:text-stone-200 hover:bg-stone-300 dark:hover:bg-white/20 transition-colors text-xs font-bold font-mono-code max-w-[130px] sm:max-w-[180px]"
                 title="Your menu"
               >
+                <UserAvatar picture={profilePicture} name={username} size={24} />
                 <span className="truncate">{username || 'operator'}</span>
                 <ChevronDown className="w-3.5 h-3.5 shrink-0" />
               </button>

@@ -8,8 +8,8 @@ export interface BuddyProfile {
   name: string;
   /** Recolor choice: hex color used for the buddy's glow ring + tint. */
   color: string;
-  /** Device-upload portrait as a dataURL. Only set when creatureId === 'custom'. */
-  customImage?: string;
+  /** Device-upload portrait as a dataURL. Only set when creatureId === 'custom'. Null = cleared. */
+  customImage?: string | null;
   createdAt: string;
   updatedAt: string;
 }

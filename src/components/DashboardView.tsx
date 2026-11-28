@@ -4,6 +4,7 @@ import { getYearScheme } from '../lib/yearScheme';
 import { getEditionThemeForDate } from '../lib/editionSync';
 import { localDateKey } from '../lib/dates';
 import { apiUrl } from '../services/api';
+import { ProfilePicturePicker } from './ProfilePicturePicker';
 import {
   Compass, Star, Flame, Ban, Activity, BookOpen, DollarSign,
   Award, PartyPopper, Trophy, Image as ImageIcon,
@@ -17,7 +18,7 @@ export type DashboardTab =
   | 'backup' | 'unlock' | 'cover' | 'identity' | 'tourguide'
   | 'wall' | 'inbox' | 'reminders' | 'search'
   | 'frontmatter' | 'field' | 'expansions' | 'faq' | 'admin'
-  | 'profile' | 'settings';
+  | 'profile' | 'settings' | 'pictures';
 
 interface DoorDef {
   id: DashboardTab;
@@ -46,9 +47,22 @@ interface DashboardViewProps {
   onOpen: (tab: DashboardTab) => void;
   /** Today's Launch / Orbit / Landing summary, if the caller has it. */
   todayMission?: TodayMissionSummary | null;
+  /** Lets the profile-picture nudge save. Optional — without it the nudge only links to Profile. */
+  onSaveProfile?: (profile: Partial<UserProfile>) => void;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal, goalsCount, crewCount, streak, dueCount, unreadCount, onOpen, todayMission }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal, goalsCount, crewCount, streak, dueCount, unreadCount, onOpen, todayMission, onSaveProfile }) => {
+  // Profile-picture nudge (Amber, Nov 27, 2026): one dismissible card until
+  // the user has a picture. Dismissal is per-device; the picture itself is
+  // saved server-side, so the card never reappears once one is set.
+  const [picNudgeDismissed, setPicNudgeDismissed] = useState(() => {
+    try { return localStorage.getItem(`offscript_pic_nudge_dismissed:${user.id}`) === '1'; } catch { return false; }
+  });
+  const showPicNudge = !user.profile_picture && !picNudgeDismissed;
+  const dismissPicNudge = () => {
+    setPicNudgeDismissed(true);
+    try { localStorage.setItem(`offscript_pic_nudge_dismissed:${user.id}`, '1'); } catch { /* ignore */ }
+  };
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const yearScheme = getYearScheme(new Date().getFullYear());
   // Edition sync (Amber, Nov 27, 2026): everything matches Q4 2026 for now.
@@ -138,6 +152,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ user, pointsTotal,
           </button>
         </div>
       </section>
+
+      {/* Profile-picture nudge — one dismissible card until a picture is set. */}
+      {showPicNudge && (
+        <section className="bg-white dark:bg-[#02142e] border-2 border-dashed border-rose-300 dark:border-rose-400/40 rounded-3xl p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold font-display-punch uppercase text-slate-900 dark:text-cream-canvas">
+                Put a face on the khaos?
+              </h3>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
+                Add a profile picture — it shows in the header and on your public profile, and it
+                lives on your account so it survives app updates and follows you to a new phone.
+              </p>
+              <div className="mt-3">
+                <ProfilePicturePicker
+                  picture={user.profile_picture}
+                  name={user.khaos_name || 'Operator'}
+                  onChange={(picture) => {
+                    if (onSaveProfile) onSaveProfile({ profile_picture: picture });
+                    else onOpen('profile');
+                  }}
+                  size={56}
+                  compact
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={dismissPicNudge}
+              className="text-xs font-bold text-stone-500 dark:text-stone-400 hover:underline font-mono-code uppercase tracking-wider shrink-0"
+            >
+              Not now
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Hero */}
       <div className="bg-gradient-to-br from-stone-900 via-[#02142e] to-rose-950 text-white rounded-3xl p-6 sm:p-8 border-2 border-stone-800 shadow-md relative overflow-hidden">

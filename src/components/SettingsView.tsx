@@ -17,7 +17,8 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { api } from '../services/api';
-import { ShieldAlert, Mail, KeyRound, Smartphone, BadgeCheck, MessageSquareText, Fingerprint } from 'lucide-react';
+import { ShieldAlert, Mail, KeyRound, Smartphone, BadgeCheck, MessageSquareText, Fingerprint, Images, User } from 'lucide-react';
+import { ProfilePicturePicker } from './ProfilePicturePicker';
 import {
   checkBiometricAvailability,
   disableBiometricLogin,
@@ -28,9 +29,11 @@ import {
 
 interface SettingsViewProps {
   user: UserProfile;
+  onSaveProfile?: (profile: Partial<UserProfile>) => void;
+  onOpenPictures?: () => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ user }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ user, onSaveProfile, onOpenPictures }) => {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -138,6 +141,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user }) => {
         {msg && <p className="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{msg}</p>}
         {err && <p className="mt-3 text-xs font-semibold text-rose-700 dark:text-rose-300">{err}</p>}
       </div>
+
+      {/* Profile picture — saved to the account (server), not just this phone. */}
+      <section className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 space-y-3">
+        <h3 className="font-bold text-sm uppercase flex items-center gap-2"><User className="w-4 h-4 text-rose-600" /> Profile picture</h3>
+        <ProfilePicturePicker
+          picture={user.profile_picture}
+          name={user.khaos_name || 'Operator'}
+          onChange={async (picture) => {
+            if (onSaveProfile) {
+              onSaveProfile({ profile_picture: picture });
+            } else {
+              try {
+                await api.updateUser({ profile_picture: picture });
+                setMsg(picture ? 'Profile picture saved.' : 'Profile picture removed.');
+              } catch {
+                setErr('Could not save the picture — check your connection and try again.');
+              }
+            }
+          }}
+        />
+        {onOpenPictures && (
+          <button
+            type="button"
+            onClick={onOpenPictures}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 hover:text-teal-600 underline"
+          >
+            <Images className="w-3.5 h-3.5" /> My pictures — every picture you've uploaded →
+          </button>
+        )}
+      </section>
 
       {/* Email */}
       <section className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 space-y-3">

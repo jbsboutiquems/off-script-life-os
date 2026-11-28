@@ -31,6 +31,7 @@ const Big6GoalsTracker = lazy(() => import('./components/Big6GoalsTracker').then
 const IdentityProfileView = lazy(() => import('./components/IdentityProfileView').then((m) => ({ default: m.IdentityProfileView })));
 const ProfileView = lazy(() => import('./components/ProfileView').then((m) => ({ default: m.ProfileView })));
 const SettingsView = lazy(() => import('./components/SettingsView').then((m) => ({ default: m.SettingsView })));
+const MyPicturesView = lazy(() => import('./components/MyPicturesView').then((m) => ({ default: m.MyPicturesView })));
 const WeeklyDebriefView = lazy(() => import('./components/WeeklyDebriefView').then((m) => ({ default: m.WeeklyDebriefView })));
 const MonthlyMoneyMapView = lazy(() => import('./components/MonthlyMoneyMapView').then((m) => ({ default: m.MonthlyMoneyMapView })));
 const ThemesGalleryView = lazy(() => import('./components/ThemesGalleryView').then((m) => ({ default: m.ThemesGalleryView })));
@@ -63,6 +64,7 @@ import { localDateKey } from './lib/dates';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { getBuddy, saveBuddy, type BuddyProfile } from './buddy';
+import { fitPictureBytes } from './lib/profilePicture';
 const BuddyCreator = lazy(() => import('./components/BuddyCreator').then((m) => ({ default: m.BuddyCreator })));
 import { BeastHost } from './components/BeastHost';
 import { ChevronLeft, Activity, Mail } from 'lucide-react';
@@ -302,6 +304,12 @@ export default function App() {
   }, []);
 
   // Buddy: load on login; first-run creation flow.
+  // Server is the source of truth (Amber, Nov 27, 2026): Jason's buddy
+  // vanished because it lived only in the phone's localStorage and the
+  // server sync silently failed (the old 100kb JSON limit rejected the
+  // photo-carrying save). localStorage is now only a fast cache — on login
+  // the two copies are reconciled both ways, so a buddy survives app
+  // updates, storage clears, and logging in on another device.
   useEffect(() => {
     if (!user) {
       return;
@@ -315,10 +323,28 @@ export default function App() {
       weeklyTime: (user as any).reminder_weekly_time || '18:00',
     });
     const existing = getBuddy();
-    // Server profile may carry the buddy (synced on save) — local wins if newer.
     const fromProfile = (user as any).buddy as BuddyProfile | undefined;
     const resolved = existing || fromProfile || null;
     setBuddy(resolved);
+    // Self-heal, both directions: a local buddy the server never got is
+    // pushed up (this is what recovers a buddy after a storage clear if
+    // the phone still has it, and it re-syncs after an offline save);
+    // a server buddy with no local copy is written back to the cache.
+    try {
+      const newer = (a?: BuddyProfile | null, b?: BuddyProfile | null) =>
+        Date.parse(a?.updatedAt || '') > Date.parse(b?.updatedAt || '');
+      if (existing && (!fromProfile || newer(existing, fromProfile))) {
+        void fitPictureBytes(existing.customImage || '').then((fitted) => {
+          const toSync = fitted === (existing.customImage || '') ? existing : { ...existing, customImage: fitted };
+          api.updateUser({ buddy: toSync } as any).then(
+            (updated) => setUser(updated),
+            () => { /* stays local-only until next login; the toast below covers it */ },
+          );
+        });
+      } else if (!existing && fromProfile) {
+        saveBuddy(fromProfile);
+      }
+    } catch { /* cache unavailable — server copy still rules */ }
     try {
       // Trial demo: never auto-open the buddy creator over the browsing —
       // a demo visitor who wants a buddy gets one in the app.
@@ -329,15 +355,29 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const handleSaveBuddy = (profile: BuddyProfile) => {
-    saveBuddy(profile);
-    setBuddy(profile);
+  const handleSaveBuddy = async (profile: BuddyProfile) => {
+    // Shrink an oversized custom photo before saving, so the server sync
+    // never trips the body-size limit (the old silent failure that lost
+    // Jason's buddy photo). Local cache first (fast), server second.
+    let toSave = profile;
+    try {
+      if (profile.customImage) {
+        const fitted = await fitPictureBytes(profile.customImage);
+        if (fitted !== profile.customImage) toSave = { ...profile, customImage: fitted };
+      }
+    } catch { /* keep the original; the server save below will say if it fails */ }
+    saveBuddy(toSave);
+    setBuddy(toSave);
     try { localStorage.setItem('offscript_buddy_onboarded', '1'); } catch { /* ignore */ }
-    // Best-effort sync into the user profile (server keeps unknown fields or ignores).
-    api.updateUser({ buddy: profile } as any).then(
-      (updated) => setUser(updated),
-      () => setUser((u) => (u ? { ...u, buddy: profile } : u)),
-    );
+    // Server is the source of truth: the buddy must land there, or it dies
+    // with the phone's storage. A failed sync is surfaced, not swallowed.
+    try {
+      const updated = await api.updateUser({ buddy: toSave } as any);
+      setUser(updated);
+    } catch {
+      setUser((u) => (u ? { ...u, buddy: toSave } : u));
+      showToast('Buddy saved on this phone — it will sync to your account when you’re back online.');
+    }
   };
 
   // Poll badge counts quietly while signed in (no WebSockets in this prototype).
@@ -763,6 +803,7 @@ export default function App() {
 
       <Header
         username={user.khaos_name}
+        profilePicture={user.profile_picture}
         pointsTotal={pointsTotal}
         activeTab={activeTab}
         theme={theme}
@@ -841,6 +882,7 @@ export default function App() {
               dueCount={dueCount}
               unreadCount={unreadCount}
               onOpen={onOpenDashboardDoor}
+              onSaveProfile={handleSaveProfile}
               todayMission={(() => {
                 const todayKey = localDateKey();
                 const todaysEntry =
@@ -1049,11 +1091,27 @@ export default function App() {
               user={user}
               onSaveProfile={handleSaveProfile}
               onOpenSettings={() => setActiveTab('settings')}
+              onOpenPictures={() => setActiveTab('pictures')}
             />
           )}
 
           {activeTab === 'settings' && (
-            <SettingsView user={user} />
+            <SettingsView
+              user={user}
+              onSaveProfile={handleSaveProfile}
+              onOpenPictures={() => setActiveTab('pictures')}
+            />
+          )}
+
+          {activeTab === 'pictures' && (
+            <MyPicturesView
+              user={user}
+              buddy={buddy}
+              onSaveProfile={handleSaveProfile}
+              onSaveBuddy={handleSaveBuddy}
+              onBack={() => setActiveTab('profile')}
+              onOpenProfile={() => setActiveTab('profile')}
+            />
           )}
 
           {activeTab === 'points' && (

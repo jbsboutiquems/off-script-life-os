@@ -14,15 +14,18 @@
  */
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { User, Save, Sparkles } from 'lucide-react';
+import { User, Save, Sparkles, Images } from 'lucide-react';
+import { ProfilePicturePicker } from './ProfilePicturePicker';
+import { UserAvatar } from './UserAvatar';
 
 interface ProfileViewProps {
   user: UserProfile;
   onSaveProfile: (profile: Partial<UserProfile>) => void;
   onOpenSettings: () => void;
+  onOpenPictures: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, onSaveProfile, onOpenSettings }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, onSaveProfile, onOpenSettings, onOpenPictures }) => {
   const [khaosName, setKhaosName] = useState(user.khaos_name || '');
   const [wordOfYear, setWordOfYear] = useState(user.word_of_the_year || '');
   const [slogan, setSlogan] = useState(user.slogan || 'Boredom=Death');
@@ -54,24 +57,53 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onSaveProfile, o
           </span>
           <span className="text-xs text-stone-500 dark:text-stone-400 font-mono-code">WHAT OTHERS SEE</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 dark:text-cream-canvas mt-1">
-          {user.khaos_name || 'Operator'}
-        </h2>
-        <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
-          Word of the year: <strong className="uppercase">{user.word_of_the_year || '—'}</strong>
-          {' '}· Slogan: <strong>{user.slogan || 'Boredom=Death'}</strong>
-        </p>
+        <div className="flex items-start gap-4 mt-1">
+          <UserAvatar picture={user.profile_picture} name={user.khaos_name || 'Operator'} size={64} className="border-2 border-stone-800 dark:border-white/20 shadow-sm" />
+          <div className="min-w-0">
+            <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-slate-900 dark:text-cream-canvas">
+              {user.khaos_name || 'Operator'}
+            </h2>
+            <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
+              Word of the year: <strong className="uppercase">{user.word_of_the_year || '—'}</strong>
+              {' '}· Slogan: <strong>{user.slogan || 'Boredom=Death'}</strong>
+            </p>
+          </div>
+        </div>
         <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">
           This preview is the public persona only. Birthday, email, password,
           recovery code and phone are never shown here — they live in Settings.
         </p>
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="mt-3 text-xs font-bold text-rose-700 hover:text-rose-600 underline"
-        >
-          Go to Settings (private account) →
-        </button>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <button
+            type="button"
+            onClick={onOpenPictures}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 hover:text-teal-600 underline"
+          >
+            <Images className="w-3.5 h-3.5" /> My pictures →
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="text-xs font-bold text-rose-700 hover:text-rose-600 underline"
+          >
+            Go to Settings (private account) →
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 shadow-xs">
+        <h3 className="font-bold text-sm text-slate-900 dark:text-cream-canvas font-display-punch uppercase flex items-center gap-2">
+          <User className="w-4 h-4 text-rose-600" /> Profile picture
+        </h3>
+        <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 mb-4">
+          This is the face on your public profile and in the header. Saved to your account,
+          so it survives app updates and follows you to a new phone.
+        </p>
+        <ProfilePicturePicker
+          picture={user.profile_picture}
+          name={user.khaos_name || 'Operator'}
+          onChange={(picture) => onSaveProfile({ profile_picture: picture })}
+        />
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 shadow-xs space-y-5">

@@ -21,7 +21,11 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+// 1mb (raised from the 100kb default, Nov 27, 2026): profile + buddy
+// pictures travel inside the user record as dataURLs, and a 512px buddy
+// photo alone can exceed 100kb — the old limit silently 413'd the sync,
+// which is how a buddy photo could live only on the phone and vanish.
 
 // CORS: the Capacitor webview (capacitor://localhost) and any static hosting
 // are cross-origin to this server. Auth uses Bearer tokens (not cookies), so

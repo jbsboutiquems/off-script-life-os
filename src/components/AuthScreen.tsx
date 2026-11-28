@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { api, apiUrl } from '../services/api';
-import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail, Fingerprint } from 'lucide-react';
+import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail, Fingerprint, Camera } from 'lucide-react';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
 import { PwInput } from './PwInput';
 import { BrandLockup } from './BrandLockup';
+import { ProfilePicturePicker } from './ProfilePicturePicker';
 import { isAdult } from './AdultConsent';
 import {
   checkBiometricAvailability,
@@ -48,6 +49,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
   const [bioEnabled, setBioEnabled] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
   const [bioOffer, setBioOffer] = useState<{ identifier: string; password: string; user: UserProfile } | null>(null);
+
+  // Profile picture prompt (Amber, Nov 27, 2026): offered once right after
+  // a new account is created (recovery code saved). Either choice enters the
+  // app — this never blocks signup. The picture is saved server-side with
+  // the account, so it survives app updates and follows the user.
+  const [picOffer, setPicOffer] = useState<UserProfile | null>(null);
+  const [picChoice, setPicChoice] = useState<string | null>(null);
+  const [picBusy, setPicBusy] = useState(false);
+  const [picError, setPicError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isNativeApp()) return;
@@ -187,7 +197,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
             onDone={() => {
               setFreshCode(null);
               if (freshCodeContext === 'register' && pendingUser) {
-                onAuthed(pendingUser);
+                // New account: offer a profile picture before entering.
+                // Skipping is one tap and never blocks anything.
+                setPicOffer(pendingUser);
               } else {
                 setPendingUser(null);
                 switchMode('login');
@@ -247,6 +259,78 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
               className="w-full text-center text-xs font-bold text-stone-500 dark:text-stone-400 hover:underline font-mono-code uppercase tracking-wider"
             >
               Not now — just enter
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Profile picture offer, shown once right after a new account is created.
+  // Either choice enters the app — this never blocks signup.
+  if (picOffer) {
+    return (
+      <main className="min-h-screen bg-cream-canvas text-stone-900 flex items-center justify-center px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] font-sans">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-rose-600 to-amber-600 text-white flex items-center justify-center text-2xl font-bold border-2 border-stone-800 shadow-md">
+              ⚡
+            </div>
+            <BrandLockup />
+          </div>
+          <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-2xl p-6 shadow-md space-y-4 text-center">
+            <Camera className="w-10 h-10 mx-auto text-rose-600" />
+            <h2 className="text-lg font-bold font-display-punch text-slate-900 dark:text-cream-canvas">
+              Put a face on the khaos?
+            </h2>
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              Add a profile picture — it shows in the header and on your public profile.
+              Saved to your account, so it survives app updates and follows you to a new phone.
+              Skip it and your initial shows instead; you can add one any time from Profile or Settings.
+            </p>
+            <div className="flex justify-center">
+              <ProfilePicturePicker
+                picture={picChoice}
+                name={picOffer.khaos_name || 'Operator'}
+                onChange={(picture) => setPicChoice(picture)}
+                size={88}
+              />
+            </div>
+            {picError && <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">{picError}</p>}
+            <button
+              type="button"
+              disabled={picBusy}
+              onClick={async () => {
+                if (!picChoice) {
+                  onAuthed(picOffer);
+                  return;
+                }
+                setPicBusy(true);
+                setPicError(null);
+                try {
+                  // Token was set by emailRegister, so this reaches the server.
+                  const updated = await api.updateUser({ profile_picture: picChoice });
+                  onAuthed(updated);
+                } catch {
+                  // Server save failed: enter anyway with the picture kept
+                  // locally — the Dashboard nudge will offer it again.
+                  setPicError('Could not save it just now — you can add it from Profile once you’re in.');
+                  onAuthed({ ...picOffer, profile_picture: picChoice });
+                } finally {
+                  setPicBusy(false);
+                }
+              }}
+              className="w-full py-3 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-sm font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Camera className="w-4 h-4" />
+              {picBusy ? 'Saving…' : picChoice ? 'Save picture & enter' : 'Enter without a picture'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onAuthed(picOffer)}
+              className="w-full text-center text-xs font-bold text-stone-500 dark:text-stone-400 hover:underline font-mono-code uppercase tracking-wider"
+            >
+              Skip for now — just enter
             </button>
           </div>
         </div>
