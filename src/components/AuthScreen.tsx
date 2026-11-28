@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { api, apiUrl } from '../services/api';
-import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail } from 'lucide-react';
+import { LogIn, UserPlus, Zap, KeyRound, ArrowLeft, Mail, Fingerprint } from 'lucide-react';
 import { RecoveryCodeReveal } from './RecoveryCodeReveal';
 import { PwInput } from './PwInput';
 import { BrandLockup } from './BrandLockup';
 import { isAdult } from './AdultConsent';
+import {
+  checkBiometricAvailability,
+  disableBiometricLogin,
+  enableBiometricLogin,
+  isBiometricLoginEnabled,
+  isNativeApp,
+  isUserCancelledBiometry,
+  unlockWithBiometrics,
+  type BiometricInfo,
+} from '../lib/biometricLogin';
 
 interface AuthScreenProps {
   onAuthed: (user: UserProfile) => void;
@@ -33,6 +43,49 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
   const [pendingUser, setPendingUser] = useState<UserProfile | null>(null);
   const [authConfig, setAuthConfig] = useState({ google: false, facebook: false, email: true, smtp: false });
 
+  // Fingerprint / face unlock (native app only — inert on web).
+  const [bioInfo, setBioInfo] = useState<BiometricInfo>({ available: false, label: 'biometric' });
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioOffer, setBioOffer] = useState<{ identifier: string; password: string; user: UserProfile } | null>(null);
+
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    checkBiometricAvailability().then(setBioInfo).catch(() => {});
+    setBioEnabled(isBiometricLoginEnabled());
+  }, []);
+
+  const unlockWithBio = async () => {
+    setError(null);
+    setBioBusy(true);
+    try {
+      const creds = await unlockWithBiometrics();
+      const result = await api.login(creds.identifier, creds.password);
+      onAuthed(result.user);
+    } catch (err) {
+      if (isUserCancelledBiometry(err)) {
+        // They backed out on purpose — just stay on the password form.
+      } else {
+        // Stale saved login (e.g. password changed elsewhere): stop offering
+        // biometrics so it doesn't keep failing, and fall back to password.
+        const msg = err instanceof Error ? err.message : '';
+        if (/no saved login|incomplete|login failed/i.test(msg)) {
+          await disableBiometricLogin();
+          setBioEnabled(false);
+        }
+        setError('Fingerprint unlock didn\u2019t work — use your password instead.');
+      }
+    } finally {
+      setBioBusy(false);
+    }
+  };
+
+  const turnOffBio = async () => {
+    await disableBiometricLogin();
+    setBioEnabled(false);
+    setError(null);
+  };
+
   useEffect(() => {
     api.getAuthConfig().then(setAuthConfig).catch(() => {});
   }, []);
@@ -52,7 +105,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
       if (mode === 'login') {
         // Sign-in accepts an email or a username — whichever they typed.
         const result = await api.login(email.trim(), password);
-        onAuthed(result.user);
+        // Fingerprint / face unlock opt-in (native app only): offer it once,
+        // right after a good password login — never block entering the app.
+        if (isNativeApp() && bioInfo.available && !isBiometricLoginEnabled()) {
+          setBioOffer({ identifier: email.trim(), password, user: result.user });
+        } else {
+          onAuthed(result.user);
+        }
       } else if (mode === 'register') {
         // 18+ gate (2026-11-03, Amber's call): birthday is REQUIRED at
         // signup and the user must be 18+, plus consent to explicit music/
@@ -136,6 +195,60 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
               }
             }}
           />
+        </div>
+      </main>
+    );
+  }
+
+  // Fingerprint / face unlock opt-in, shown once right after a good login.
+  // Either choice enters the app — this never blocks anything.
+  if (bioOffer) {
+    return (
+      <main className="min-h-screen bg-cream-canvas text-stone-900 flex items-center justify-center px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] font-sans">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-rose-600 to-amber-600 text-white flex items-center justify-center text-2xl font-bold border-2 border-stone-800 shadow-md">
+              ⚡
+            </div>
+            <BrandLockup />
+          </div>
+          <div className="bg-white dark:bg-[#02142e] border-2 border-stone-800 dark:border-amber-400/40 rounded-2xl p-6 shadow-md space-y-4 text-center">
+            <Fingerprint className="w-10 h-10 mx-auto text-rose-600" />
+            <h2 className="text-lg font-bold font-display-punch text-slate-900 dark:text-cream-canvas">
+              Unlock with your {bioInfo.label} next time?
+            </h2>
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              Your login gets saved on this phone behind your {bioInfo.label} — no typing, no
+              password to remember. It never leaves this device, and you can turn it off in
+              Settings any time.
+            </p>
+            <button
+              type="button"
+              disabled={bioBusy}
+              onClick={async () => {
+                setBioBusy(true);
+                try {
+                  await enableBiometricLogin(bioOffer.identifier, bioOffer.password);
+                } catch {
+                  // If saving fails, just enter the app — biometrics stays off.
+                } finally {
+                  setBioBusy(false);
+                  onAuthed(bioOffer.user);
+                }
+              }}
+              className="w-full py-3 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-sm font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Fingerprint className="w-4 h-4" />
+              {bioBusy ? 'Saving…' : `Turn on ${bioInfo.label} unlock`}
+            </button>
+            <button
+              type="button"
+              onClick={() => onAuthed(bioOffer.user)}
+              className="w-full text-center text-xs font-bold text-stone-500 dark:text-stone-400 hover:underline font-mono-code uppercase tracking-wider"
+            >
+              Not now — just enter
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -320,6 +433,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthed }) => {
                   <Zap className="w-4 h-4" />
                   {busy ? 'Working…' : mode === 'login' ? 'Enter the khaos' : 'Claim your khaos'}
                 </button>
+
+                {mode === 'login' && bioEnabled && bioInfo.available && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={unlockWithBio}
+                      disabled={busy || bioBusy}
+                      className="w-full py-3 bg-white dark:bg-white/5 border-2 border-stone-800 dark:border-amber-400/40 hover:border-rose-500 text-slate-900 dark:text-cream-canvas text-sm font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Fingerprint className="w-4 h-4 text-rose-600" />
+                      {bioBusy ? 'Waiting for your ' + bioInfo.label + '…' : `Unlock with ${bioInfo.label}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={turnOffBio}
+                      className="w-full text-center text-[11px] font-bold text-stone-400 dark:text-stone-500 hover:underline font-mono-code uppercase tracking-wider"
+                    >
+                      Turn off {bioInfo.label} unlock
+                    </button>
+                  </>
+                )}
 
                 {mode === 'login' && (
                   <button

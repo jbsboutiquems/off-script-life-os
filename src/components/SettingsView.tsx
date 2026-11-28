@@ -17,7 +17,14 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { api } from '../services/api';
-import { ShieldAlert, Mail, KeyRound, Smartphone, BadgeCheck, MessageSquareText } from 'lucide-react';
+import { ShieldAlert, Mail, KeyRound, Smartphone, BadgeCheck, MessageSquareText, Fingerprint } from 'lucide-react';
+import {
+  checkBiometricAvailability,
+  disableBiometricLogin,
+  isBiometricLoginEnabled,
+  isNativeApp,
+  type BiometricInfo,
+} from '../lib/biometricLogin';
 
 interface SettingsViewProps {
   user: UserProfile;
@@ -65,6 +72,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user }) => {
       setNewCode(out.recoveryCode);
     } catch (e: any) { setErr(e.message || 'Could not mint a new code.'); }
     finally { setRotating(false); }
+  };
+
+  // Fingerprint / face unlock — native app only; the section is hidden on web.
+  const [bioNative] = useState(() => isNativeApp());
+  const [bioInfo, setBioInfo] = useState<BiometricInfo>({ available: false, label: 'biometric' });
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  useEffect(() => {
+    if (!bioNative) return;
+    checkBiometricAvailability().then(setBioInfo).catch(() => {});
+    setBioEnabled(isBiometricLoginEnabled());
+  }, [bioNative]);
+  const turnOffBio = async () => {
+    setMsg(null); setErr(null); setBioBusy(true);
+    try {
+      await disableBiometricLogin();
+      setBioEnabled(false);
+      setMsg('Fingerprint / face unlock is off. Your saved login was deleted from this phone.');
+    } catch (e: any) { setErr(e.message || 'Could not turn it off.'); }
+    finally { setBioBusy(false); }
   };
 
   // Phone
@@ -167,6 +194,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user }) => {
           )}
         </div>
       </section>
+
+      {/* Fingerprint / face unlock — installed app only, hidden on web */}
+      {bioNative && (
+        <section className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 space-y-3">
+          <h3 className="font-bold text-sm uppercase flex items-center gap-2"><Fingerprint className="w-4 h-4 text-rose-600" /> Fingerprint / face unlock</h3>
+          {bioEnabled ? (
+            <>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                On — you can unlock with your {bioInfo.label} on the login screen. Your login is
+                saved on this phone only, behind your {bioInfo.label}, and never leaves the device.
+              </p>
+              <button type="button" onClick={turnOffBio} disabled={bioBusy}
+                className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl disabled:opacity-50">
+                {bioBusy ? 'Turning off…' : 'Turn off fingerprint / face unlock'}
+              </button>
+            </>
+          ) : bioInfo.available ? (
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              Off — log out and log back in with your password, and you&apos;ll be offered
+              {bioInfo.label} unlock.
+            </p>
+          ) : (
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              Your device doesn&apos;t have fingerprint or face unlock set up, so there&apos;s
+              nothing to turn on here.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Phone */}
       <section className="bg-white dark:bg-[#02142e] rounded-2xl border border-stone-300 dark:border-white/10 p-6 space-y-3">
