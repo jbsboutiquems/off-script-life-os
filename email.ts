@@ -95,6 +95,14 @@ async function getGmailAccessToken(cfg: GmailApiConfig): Promise<string> {
   return data.access_token;
 }
 
+function encodeHeaderValue(value: string): string {
+  // RFC 2047 encoded-word: email headers must be ASCII. Our subjects carry
+  // an em dash (—), which Gmail rendered as mojibake ("â€”") when sent raw.
+  // Encode the whole value as UTF-8 base64 when it has non-ASCII chars.
+  if (/^[\x00-\x7F]*$/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value, "utf-8").toString("base64")}?=`;
+}
+
 async function sendMailViaGmailApi(email: OutboundEmail): Promise<void> {
   const cfg = getGmailApiConfig();
   if (!cfg) throw new Error("Gmail API is not configured.");
@@ -109,7 +117,7 @@ async function sendMailViaGmailApi(email: OutboundEmail): Promise<void> {
   const raw = [
     `From: ${from}`,
     `To: ${email.to}`,
-    `Subject: ${email.subject}`,
+    `Subject: ${encodeHeaderValue(email.subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
