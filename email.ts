@@ -2,7 +2,11 @@
  * Outbound email for the Off*Script Life OS prototype.
  * Configured entirely through env vars — nothing here is Amber's job to code.
  *
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_SECURE ("1" for 465)
+ *   Gmail API (preferred — Railway's SMTP egress to Gmail times out):
+ *     GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN,
+ *     GMAIL_FROM (defaults to the Gmail account the token belongs to)
+ *   SMTP (fallback):
+ *     SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_SECURE ("1" for 465)
  *   BASE_URL — public base URL of this instance, used to build links
  *
  * Dev/test hook: SMTP_STUB_CAPTURE=/tmp/emails.json — instead of sending,
@@ -35,7 +39,87 @@ export function getSmtpConfig(): SmtpConfig | null {
 
 export function smtpConfigured(): boolean {
   // The stub capture counts as configured: it's a deliberate dev/test email sink.
-  return getSmtpConfig() !== null || !!process.env.SMTP_STUB_CAPTURE;
+  // "Configured" here means "we can send email" — Gmail API counts too.
+  return getSmtpConfig() !== null || gmailApiConfigured() || !!process.env.SMTP_STUB_CAPTURE;
+}
+
+export interface GmailApiConfig {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  from: string;
+}
+
+export function getGmailApiConfig(): GmailApiConfig | null {
+  const clientId = process.env.GMAIL_CLIENT_ID || "";
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET || "";
+  const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "";
+  if (!clientId || !clientSecret || !refreshToken) return null;
+  return {
+    clientId,
+    clientSecret,
+    refreshToken,
+    from: process.env.GMAIL_FROM || process.env.SMTP_FROM || "lifeosoffscript@gmail.com",
+  };
+}
+
+export function gmailApiConfigured(): boolean {
+  return getGmailApiConfig() !== null;
+}
+
+function base64url(input: string): string {
+  return Buffer.from(input, "utf-8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+async function getGmailAccessToken(cfg: GmailApiConfig): Promise<string> {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: cfg.clientId,
+      client_secret: cfg.clientSecret,
+      refresh_token: cfg.refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Gmail token refresh failed (${res.status}): ${text.slice(0, 200)}`);
+  }
+  const data = (await res.json()) as { access_token?: string };
+  if (!data.access_token) throw new Error("Gmail token refresh returned no access token.");
+  return data.access_token;
+}
+
+async function sendMailViaGmailApi(email: OutboundEmail): Promise<void> {
+  const cfg = getGmailApiConfig();
+  if (!cfg) throw new Error("Gmail API is not configured.");
+  const accessToken = await getGmailAccessToken(cfg);
+  const raw = [
+    `From: ${cfg.from}`,
+    `To: ${email.to}`,
+    `Subject: ${email.subject}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/html; charset=UTF-8",
+    "",
+    email.html,
+  ].join("\r\n");
+  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ raw: base64url(raw) }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Gmail API send failed (${res.status}): ${text.slice(0, 200)}`);
+  }
 }
 
 export function baseUrl(): string {
@@ -56,8 +140,18 @@ export async function sendMail(email: OutboundEmail): Promise<void> {
     console.log(`[mail-stub] captured email to ${email.to} -> ${stubFile}`);
     return;
   }
+  // Gmail API first (Amber, Nov 27, 2026): Railway's SMTP egress to Gmail
+  // times out, but HTTPS to the Gmail API works. Falls back to SMTP when
+  // the Gmail API isn't configured.
+  if (gmailApiConfigured()) {
+    const timeout = new Promise<never>((_resolve, reject) =>
+      setTimeout(() => reject(new Error("Gmail API send timed out after 20s.")), 20000)
+    );
+    await Promise.race([sendMailViaGmailApi(email), timeout]);
+    return;
+  }
   const cfg = getSmtpConfig();
-  if (!cfg) throw new Error("SMTP is not configured.");
+  if (!cfg) throw new Error("Email sending is not configured (no Gmail API or SMTP).");
   const transporter = nodemailer.createTransport({
     host: cfg.host,
     port: cfg.port,
